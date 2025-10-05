@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+html, body, #root { height: 100%; }
+body {
+  background-color: #f9fafb; /* Tailwind bg-gray-50 */
+  color: #1f2937;            /* Tailwind text-gray-800 */
+}
