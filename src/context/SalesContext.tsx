@@ -1,78 +1,129 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import { v4 as uuid } from 'uuid'
-import type { SalesRecord } from '../types/types'
+// context/SalesContext.tsx
+import React, { createContext, useContext, useState, type ReactNode, useEffect } from 'react'
+import { type SalesRecord } from '../types/types'
+import { collection, addDoc, getDocs, doc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../firebase/firebase'
 
-type SalesContextType = {
+interface SalesContextType {
   sales: SalesRecord[]
-  addSale: (data: Omit<SalesRecord, 'id' | 'createdAt'>) => void
-  updateSale: (id: string, data: Partial<SalesRecord>) => void
-  removeSale: (id: string) => void
-  getSalesByProduct: (productId: string) => SalesRecord[]
-  getSalesByDateRange: (startDate: string, endDate: string) => SalesRecord[]
+  addSale: (sale: Omit<SalesRecord, 'id' | 'createdAt'>) => Promise<void>
+  removeSale: (saleId: string) => Promise<void> // Add this
   getRecentSales: (days?: number) => SalesRecord[]
+  loading: boolean
+  error: string | null
 }
 
 const SalesContext = createContext<SalesContextType | undefined>(undefined)
 
-export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [sales, setSales] = useState<SalesRecord[]>(() => {
-    try {
-      const raw = localStorage.getItem('sales')
-      return raw ? JSON.parse(raw) : []
-    } catch { 
-      return [] 
-    }
-  })
+export const SalesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [sales, setSales] = useState<SalesRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
+  // Helper function to convert Firestore timestamps
+  const convertFirestoreTimestamp = (timestamp: any): string => {
+    if (!timestamp) return new Date().toISOString()
+    if (typeof timestamp === 'string') return timestamp
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      return timestamp.toDate().toISOString()
+    }
+    if (timestamp instanceof Date) return timestamp.toISOString()
+    return new Date().toISOString()
+  }
+
+  // Load sales from Firebase
   useEffect(() => {
-    localStorage.setItem('sales', JSON.stringify(sales))
-  }, [sales])
+    const loadSales = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const querySnapshot = await getDocs(collection(db, 'sales'))
+        const salesList: SalesRecord[] = []
 
-  const addSale = (data: Omit<SalesRecord, 'id' | 'createdAt'>) => {
-    const newSale: SalesRecord = { 
-      ...data, 
-      id: uuid(), 
-      createdAt: new Date().toISOString() 
+        querySnapshot.forEach((doc) => {
+          const data = doc.data()
+          salesList.push({
+            id: doc.id,
+            productId: data.productId,
+            quantity: data.quantity,
+            salePrice: data.salePrice,
+            saleDate: data.saleDate,
+            createdAt: convertFirestoreTimestamp(data.createdAt),
+            lowStockFlag: data.lowStockFlag || false // Add this if you're using low stock tracking
+          })
+        })
+
+        setSales(salesList)
+      } catch (err) {
+        console.error('Error loading sales:', err)
+        setError('Failed to load sales')
+      } finally {
+        setLoading(false)
+      }
     }
-    setSales(prev => [newSale, ...prev])
+
+    loadSales()
+  }, [])
+
+  const addSale = async (saleData: Omit<SalesRecord, 'id' | 'createdAt'>) => {
+    try {
+      setError(null)
+      const saleWithTimestamp = {
+        ...saleData,
+        createdAt: serverTimestamp()
+      }
+
+      const docRef = await addDoc(collection(db, 'sales'), saleWithTimestamp)
+
+      const newSale: SalesRecord = {
+        ...saleData,
+        id: docRef.id,
+        createdAt: new Date().toISOString()
+      }
+
+      setSales(prev => [...prev, newSale])
+    } catch (err) {
+      console.error('Error adding sale:', err)
+      setError('Failed to add sale')
+      throw err
+    }
   }
 
-  const updateSale = (id: string, data: Partial<SalesRecord>) => {
-    setSales(prev => prev.map(sale => 
-      sale.id === id ? { ...sale, ...data } : sale
-    ))
-  }
+  const removeSale = async (saleId: string) => {
+    try {
+      setError(null)
 
-  const removeSale = (id: string) => {
-    setSales(prev => prev.filter(sale => sale.id !== id))
-  }
+      // Delete from Firebase
+      await deleteDoc(doc(db, 'sales', saleId))
 
-  const getSalesByProduct = (productId: string): SalesRecord[] => {
-    return sales.filter(sale => sale.productId === productId)
-      .sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
-  }
+      // Update local state
+      setSales(prev => prev.filter(sale => sale.id !== saleId))
 
-  const getSalesByDateRange = (startDate: string, endDate: string): SalesRecord[] => {
-    return sales.filter(sale => {
-      const saleDate = new Date(sale.saleDate)
-      return saleDate >= new Date(startDate) && saleDate <= new Date(endDate)
-    })
+      console.log('Sale deleted successfully:', saleId)
+    } catch (err) {
+      console.error('Error deleting sale:', err)
+      setError('Failed to delete sale')
+      throw err
+    }
   }
 
   const getRecentSales = (days: number = 30): SalesRecord[] => {
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - days)
-    return sales.filter(sale => new Date(sale.saleDate) >= cutoffDate)
+
+    return sales.filter(sale => {
+      const saleDate = new Date(sale.saleDate)
+      return saleDate >= cutoffDate
+    })
   }
 
   const value: SalesContextType = {
     sales,
     addSale,
-    updateSale,
     removeSale,
-    getSalesByProduct,
-    getSalesByDateRange,
-    getRecentSales
+    getRecentSales,
+    loading,
+    error
   }
 
   return (
@@ -85,7 +136,7 @@ export const SalesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 export const useSales = (): SalesContextType => {
   const context = useContext(SalesContext)
   if (!context) {
-    throw new Error('useSales must be used within SalesProvider')
+    throw new Error('useSales must be used within a SalesProvider')
   }
   return context
 }

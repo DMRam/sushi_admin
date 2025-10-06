@@ -1,7 +1,4 @@
-// src/pages/SalesTrackingPage.tsx
-import React, { useState } from 'react'
-import { useSales } from '../context/SalesContext'
-import { useProducts } from '../context/ProductsContext'
+import { useState } from 'react'
 import SalesEntryForm from '../components/SalesEntryForm'
 import SalesHistory from '../components/SalesHistory'
 

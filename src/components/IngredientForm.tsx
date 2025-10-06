@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { useIngredients } from '../context/IngredientsContext'
 import type { Unit } from '../types/types'
+import { collection, addDoc } from 'firebase/firestore'
+import { db } from '../firebase/firebase'
 
 const categories = ['seafood', 'vegetables', 'fruits', 'spices', 'dairy', 'grains', 'other']
 const units: Unit[] = ['kg', 'g', 'ml', 'l', 'unit']
@@ -13,27 +15,52 @@ export default function IngredientForm() {
     unit: 'kg' as Unit,
     category: 'other'
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name || !formData.pricePerKg) return
     
-    addIngredient({
+    setIsSubmitting(true)
+    
+    try {
+      // Create the ingredient object
+      const newIngredient = {
         name: formData.name.trim(),
         pricePerKg: Number.parseFloat(formData.pricePerKg),
         unit: formData.unit,
         category: formData.category,
         minimumStock: 0,
         currentStock: 0,
-        stockGrams: 0
-    })
-    
-    setFormData({
-      name: '',
-      pricePerKg: '',
-      unit: 'kg',
-      category: 'other'
-    })
+        stockGrams: 0,
+        createdAt: new Date() // Add timestamp
+      }
+      
+      // Add to Firebase
+      const docRef = await addDoc(collection(db, 'ingredients'), newIngredient)
+      
+      console.log('Ingredient added with ID: ', docRef.id)
+      
+      // Also update local context if needed
+      addIngredient({
+        ...newIngredient,
+        id: docRef.id as string // Firebase auto-generated ID
+      } as any)
+      
+      // Reset form
+      setFormData({
+        name: '',
+        pricePerKg: '',
+        unit: 'kg',
+        category: 'other'
+      })
+      
+    } catch (error) {
+      console.error('Error adding ingredient: ', error)
+      // You might want to show an error message to the user here
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -47,6 +74,7 @@ export default function IngredientForm() {
           className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="e.g., Fresh Fish, Lime, Onion"
           required
+          disabled={isSubmitting}
         />
       </div>
       
@@ -62,6 +90,7 @@ export default function IngredientForm() {
             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="0.00"
             required
+            disabled={isSubmitting}
           />
         </div>
         
@@ -71,6 +100,7 @@ export default function IngredientForm() {
             value={formData.unit}
             onChange={(e) => setFormData({...formData, unit: e.target.value as Unit})}
             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={isSubmitting}
           >
             {units.map(unit => (
               <option key={unit} value={unit}>{unit.toUpperCase()}</option>
@@ -85,6 +115,7 @@ export default function IngredientForm() {
           value={formData.category}
           onChange={(e) => setFormData({...formData, category: e.target.value})}
           className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={isSubmitting}
         >
           {categories.map(category => (
             <option key={category} value={category}>
@@ -96,9 +127,10 @@ export default function IngredientForm() {
 
       <button
         type="submit"
-        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        disabled={isSubmitting}
+        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
       >
-        Add Ingredient
+        {isSubmitting ? 'Adding...' : 'Add Ingredient'}
       </button>
     </form>
   )

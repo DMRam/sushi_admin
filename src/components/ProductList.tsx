@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { useProducts } from '../context/ProductsContext'
 import { useIngredients } from '../context/IngredientsContext'
 import { productCost, calculateProfitMargin } from '../utils/costCalculations'
+import { UserRole, useUserProfile } from '../context/UserProfileContext'
 
 export const ProductList = () => {
     const { products, removeProduct } = useProducts()
     const { ingredients } = useIngredients()
     const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
+    const { userProfile } = useUserProfile()
 
     const toggleExpand = (productId: string) => {
         setExpandedProduct(expandedProduct === productId ? null : productId)
@@ -58,38 +60,46 @@ export const ProductList = () => {
                                                 <span className="text-gray-600">Portion: {product.portionSize}</span>
                                             )}
                                         </div>
-                                        <div className="flex flex-wrap gap-4 mt-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-medium text-gray-900">
-                                                    Cost: ${cost.toFixed(2)}
-                                                </span>
-                                                {product.sellingPrice && (
-                                                    <>
-                                                        <span className="text-gray-400">•</span>
-                                                        <span className="font-medium text-gray-900">
-                                                            Selling: ${product.sellingPrice.toFixed(2)}
-                                                        </span>
-                                                        <span className="text-gray-400">•</span>
-                                                        <span className={`font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                            Profit: ${profit.toFixed(2)}
-                                                        </span>
-                                                        <span className="text-gray-400">•</span>
-                                                        <span className={`font-medium ${profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                            Margin: {profitMargin.toFixed(1)}%
-                                                        </span>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
 
-                                        {/* Quick profit breakdown */}
-                                        {product.sellingPrice && (
-                                            <div className="mt-2 text-xs text-gray-500">
-                                                {profit >= 0 ? '✅' : '⚠️'}
-                                                You {profit >= 0 ? 'make' : 'lose'} ${Math.abs(profit).toFixed(2)}
-                                                ({Math.abs(profitMargin).toFixed(1)}% of selling price) per serving
-                                            </div>
+                                        {userProfile?.role != UserRole.VIEWER && (
+                                            <>
+                                                <div className="flex flex-wrap gap-4 mt-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium text-gray-900">
+                                                            Cost: ${cost.toFixed(2)}
+                                                        </span>
+                                                        {product.sellingPrice && (
+                                                            <>
+                                                                <span className="text-gray-400">•</span>
+                                                                <span className="font-medium text-gray-900">
+                                                                    Selling: ${product.sellingPrice.toFixed(2)}
+                                                                </span>
+                                                                <span className="text-gray-400">•</span>
+                                                                <span className={`font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                    Profit: ${profit.toFixed(2)}
+                                                                </span>
+                                                                <span className="text-gray-400">•</span>
+                                                                <span className={`font-medium ${profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                    Margin: {profitMargin.toFixed(1)}%
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Quick profit breakdown */}
+                                                {product.sellingPrice && (
+                                                    <div className="mt-2 text-xs text-gray-500">
+                                                        {profit >= 0 ? '✅' : '⚠️'}
+                                                        You {profit >= 0 ? 'make' : 'lose'} ${Math.abs(profit).toFixed(2)}
+                                                        ({Math.abs(profitMargin).toFixed(1)}% of selling price) per serving
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
+
+
+
                                     </div>
                                     <div className="flex gap-2 ml-4">
                                         <button

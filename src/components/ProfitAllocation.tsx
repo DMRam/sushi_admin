@@ -1,45 +1,73 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useSales } from '../context/SalesContext'
 import { useExpenses } from '../context/ExpensesContext'
 import { useProducts } from '../context/ProductsContext'
+import { useSettings } from '../context/SettingContext'
+
+type AllocationSettings = {
+  taxRate: number;
+  reinvestmentPercentage: number;
+  ownerPayPercentage: number;
+  emergencyFundPercentage: number;
+  monthlyOwnerSalary: number;
+  useFixedSalary: boolean;
+};
+
 
 export default function ProfitAllocation() {
   const { getRecentSales } = useSales()
-  const { getMonthlyExpenses, expenses } = useExpenses()
+  const { getMonthlyExpenses } = useExpenses()
   const { products } = useProducts()
+  const { allocationSettings: savedSettings, saveAllocationSettings, loading: settingsLoading } = useSettings()
 
   const [allocationSettings, setAllocationSettings] = useState({
-    taxRate: 25, // 25% tax rate (typical for small business)
-    reinvestmentPercentage: 20, // 20% for business growth
-    ownerPayPercentage: 50, // 50% for owner's salary
-    emergencyFundPercentage: 5, // 5% for emergency fund
-    monthlyOwnerSalary: 0, // Fixed monthly salary goal
+    taxRate: 14.98,
+    reinvestmentPercentage: 10,
+    ownerPayPercentage: 5,
+    emergencyFundPercentage: 5,
+    monthlyOwnerSalary: 0,
     useFixedSalary: false
   })
+
+  const [saving, setSaving] = useState(false)
+
+  // Load saved settings when component mounts or settings change
+  useEffect(() => {
+    if (savedSettings && !settingsLoading) {
+      setAllocationSettings({
+        taxRate: savedSettings.taxRate || 14.98,
+        reinvestmentPercentage: savedSettings.reinvestmentPercentage || 10,
+        ownerPayPercentage: savedSettings.ownerPayPercentage || 5,
+        emergencyFundPercentage: savedSettings.emergencyFundPercentage || 5,
+        monthlyOwnerSalary: savedSettings.monthlyOwnerSalary || 0,
+        useFixedSalary: savedSettings.useFixedSalary || false
+      })
+    }
+  }, [savedSettings, settingsLoading])
 
   // Calculate current month's financials
   const currentMonthFinancials = useMemo(() => {
     const now = new Date()
     const currentMonth = now.getMonth()
     const currentYear = now.getFullYear()
-    
+
     // Get sales for current month
     const monthlySales = getRecentSales(30).filter(sale => {
       const saleDate = new Date(sale.saleDate)
       return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear
     })
-    
+
     const totalRevenue = monthlySales.reduce((sum, sale) => sum + (sale.quantity * sale.salePrice), 0)
-    const monthlyExpenses = getMonthlyExpenses(currentYear, currentMonth)
-    
+    const monthlyExpenses = getMonthlyExpenses()
+
     // Calculate COGS (Cost of Goods Sold)
     const cogs = monthlySales.reduce((sum, sale) => {
       const product = products.find(p => p.id === sale.productId)
       const costPrice = product?.costPrice || 0
       return sum + (costPrice * sale.quantity)
     }, 0)
-    
-    const grossProfit = totalRevenue - cogs
+
+    const grossProfit = Math.max(0, totalRevenue - cogs)
     const netProfit = grossProfit - monthlyExpenses
 
     return {
@@ -52,10 +80,10 @@ export default function ProfitAllocation() {
     }
   }, [getRecentSales, getMonthlyExpenses, products])
 
-  // Calculate profit allocation
+  // Calculate profit allocation with proper percentage validation
   const profitAllocation = useMemo(() => {
     const { netProfit } = currentMonthFinancials
-    
+
     if (netProfit <= 0) {
       return {
         taxes: 0,
@@ -68,22 +96,34 @@ export default function ProfitAllocation() {
 
     // Calculate based on settings
     let taxes = netProfit * (allocationSettings.taxRate / 100)
-    
+
     // Remaining after taxes
     const profitAfterTaxes = netProfit - taxes
-    
+
     let ownerPay, reinvestment, emergencyFund
-    
+
     if (allocationSettings.useFixedSalary && allocationSettings.monthlyOwnerSalary > 0) {
       ownerPay = Math.min(profitAfterTaxes, allocationSettings.monthlyOwnerSalary)
       const remainingAfterSalary = profitAfterTaxes - ownerPay
-      
-      reinvestment = remainingAfterSalary * (allocationSettings.reinvestmentPercentage / 100)
-      emergencyFund = remainingAfterSalary * (allocationSettings.emergencyFundPercentage / 100)
+
+      // Calculate percentages based on remaining amount
+      const totalPercentage = allocationSettings.reinvestmentPercentage + allocationSettings.emergencyFundPercentage
+      const scaleFactor = totalPercentage > 0 ? 100 / totalPercentage : 0
+
+      reinvestment = remainingAfterSalary * (allocationSettings.reinvestmentPercentage / 100) * scaleFactor
+      emergencyFund = remainingAfterSalary * (allocationSettings.emergencyFundPercentage / 100) * scaleFactor
     } else {
-      ownerPay = profitAfterTaxes * (allocationSettings.ownerPayPercentage / 100)
-      reinvestment = profitAfterTaxes * (allocationSettings.reinvestmentPercentage / 100)
-      emergencyFund = profitAfterTaxes * (allocationSettings.emergencyFundPercentage / 100)
+      // Normal percentage-based allocation
+      const totalPercentage = allocationSettings.ownerPayPercentage +
+        allocationSettings.reinvestmentPercentage +
+        allocationSettings.emergencyFundPercentage
+
+      // Scale percentages to total 100% if they don't
+      const scaleFactor = totalPercentage > 0 ? 100 / totalPercentage : 1
+
+      ownerPay = profitAfterTaxes * (allocationSettings.ownerPayPercentage / 100) * scaleFactor
+      reinvestment = profitAfterTaxes * (allocationSettings.reinvestmentPercentage / 100) * scaleFactor
+      emergencyFund = profitAfterTaxes * (allocationSettings.emergencyFundPercentage / 100) * scaleFactor
     }
 
     const remaining = profitAfterTaxes - (ownerPay + reinvestment + emergencyFund)
@@ -97,12 +137,60 @@ export default function ProfitAllocation() {
     }
   }, [currentMonthFinancials, allocationSettings])
 
-  const totalAllocated = profitAllocation.taxes + profitAllocation.reinvestment + 
-                        profitAllocation.ownerPay + profitAllocation.emergencyFund
+  const totalAllocated = profitAllocation.taxes + profitAllocation.reinvestment +
+    profitAllocation.ownerPay + profitAllocation.emergencyFund
 
-  const handleSaveAllocation = () => {
-    // In a real app, you'd save this to your database
-    alert('Profit allocation settings saved! This is for planning purposes.')
+  // Calculate total percentage for validation
+  const totalPercentage = allocationSettings.ownerPayPercentage +
+    allocationSettings.reinvestmentPercentage +
+    allocationSettings.emergencyFundPercentage
+
+  const handleSaveAllocation = async () => {
+    setSaving(true)
+    try {
+      const success = await saveAllocationSettings(allocationSettings)
+      if (success) {
+        alert('Profit allocation settings saved successfully!')
+      }
+    } catch (error) {
+      alert('Error saving settings. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Update percentage to ensure they total 100%
+  const updatePercentage = (key: string, value: number) => {
+    const otherKeys = ['ownerPayPercentage', 'reinvestmentPercentage', 'emergencyFundPercentage'].filter(k => k !== key)
+    const currentTotal = otherKeys.reduce((sum, k) => sum + (allocationSettings[k as keyof typeof allocationSettings] as number), 0)
+
+    // Distribute the remaining percentage among other categories
+    const remainingPercentage = 100 - value
+    const newSettings: AllocationSettings = { ...allocationSettings };
+
+    if (currentTotal > 0 && remainingPercentage > 0) {
+      const otherKeys = Object.keys(allocationSettings).filter(
+        (k) => k !== 'taxRate' && k !== 'useFixedSalary' // example exclusions
+      ) as (keyof AllocationSettings)[];
+
+      otherKeys.forEach((k) => {
+        const currentValue = allocationSettings[k];
+        if (typeof currentValue === 'number') {
+          const proportion = currentValue / currentTotal;
+          (newSettings as any)[k] = Math.round(remainingPercentage * proportion);
+        }
+      });
+    }
+
+    setAllocationSettings(newSettings)
+  }
+
+  if (settingsLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg text-gray-600">Loading allocation settings...</div>
+      </div>
+    )
   }
 
   return (
@@ -121,21 +209,28 @@ export default function ProfitAllocation() {
             </div>
             <div className="text-sm text-green-600">Total Revenue</div>
           </div>
-          
+
           <div className="bg-red-50 p-4 rounded-lg border border-red-200">
             <div className="text-2xl font-bold text-red-700">
               ${currentMonthFinancials.monthlyExpenses.toFixed(2)}
             </div>
             <div className="text-sm text-red-600">Monthly Expenses</div>
           </div>
-          
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <div className="text-2xl font-bold text-blue-700">
+
+          <div className={`p-4 rounded-lg border ${currentMonthFinancials.netProfit >= 0
+            ? 'bg-blue-50 border-blue-200'
+            : 'bg-red-50 border-red-200'
+            }`}>
+            <div className={`text-2xl font-bold ${currentMonthFinancials.netProfit >= 0 ? 'text-blue-700' : 'text-red-700'
+              }`}>
               ${currentMonthFinancials.netProfit.toFixed(2)}
             </div>
-            <div className="text-sm text-blue-600">Net Profit</div>
+            <div className={`text-sm ${currentMonthFinancials.netProfit >= 0 ? 'text-blue-600' : 'text-red-600'
+              }`}>
+              {currentMonthFinancials.netProfit >= 0 ? 'Net Profit' : 'Net Loss'}
+            </div>
           </div>
-          
+
           <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
             <div className="text-2xl font-bold text-purple-700">
               {currentMonthFinancials.salesCount}
@@ -149,7 +244,7 @@ export default function ProfitAllocation() {
           {/* Settings Panel */}
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-gray-900">Allocation Settings</h3>
-            
+
             {/* Tax Rate */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -169,7 +264,7 @@ export default function ProfitAllocation() {
               />
               <div className="flex justify-between text-xs text-gray-500 mt-1">
                 <span>0%</span>
-                <span>25% (Typical)</span>
+                <span>14.98% (Typical)</span>
                 <span>50%</span>
               </div>
               <p className="text-xs text-gray-500 mt-1">
@@ -194,7 +289,7 @@ export default function ProfitAllocation() {
                   Set fixed monthly salary
                 </label>
               </div>
-              
+
               {allocationSettings.useFixedSalary && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -205,7 +300,7 @@ export default function ProfitAllocation() {
                     value={allocationSettings.monthlyOwnerSalary}
                     onChange={(e) => setAllocationSettings({
                       ...allocationSettings,
-                      monthlyOwnerSalary: parseFloat(e.target.value) || 0
+                      monthlyOwnerSalary: Math.max(0, parseFloat(e.target.value) || 0)
                     })}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0.00"
@@ -218,11 +313,26 @@ export default function ProfitAllocation() {
             {!allocationSettings.useFixedSalary && (
               <div className="space-y-4">
                 <h4 className="text-md font-medium text-gray-900">Profit Distribution (After Taxes)</h4>
-                
+
                 {[
-                  { key: 'ownerPayPercentage', label: 'Owner Salary', color: 'bg-green-500' },
-                  { key: 'reinvestmentPercentage', label: 'Reinvestment', color: 'bg-blue-500' },
-                  { key: 'emergencyFundPercentage', label: 'Emergency Fund', color: 'bg-purple-500' }
+                  {
+                    key: 'ownerPayPercentage',
+                    label: 'Owner Salary',
+                    color: 'bg-green-500',
+                    description: 'Your take-home pay'
+                  },
+                  {
+                    key: 'reinvestmentPercentage',
+                    label: 'Reinvestment',
+                    color: 'bg-blue-500',
+                    description: 'For business growth'
+                  },
+                  {
+                    key: 'emergencyFundPercentage',
+                    label: 'Emergency Fund',
+                    color: 'bg-purple-500',
+                    description: 'Safety net for slow months'
+                  }
                 ].map((item) => (
                   <div key={item.key}>
                     <div className="flex justify-between text-sm mb-1">
@@ -235,19 +345,20 @@ export default function ProfitAllocation() {
                       max="100"
                       step="1"
                       value={allocationSettings[item.key as keyof typeof allocationSettings] as number}
-                      onChange={(e) => setAllocationSettings({
-                        ...allocationSettings,
-                        [item.key]: parseInt(e.target.value)
-                      })}
+                      onChange={(e) => updatePercentage(item.key, parseInt(e.target.value))}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                     />
+                    <div className="text-xs text-gray-500 mt-1">
+                      {item.description}
+                    </div>
                   </div>
                 ))}
-                
-                <div className="text-center text-sm text-gray-600">
-                  Total: {allocationSettings.ownerPayPercentage + allocationSettings.reinvestmentPercentage + allocationSettings.emergencyFundPercentage}%
-                  {allocationSettings.ownerPayPercentage + allocationSettings.reinvestmentPercentage + allocationSettings.emergencyFundPercentage !== 100 && (
-                    <span className="text-red-500 ml-2">⚠️ Should total 100%</span>
+
+                <div className={`text-center text-sm font-medium ${totalPercentage === 100 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                  Total: {totalPercentage}%
+                  {totalPercentage !== 100 && (
+                    <span className="ml-2">⚠️ Should total 100%</span>
                   )}
                 </div>
               </div>
@@ -255,16 +366,20 @@ export default function ProfitAllocation() {
 
             <button
               onClick={handleSaveAllocation}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={saving}
+              className={`w-full py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${saving
+                ? 'bg-gray-400 cursor-not-allowed text-white'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
             >
-              Save Allocation Plan
+              {saving ? 'Saving...' : 'Save Allocation Plan'}
             </button>
           </div>
 
           {/* Results Panel */}
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-gray-900">Recommended Allocation</h3>
-            
+
             {currentMonthFinancials.netProfit > 0 ? (
               <div className="space-y-4">
                 {/* Tax Allocation */}
@@ -359,34 +474,40 @@ export default function ProfitAllocation() {
                     <span>Total Allocated:</span>
                     <span className="text-green-600">${totalAllocated.toFixed(2)}</span>
                   </div>
-                  {profitAllocation.remaining !== 0 && (
+                  {Math.abs(profitAllocation.remaining) > 0.01 && (
                     <div className="flex justify-between items-center text-sm text-gray-600 mt-1">
                       <span>Remaining (adjust percentages):</span>
                       <span className={profitAllocation.remaining >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        ${profitAllocation.remaining.toFixed(2)}
+                        ${Math.abs(profitAllocation.remaining).toFixed(2)}
                       </span>
                     </div>
                   )}
                 </div>
 
                 {/* Monthly Salary Equivalent */}
-                <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                  <div className="text-sm text-yellow-800">
-                    💡 This equals <strong>${(profitAllocation.ownerPay / 4).toFixed(2)}/week</strong> or <strong>${(profitAllocation.ownerPay / 20).toFixed(2)}/day</strong> (20 working days)
+                {profitAllocation.ownerPay > 0 && (
+                  <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div className="text-sm text-yellow-800">
+                      💡 This equals <strong>${(profitAllocation.ownerPay / 4).toFixed(2)}/week</strong> or <strong>${(profitAllocation.ownerPay / 20).toFixed(2)}/day</strong> (20 working days)
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-8">
                 <div className="text-red-600 text-lg font-semibold mb-2">
-                  No Profit This Month
+                  {currentMonthFinancials.netProfit < 0 ? 'Operating at Loss' : 'No Profit This Month'}
                 </div>
                 <div className="text-gray-600">
-                  You need to generate profit before you can allocate funds.
-                  {currentMonthFinancials.netProfit < 0 && (
-                    <div className="mt-2 text-sm">
+                  {currentMonthFinancials.netProfit < 0 ? (
+                    <div>
                       Current loss: <span className="text-red-600">${Math.abs(currentMonthFinancials.netProfit).toFixed(2)}</span>
+                      <div className="mt-2 text-sm">
+                        Focus on reducing costs or increasing revenue to reach profitability.
+                      </div>
                     </div>
+                  ) : (
+                    "You need to generate profit before you can allocate funds."
                   )}
                 </div>
               </div>

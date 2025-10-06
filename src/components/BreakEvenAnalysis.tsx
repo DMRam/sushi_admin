@@ -91,7 +91,6 @@ export default function BreakEvenAnalysis() {
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-900">Analysis Results</h3>
 
-          // Update BreakEvenAnalysis component to show helpful messages
                     {!breakEvenData && selectedProductId && (
                         <div className="text-center py-8 text-gray-500">
                             {(() => {

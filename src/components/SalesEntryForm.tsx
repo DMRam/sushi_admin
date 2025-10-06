@@ -1,18 +1,22 @@
-// src/components/SalesEntryForm.tsx
 import React, { useState } from 'react'
 import { useSales } from '../context/SalesContext'
 import { useProducts } from '../context/ProductsContext'
+import { useIngredients } from '../context/IngredientsContext'
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../firebase/firebase'
+import type { ProductIngredient } from '../types/types'
 
 export default function SalesEntryForm() {
   const { addSale } = useSales()
   const { products } = useProducts()
+  const { ingredients, updateIngredient } = useIngredients()
 
   const [saleData, setSaleData] = useState({
     productId: '',
     quantity: 1,
     salePrice: '',
     saleDate: new Date().toISOString().split('T')[0],
-    saleTime: new Date().toTimeString().slice(0, 5) // HH:MM format
+    saleTime: new Date().toTimeString().slice(0, 5)
   })
 
   const [recentSales, setRecentSales] = useState<Array<{
@@ -21,6 +25,7 @@ export default function SalesEntryForm() {
     salePrice: number
     timestamp: string
   }>>([])
+  const [processing, setProcessing] = useState(false)
 
   const selectedProduct = products.find(p => p.id === saleData.productId)
 
@@ -34,43 +39,210 @@ export default function SalesEntryForm() {
     }
   }, [selectedProduct])
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const convertFromGrams = (grams: number, targetUnit: string): number => {
+    switch (targetUnit) {
+      case 'kg':
+        return grams / 1000;
+      case 'g':
+        return grams;
+      case 'l':
+        return grams / 1000;
+      case 'ml':
+        return grams;
+      case 'unit':
+        return grams;
+      default:
+        return grams;
+    }
+  }
+
+  const convertToGrams = (quantity: number, unit: string): number => {
+    switch (unit) {
+      case 'kg': return quantity * 1000;
+      case 'g': return quantity;
+      case 'l': return quantity * 1000;
+      case 'ml': return quantity;
+      case 'unit': return quantity;
+      default: return quantity;
+    }
+  }
+
+  const decreaseIngredientStock = async (productId: string, quantitySold: number) => {
+    const product = products.find(p => p.id === productId)
+    if (!product) return console.warn('Product not found:', productId)
+    if (product.productType !== 'ingredientBased') return
+
+    for (const ingredient of product.ingredients as ProductIngredient[]) {
+      const ingredientData = ingredients.find(ing => ing.id === ingredient.ingredientId)
+
+      if (!ingredientData) {
+        console.warn('Ingredient not found in global list:', ingredient.ingredientId)
+        continue
+      }
+
+      // Total quantity used in the ingredient's units
+      let totalQuantityUsed = ingredient.quantity * quantitySold
+
+      // Convert units if needed
+      if (ingredient.unit !== ingredientData.unit) {
+        try {
+          const grams = convertToGrams(totalQuantityUsed, ingredient.unit)
+          totalQuantityUsed = convertFromGrams(grams, ingredientData.unit)
+        } catch (err) {
+          console.error(`Unit conversion failed for ${ingredientData.name}`, err)
+          continue
+        }
+      }
+
+      // Ensure stock doesn't go negative
+      const newStock = Math.max(0, ingredientData.currentStock - totalQuantityUsed)
+
+      // Optional: store consistent grams
+      let newStockGrams = ingredientData.unit === 'g' || ingredientData.unit === 'ml'
+        ? newStock
+        : convertToGrams(newStock, ingredientData.unit)
+
+      console.log(`Updating ingredient: ${ingredientData.name}`, {
+        currentStock: ingredientData.currentStock,
+        quantityUsed: totalQuantityUsed,
+        newStock,
+        ingredientUnit: ingredient.unit,
+        stockUnit: ingredientData.unit,
+        stockGrams: newStockGrams
+      })
+
+      // Update Firebase
+      try {
+        await updateDoc(doc(db, 'ingredients', ingredientData.id), {
+          currentStock: newStock,
+          stockGrams: newStockGrams,
+          updatedAt: serverTimestamp()
+        })
+      } catch (err) {
+        console.error(`Failed to update Firebase for ${ingredientData.name}`, err)
+        continue
+      }
+
+      // Update local state
+      updateIngredient(ingredientData.id, {
+        currentStock: newStock,
+        stockGrams: newStockGrams
+      })
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!saleData.productId || !saleData.salePrice) {
       alert('Please select a product and enter a sale price')
       return
     }
 
-    const saleDateTime = `${saleData.saleDate}T${saleData.saleTime}`
-    const salePriceNum = parseFloat(saleData.salePrice)
+    setProcessing(true)
 
-    addSale({
-      productId: saleData.productId,
-      quantity: saleData.quantity,
-      salePrice: salePriceNum,
-      saleDate: saleDateTime
-    })
+    try {
+      const saleDateTime = `${saleData.saleDate}T${saleData.saleTime}`
+      const salePriceNum = parseFloat(saleData.salePrice)
 
-    // Add to recent sales for quick feedback
-    const productName = selectedProduct?.name || 'Unknown Product'
-    setRecentSales(prev => [{
-      productName,
-      quantity: saleData.quantity,
-      salePrice: salePriceNum,
-      timestamp: new Date().toLocaleTimeString()
-    }, ...prev.slice(0, 4)]) // Keep only last 5 sales
+      // Check stock availability (for warning only)
+      const stockCheck = await checkStockAvailability(saleData.productId, saleData.quantity)
 
-    // Reset form but keep date/time
-    setSaleData(prev => ({
-      productId: '',
-      quantity: 1,
-      salePrice: '',
-      saleDate: prev.saleDate,
-      saleTime: prev.saleTime
-    }))
+      if (!stockCheck.hasEnoughStock) {
+        const proceed = confirm(
+          `⚠️ Low Stock Warning!\n\n` +
+          `You're selling ${saleData.quantity} ${selectedProduct?.name} but:\n` +
+          `${stockCheck.lowStockItems.join('\n')}\n\n` +
+          `Do you want to proceed with the sale anyway?`
+        )
 
-    // Optional: Show success message
-    alert(`Sale recorded: ${saleData.quantity} x ${productName} for $${(salePriceNum * saleData.quantity).toFixed(2)}`)
+        if (!proceed) {
+          setProcessing(false)
+          return
+        }
+      }
+
+      // 1. Record the sale in Firebase
+      await addSale({
+        productId: saleData.productId,
+        quantity: saleData.quantity,
+        salePrice: salePriceNum,
+        saleDate: saleDateTime
+      })
+
+      // 2. Decrease ingredient stock for ingredient-based products
+      if (selectedProduct?.productType === 'ingredientBased') {
+        await decreaseIngredientStock(saleData.productId, saleData.quantity)
+      }
+
+      // 3. Add to recent sales for quick feedback
+      const productName = selectedProduct?.name || 'Unknown Product'
+      setRecentSales(prev => [{
+        productName,
+        quantity: saleData.quantity,
+        salePrice: salePriceNum,
+        timestamp: new Date().toLocaleTimeString(),
+        lowStock: !stockCheck.hasEnoughStock
+      }, ...prev.slice(0, 4)])
+
+      // 4. Reset form but keep date/time
+      setSaleData(prev => ({
+        productId: '',
+        quantity: 1,
+        salePrice: '',
+        saleDate: prev.saleDate,
+        saleTime: prev.saleTime
+      }))
+
+      // Show success message
+      const message = stockCheck.hasEnoughStock
+        ? `✅ Sale recorded: ${saleData.quantity} x ${productName} for $${(salePriceNum * saleData.quantity).toFixed(2)}`
+        : `⚠️ Sale recorded (LOW STOCK): ${saleData.quantity} x ${productName} for $${(salePriceNum * saleData.quantity).toFixed(2)}`
+
+      alert(message)
+
+    } catch (error) {
+      console.error('Error recording sale:', error)
+      alert('❌ Failed to record sale. Please try again.')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // Add this function to check stock before sale
+  const checkStockAvailability = async (productId: string, quantity: number) => {
+    const product = products.find(p => p.id === productId)
+    if (!product || product.productType !== 'ingredientBased') {
+      return { hasEnoughStock: true, lowStockItems: [] }
+    }
+
+    const lowStockItems: string[] = []
+
+    for (const ingredient of product.ingredients) {
+      const ingredientData = ingredients.find(ing => ing.id === ingredient.ingredientId)
+      if (!ingredientData) continue
+
+      const totalQuantityNeeded = ingredient.quantity * quantity
+      let quantityNeededInStockUnit = totalQuantityNeeded
+
+      // Convert to same unit as stock
+      if (ingredient.unit !== ingredientData.unit) {
+        const quantityInGrams = convertToGrams(totalQuantityNeeded, ingredient.unit)
+        quantityNeededInStockUnit = convertFromGrams(quantityInGrams, ingredientData.unit)
+      }
+
+      if (ingredientData.currentStock < quantityNeededInStockUnit) {
+        const shortfall = quantityNeededInStockUnit - ingredientData.currentStock
+        lowStockItems.push(
+          `- ${ingredientData.name}: Need ${quantityNeededInStockUnit.toFixed(2)}${ingredientData.unit}, have ${ingredientData.currentStock.toFixed(2)}${ingredientData.unit} (short ${shortfall.toFixed(2)}${ingredientData.unit})`
+        )
+      }
+    }
+
+    return {
+      hasEnoughStock: lowStockItems.length === 0,
+      lowStockItems
+    }
   }
 
   const totalAmount = saleData.salePrice ? parseFloat(saleData.salePrice) * saleData.quantity : 0
@@ -87,7 +259,7 @@ export default function SalesEntryForm() {
             <input
               type="date"
               value={saleData.saleDate}
-              onChange={(e) => setSaleData({...saleData, saleDate: e.target.value})}
+              onChange={(e) => setSaleData({ ...saleData, saleDate: e.target.value })}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -99,7 +271,7 @@ export default function SalesEntryForm() {
             <input
               type="time"
               value={saleData.saleTime}
-              onChange={(e) => setSaleData({...saleData, saleTime: e.target.value})}
+              onChange={(e) => setSaleData({ ...saleData, saleTime: e.target.value })}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -113,16 +285,17 @@ export default function SalesEntryForm() {
           </label>
           <select
             value={saleData.productId}
-            onChange={(e) => setSaleData({...saleData, productId: e.target.value})}
+            onChange={(e) => setSaleData({ ...saleData, productId: e.target.value })}
             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           >
             <option value="">Select a product</option>
             {products
-              .filter(product => product.sellingPrice)
+              .filter(product => product.sellingPrice && product.isActive !== false)
               .map(product => (
                 <option key={product.id} value={product.id}>
                   {product.name} - ${product.sellingPrice} ({product.portionSize})
+                  {product.productType === 'directCost' ? ' [Direct Cost]' : ' [Ingredient Based]'}
                 </option>
               ))
             }
@@ -139,7 +312,7 @@ export default function SalesEntryForm() {
               type="number"
               min="1"
               value={saleData.quantity}
-              onChange={(e) => setSaleData({...saleData, quantity: parseInt(e.target.value) || 1})}
+              onChange={(e) => setSaleData({ ...saleData, quantity: parseInt(e.target.value) || 1 })}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -153,7 +326,7 @@ export default function SalesEntryForm() {
               step="0.01"
               min="0"
               value={saleData.salePrice}
-              onChange={(e) => setSaleData({...saleData, salePrice: e.target.value})}
+              onChange={(e) => setSaleData({ ...saleData, salePrice: e.target.value })}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0.00"
               required
@@ -172,8 +345,13 @@ export default function SalesEntryForm() {
             </div>
             {selectedProduct && selectedProduct.costPrice && (
               <div className="text-sm text-blue-600 mt-1">
-                Cost: ${(selectedProduct.costPrice * saleData.quantity).toFixed(2)} • 
+                Cost: ${(selectedProduct.costPrice * saleData.quantity).toFixed(2)} •
                 Profit: ${(totalAmount - (selectedProduct.costPrice * saleData.quantity)).toFixed(2)}
+              </div>
+            )}
+            {selectedProduct?.productType === 'ingredientBased' && (
+              <div className="text-xs text-blue-500 mt-1">
+                ⚠️ This will decrease ingredient stock levels
               </div>
             )}
           </div>
@@ -182,9 +360,10 @@ export default function SalesEntryForm() {
         {/* Submit Button */}
         <button
           type="submit"
-          className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 font-medium"
+          disabled={processing}
+          className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 font-medium disabled:bg-green-400 disabled:cursor-not-allowed"
         >
-          Record Sale
+          {processing ? 'Processing Sale...' : 'Record Sale'}
         </button>
       </form>
 
@@ -218,11 +397,12 @@ export default function SalesEntryForm() {
         <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Sales</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {products
-            .filter(product => product.sellingPrice)
-            .slice(0, 6) // Show only first 6 products for quick access
+            .filter(product => product.sellingPrice && product.isActive !== false)
+            .slice(0, 6)
             .map(product => (
               <button
                 key={product.id}
+                type="button"
                 onClick={() => {
                   setSaleData(prev => ({
                     ...prev,
@@ -234,6 +414,7 @@ export default function SalesEntryForm() {
               >
                 <div className="font-medium text-blue-900">{product.name}</div>
                 <div className="text-sm text-blue-700">${product.sellingPrice}</div>
+                <div className="text-xs text-blue-500">{product.portionSize}</div>
               </button>
             ))
           }
