@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useIngredients } from '../context/IngredientsContext'
 import { useProducts } from '../context/ProductsContext'
-import { productCost, calculateProfitMargin } from '../utils/costCalculations'
+import {  calculateProfitMargin } from '../utils/costCalculations'
 import type { ProductIngredient, Unit } from '../types/types'
 import { db } from '../firebase/firebase'
-import { collection, addDoc, doc, updateDoc, getDocs, deleteDoc } from 'firebase/firestore'
+import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { useUserProfile } from '../context/UserProfileContext'
 
 

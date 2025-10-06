@@ -1,7 +1,7 @@
 // pages/UserManagementPage.tsx
-import React, { useState, useEffect } from 'react'
+import  { useState, useEffect } from 'react'
 import { useUserProfile, UserRole } from '../context/UserProfileContext'
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore'
+import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
 
 interface UserData {

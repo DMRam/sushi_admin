@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import  { createContext, useContext, useEffect, useState } from 'react'
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
 import type { Ingredient } from '../types/types'

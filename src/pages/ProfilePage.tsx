@@ -1,5 +1,5 @@
 // pages/ProfilePage.tsx
-import React, { useState } from 'react'
+import  { useState } from 'react'
 import { useUserProfile } from '../context/UserProfileContext'
 
 export default function ProfilePage() {

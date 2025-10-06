@@ -1,5 +1,5 @@
 // src/components/QuickExpenseForm.tsx
-import React, { useState } from 'react'
+import  { useState } from 'react'
 import { useExpenses } from '../context/ExpensesContext'
 
 const expenseCategories = [

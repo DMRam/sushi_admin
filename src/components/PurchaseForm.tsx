@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+// components/PurchaseForm.tsx
+import { useState, useEffect } from 'react'
 import { usePurchases } from '../context/PurchasesContext'
 import { useIngredients } from '../context/IngredientsContext'
 import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore'
@@ -39,7 +40,7 @@ export default function PurchaseForm() {
             if (ingredient) {
                 setFormData(prev => ({
                     ...prev,
-                    pricePerKg: ingredient.pricePerKg.toString()
+                    pricePerKg: ingredient.pricePerKg?.toString() || ''
                 }))
             }
         } else {
@@ -60,7 +61,6 @@ export default function PurchaseForm() {
         return quantityInKg * pricePerKg
     }
 
-    // In the handleAddNewIngredient function:
     const handleAddNewIngredient = async () => {
         if (!newIngredient.name) {
             alert('Please enter ingredient name')
@@ -78,10 +78,8 @@ export default function PurchaseForm() {
                 stockGrams: 0,
             }
 
-            // Use the async addIngredient that returns the Firebase ID
             const firebaseId = await addIngredient(ingredientData)
 
-            // Auto-select the new ingredient using the Firebase ID
             setFormData(prev => ({
                 ...prev,
                 ingredientId: firebaseId
@@ -170,18 +168,17 @@ export default function PurchaseForm() {
             const purchaseRef = await addDoc(collection(db, 'purchases'), purchaseData)
             console.log('Purchase recorded with ID: ', purchaseRef.id)
 
-            // 2. Update ingredient in Firebase - use the Firebase document ID
-            const newStock = selectedIngredient.currentStock + quantityInKg
-            const newStockGrams = selectedIngredient.stockGrams + quantityGrams
+            // 2. Update ingredient in Firebase
+            const newStock = (selectedIngredient.currentStock || 0) + quantityInKg
+            const newStockGrams = (selectedIngredient.stockGrams || 0) + quantityGrams
 
             const ingredientUpdate = {
-                pricePerKg: pricePerKg, // Update to latest purchase price
+                pricePerKg: pricePerKg,
                 currentStock: newStock,
                 stockGrams: newStockGrams,
                 updatedAt: serverTimestamp()
             }
 
-            // Use the Firebase document ID to update the ingredient
             await updateDoc(doc(db, 'ingredients', selectedIngredient.id), ingredientUpdate)
 
             // 3. Update local state
@@ -192,11 +189,18 @@ export default function PurchaseForm() {
             })
 
             // 4. Update local purchases context
-            addPurchase({
-                ...purchaseData,
-                deliveryDate: formData.deliveryDate || undefined,
-                invoiceNumber: formData.invoiceNumber || undefined,
-                notes: formData.notes || undefined
+            await addPurchase({
+                ingredientId: formData.ingredientId,
+                ingredientName: ingredientName,
+                quantity: quantity,
+                unit: formData.unit,
+                totalCost: totalCost,
+                pricePerKg: pricePerKg,
+                supplier: formData.supplier.trim(),
+                purchaseDate: formData.purchaseDate,
+                invoiceNumber: formData.invoiceNumber?.trim() || undefined,
+                notes: formData.notes?.trim() || undefined,
+                quantityGrams: quantityGrams
             })
 
             // Reset form

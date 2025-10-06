@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import  { useState, useMemo } from 'react'
 import { useExpenses } from '../context/ExpensesContext'
 
 export default function ExpenseBreakdown() {

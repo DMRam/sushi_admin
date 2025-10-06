@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useProducts } from '../context/ProductsContext'
 import { useExpenses } from '../context/ExpensesContext'
 
 export default function BreakEvenAnalysis() {
     const { products } = useProducts()
-    const { expenses, getMonthlyExpenses } = useExpenses()
+    const { getMonthlyExpenses } = useExpenses()
 
     const [selectedProductId, setSelectedProductId] = useState('')
     const [customFixedCosts, setCustomFixedCosts] = useState('')

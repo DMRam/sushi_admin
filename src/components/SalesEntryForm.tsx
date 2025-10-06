@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import  { useEffect, useState } from 'react'
 import { useSales } from '../context/SalesContext'
 import { useProducts } from '../context/ProductsContext'
 import { useIngredients } from '../context/IngredientsContext'
@@ -30,7 +30,7 @@ export default function SalesEntryForm() {
   const selectedProduct = products.find(p => p.id === saleData.productId)
 
   // Auto-fill sale price when product is selected
-  React.useEffect(() => {
+  useEffect(() => {
     if (selectedProduct && selectedProduct.sellingPrice) {
       setSaleData(prev => ({
         ...prev,

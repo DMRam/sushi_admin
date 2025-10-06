@@ -1,13 +1,13 @@
-// context/PurchasesContext.tsx
-import React, { createContext, useContext, useState, type ReactNode, useEffect } from 'react'
+import { createContext, useContext, useState, type ReactNode, useEffect } from 'react'
 import { type Purchase } from '../types/types'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, getDocs, addDoc } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
 
 interface PurchasesContextType {
   purchases: Purchase[]
   loading: boolean
   error: string | null
+  addPurchase: (purchase: Omit<Purchase, 'id' | 'createdAt'>) => Promise<void>
 }
 
 const PurchasesContext = createContext<PurchasesContextType | undefined>(undefined)
@@ -27,6 +27,27 @@ export const PurchasesProvider: React.FC<{ children: ReactNode }> = ({ children 
     return new Date().toISOString()
   }
 
+  // Add purchase function
+  const addPurchase = async (purchaseData: Omit<Purchase, 'id' | 'createdAt'>) => {
+    try {
+      const docRef = await addDoc(collection(db, 'purchases'), {
+        ...purchaseData,
+        createdAt: new Date().toISOString()
+      })
+
+      const newPurchase: Purchase = {
+        ...purchaseData,
+        id: docRef.id,
+        createdAt: new Date().toISOString()
+      }
+
+      setPurchases(prev => [...prev, newPurchase])
+    } catch (error) {
+      console.error('Error adding purchase:', error)
+      throw error
+    }
+  }
+
   useEffect(() => {
     const loadPurchases = async () => {
       try {
@@ -34,7 +55,7 @@ export const PurchasesProvider: React.FC<{ children: ReactNode }> = ({ children 
         setError(null)
         const querySnapshot = await getDocs(collection(db, 'purchases'))
         const purchasesList: Purchase[] = []
-        
+
         querySnapshot.forEach((doc) => {
           const data = doc.data()
           purchasesList.push({
@@ -54,7 +75,7 @@ export const PurchasesProvider: React.FC<{ children: ReactNode }> = ({ children 
             createdAt: convertFirestoreTimestamp(data.createdAt)
           })
         })
-        
+
         setPurchases(purchasesList)
       } catch (err) {
         console.error('Error loading purchases:', err)
@@ -70,7 +91,8 @@ export const PurchasesProvider: React.FC<{ children: ReactNode }> = ({ children 
   const value: PurchasesContextType = {
     purchases,
     loading,
-    error
+    error,
+    addPurchase
   }
 
   return (

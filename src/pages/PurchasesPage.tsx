@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import  { useState } from 'react'
 import PurchaseForm from '../components/PurchaseForm'
 import { PurchaseList } from '../components/PurchaseList'
 import { PurchaseStats } from '../components/PurchaseStats'

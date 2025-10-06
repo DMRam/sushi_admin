@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import  { useMemo } from 'react'
 import { useProducts } from '../context/ProductsContext'
 import { useSales } from '../context/SalesContext'
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import  { useState } from 'react'
 import { useIngredients } from '../context/IngredientsContext'
 import type { Unit } from '../types/types'
 import { collection, addDoc } from 'firebase/firestore'
