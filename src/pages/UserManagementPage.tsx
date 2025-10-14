@@ -16,7 +16,7 @@ interface UserData {
 export default function UserManagementPage() {
   const { userProfile, updateUserRole, hasPermission } = useUserProfile()
   const [users, setUsers] = useState<UserData[]>([])
-  const [loading, setLoading] = useState(true)
+  const [_loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (userProfile && hasPermission(UserRole.ADMIN)) {

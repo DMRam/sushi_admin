@@ -1,4 +1,5 @@
 // App.tsx - Updated version
+import { useState } from 'react'
 import { SalesProvider } from './context/SalesContext'
 import { ExpensesProvider } from './context/ExpensesContext'
 import BusinessAnalyticsPage from './pages/BusinessAnalyticsPage'
@@ -21,6 +22,10 @@ import { InvitationProvider } from './context/InvitationContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminPage from './pages/AdminPage'
 import ProfilePage from './pages/ProfilePage'
+import LandingPage from './pages/landing/LandingPage'
+import OrderPage from './pages/OrderPage'
+import CheckoutPage from './pages/CheckoutPage'
+import type { MenuItem } from './types/types'
 
 // Main app content that requires authentication
 function AppContent() {
@@ -49,6 +54,25 @@ function AppContent() {
   )
 }
 
+// Public routes component
+function PublicRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/order" element={<OrderPage />} />
+      <Route path="/menu" element={<OrderPage />} />
+      <Route path="/admin-login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/checkout" element={<CheckoutPage />} />
+      <Route path="/admin/*" element={
+        <ProtectedRoute>
+          <AppContent />
+        </ProtectedRoute>
+      } />
+    </Routes>
+  )
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -60,18 +84,7 @@ export default function App() {
                 <PurchasesProvider>
                   <SalesProvider>
                     <ExpensesProvider>
-                      <Routes>
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/register" element={<RegisterPage />} />
-                        <Route
-                          path="/*"
-                          element={
-                            <ProtectedRoute>
-                              <AppContent />
-                            </ProtectedRoute>
-                          }
-                        />
-                      </Routes>
+                      <PublicRoutes />
                     </ExpensesProvider>
                   </SalesProvider>
                 </PurchasesProvider>

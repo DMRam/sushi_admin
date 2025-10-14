@@ -1,4 +1,3 @@
-// context/AuthContext.tsx - Updated with better loading state
 import  { createContext, useContext, useEffect, useState } from 'react'
 import { 
   type User, 

@@ -1,4 +1,3 @@
-// pages/ProfilePage.tsx
 import  { useState } from 'react'
 import { useUserProfile } from '../context/UserProfileContext'
 

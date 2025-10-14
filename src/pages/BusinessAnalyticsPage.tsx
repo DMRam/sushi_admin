@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment } from 'react'
+import { useState, useMemo } from 'react'
 import { useProducts } from '../context/ProductsContext'
 import { useSales } from '../context/SalesContext'
 import { useExpenses } from '../context/ExpensesContext'
@@ -33,18 +33,6 @@ const foodCostColor = (pct: number) => {
 const badgeColorByNet = (net: number) => (net >= 0 ? 'text-green-600' : 'text-red-600')
 
 const barWidthPct = (pct: number) => `${Math.max(0, Math.min(100, pct))}%`
-
-// ------------------------------
-// Skeleton loader
-// ------------------------------
-
-const SkeletonCards: React.FC<{ count?: number }> = ({ count = 6 }) => (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 animate-pulse">
-        {Array.from({ length: count }).map((_, i) => (
-            <div key={i} className="h-24 bg-gray-200 rounded-lg" />
-        ))}
-    </div>
-)
 
 // ------------------------------
 // Overview subcomponents (kept in same file for simplicity)

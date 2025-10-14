@@ -1,4 +1,3 @@
-import React from 'react'
 import IngredientForm from '../components/IngredientForm'
 import IngredientList from '../components/IngredientList'
 

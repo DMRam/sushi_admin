@@ -1,4 +1,3 @@
-// context/UserProfileContext.tsx - Updated with roles
 import  { createContext, useContext, useEffect, useState } from 'react'
 import { isSuperAdmin } from '../utils/authUtils'
 import {
@@ -7,7 +6,7 @@ import {
     setDoc,
     updateDoc,
     onSnapshot,
-    collection
+    
 } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
 import { useAuth } from './AuthContext'
@@ -50,38 +49,6 @@ const roleHierarchy = {
     [UserRole.STAFF]: 1,
     [UserRole.MANAGER]: 2,
     [UserRole.ADMIN]: 3
-}
-
-
-// Helper function to create initial invitation codes
-const createInitialInvitationCodes = async (adminUid: string) => {
-    try {
-        const invitationCodesRef = collection(db, 'invitationCodes')
-
-        // Create a manager code
-        await setDoc(doc(invitationCodesRef, 'MANAGER001'), {
-            code: 'MANAGER001',
-            createdBy: adminUid,
-            createdAt: new Date(),
-            used: false,
-            maxUses: 5,
-            currentUses: 0
-        })
-
-        // Create a staff code
-        await setDoc(doc(invitationCodesRef, 'STAFF001'), {
-            code: 'STAFF001',
-            createdBy: adminUid,
-            createdAt: new Date(),
-            used: false,
-            maxUses: 10,
-            currentUses: 0
-        })
-
-        console.log('Initial invitation codes created')
-    } catch (error) {
-        console.error('Error creating initial invitation codes:', error)
-    }
 }
 
 export function UserProfileProvider({ children }: { children: React.ReactNode }) {

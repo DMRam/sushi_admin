@@ -14,7 +14,7 @@ export default function SalesHistory() {
     end: ''
   })
   const [sortBy, setSortBy] = useState('date')
-  const [sortOrder, setSortOrder] = useState('desc')
+  const [sortOrder, _setSortOrder] = useState('desc')
   const [searchTerm, setSearchTerm] = useState('')
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [currentPage, setCurrentPage] = useState(1)
@@ -128,15 +128,6 @@ export default function SalesHistory() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
-
-  const handleSort = (column: string) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortBy(column)
-      setSortOrder('desc')
-    }
-  }
 
   const clearFilters = () => {
     setFilterProduct('')

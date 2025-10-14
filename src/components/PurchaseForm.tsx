@@ -22,7 +22,7 @@ export default function PurchaseForm() {
         notes: ''
     })
 
-    const [selectedIngredient, setSelectedIngredient] = useState<any>(null)
+    const [_selectedIngredient, setSelectedIngredient] = useState<any>(null)
     const [showNewIngredientForm, setShowNewIngredientForm] = useState(false)
     const [newIngredient, setNewIngredient] = useState({
         name: '',

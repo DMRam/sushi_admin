@@ -199,7 +199,7 @@ export const PurchaseStats = () => {
       <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Spending (Last 6 Months)</h3>
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-          {stats.monthlySpending.map((monthData, index) => (
+          {stats.monthlySpending.map((monthData, _index) => (
             <div key={monthData.month} className="text-center">
               <div className="text-sm font-medium text-gray-600 mb-2">{monthData.month}</div>
               <div className={`text-lg font-bold ${

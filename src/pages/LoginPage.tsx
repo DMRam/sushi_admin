@@ -19,7 +19,7 @@ export default function LoginPage() {
       setError('')
       setLoading(true)
       await login(email, password)
-      navigate('/dashboard')
+      navigate('/admin/sales-tracking')
     } catch (error: any) {
       setError('Failed to log in: ' + error.message)
     } finally {

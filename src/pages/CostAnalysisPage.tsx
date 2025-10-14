@@ -26,17 +26,6 @@ export const CostAnalysisPage = () => {
     }
   };
 
-  // Helper function to convert grams to the original unit for display
-  const convertFromGrams = (grams: number, targetUnit: string): number => {
-    switch (targetUnit) {
-      case 'kg': return grams / 1000;
-      case 'g': return grams;
-      case 'l': return grams / 1000;
-      case 'ml': return grams;
-      case 'unit': return grams;
-      default: return grams;
-    }
-  };
 
   // Calculate inventory-based metrics for each product
   const productsWithInventoryAnalysis = products.map(product => {
@@ -91,15 +80,6 @@ export const CostAnalysisPage = () => {
 
   // Rest of your statistics calculations...
   const totalProducts = products.length;
-  const productsWithPrice = products.filter((p) => p.sellingPrice && p.sellingPrice > 0).length;
-
-  const productsWithValidMargin = productsWithInventoryAnalysis.filter(p =>
-    p.sellingPrice && p.sellingPrice > 0 && p.costPrice && p.costPrice > 0
-  );
-
-  const averageMargin = productsWithValidMargin.length > 0
-    ? productsWithValidMargin.reduce((acc, p) => acc + (p.profitMargin || 0), 0) / productsWithValidMargin.length
-    : 0;
 
   const totalInventoryValue = ingredients.reduce((total, ing) => {
     return total + (ing.currentStock * ing.pricePerKg);

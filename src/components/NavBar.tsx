@@ -29,13 +29,13 @@ export default function NavBar() {
 
     // Define navigation links with role permissions
     const navLinks: NavLink[] = [
-        { path: '/sales-tracking', label: 'Sales Tracking', allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
-        { path: '/purchases', label: 'Purchases', allowedRoles: [UserRole.MANAGER, UserRole.ADMIN] },
-        { path: '/products', label: 'Products', allowedRoles: [UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
-        { path: '/stock', label: 'Stock', allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
-        { path: '/cost-analysis', label: 'Cost Analysis', allowedRoles: [UserRole.MANAGER, UserRole.ADMIN] },
-        { path: '/business-analytics', label: 'Business Analytics', allowedRoles: [UserRole.MANAGER, UserRole.ADMIN] },
-        { path: '/admin', label: 'Admin', allowedRoles: [UserRole.ADMIN] },
+        { path: '/admin/sales-tracking', label: 'Sales Tracking', allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
+        { path: '/admin/purchases', label: 'Purchases', allowedRoles: [UserRole.MANAGER, UserRole.ADMIN] },
+        { path: '/admin/products', label: 'Products', allowedRoles: [UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
+        { path: '/admin/stock', label: 'Stock', allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
+        { path: '/admin/cost-analysis', label: 'Cost Analysis', allowedRoles: [UserRole.MANAGER, UserRole.ADMIN] },
+        { path: '/admin/business-analytics', label: 'Business Analytics', allowedRoles: [UserRole.MANAGER, UserRole.ADMIN] },
+        { path: '/admin/admin', label: 'Admin', allowedRoles: [UserRole.ADMIN] },
     ]
 
     // In NavBar.tsx - update the getUserRoleForNav function
@@ -135,7 +135,7 @@ export default function NavBar() {
                                 {userProfile ? userProfile.displayName : user.email}
                             </span>
                             <Link
-                                to="/profile"
+                                to="/admin/profile"
                                 className="text-gray-600 hover:text-blue-600 text-sm px-3 py-2 rounded transition-colors"
                             >
                                 Profile
@@ -190,7 +190,7 @@ export default function NavBar() {
                                 </span>
                             </div>
                             <Link
-                                to="/profile"
+                                to="/admin/profile"
                                 className="block w-full text-left px-3 py-2 rounded text-gray-600 hover:bg-gray-100 transition-colors mb-2"
                                 onClick={() => setIsMenuOpen(false)}
                             >

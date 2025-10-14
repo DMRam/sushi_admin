@@ -308,3 +308,18 @@ export type FinancialReport = {
   profitMargin: number
   breakEvenAnalysis: BreakEvenAnalysis
 }
+
+export interface MenuItem {
+  id: string
+  name: string
+  description: string
+  price: number
+  image: string
+  category: string
+  videoUrl?: string 
+  ingredients: string[]
+  allergens: string[]
+  preparationTime: number  
+  spicyLevel: 0 | 1 | 2 | 3  
+  popular: boolean
+}

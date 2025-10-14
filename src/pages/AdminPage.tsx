@@ -1,10 +1,11 @@
 // Update your AdminPage to include tabs for different admin functions
-import  { useState } from 'react'
+import { useState } from 'react'
 import { useInvitation } from '../context/InvitationContext'
 import UserManagementPage from './UserManagementPage'
+import WebManagementPage from '../components/WebManagementPage'
 
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState<'invitations' | 'users'>('invitations')
+    const [activeTab, setActiveTab] = useState<'invitations' | 'users' | 'web'>('invitations')
     const { invitationCodes, createInvitationCode } = useInvitation()
     const [maxUses, setMaxUses] = useState(1)
     const [loading, setLoading] = useState(false)
@@ -32,8 +33,8 @@ export default function AdminPage() {
                     <button
                         onClick={() => setActiveTab('invitations')}
                         className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'invitations'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                     >
                         Invitation Codes
@@ -41,11 +42,20 @@ export default function AdminPage() {
                     <button
                         onClick={() => setActiveTab('users')}
                         className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'users'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                     >
                         User Management
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('web')}
+                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'web'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                    >
+                        Web
                     </button>
                 </nav>
             </div>
@@ -123,8 +133,8 @@ export default function AdminPage() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${code.used || code.currentUses >= code.maxUses
-                                                        ? 'bg-red-100 text-red-800'
-                                                        : 'bg-green-100 text-green-800'
+                                                    ? 'bg-red-100 text-red-800'
+                                                    : 'bg-green-100 text-green-800'
                                                     }`}>
                                                     {code.used || code.currentUses >= code.maxUses ? 'Used' : 'Active'}
                                                 </span>
@@ -142,6 +152,7 @@ export default function AdminPage() {
             )}
 
             {activeTab === 'users' && <UserManagementPage />}
+            {activeTab === 'web' && <WebManagementPage />}
         </div>
     )
 }
