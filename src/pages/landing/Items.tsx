@@ -12,7 +12,8 @@ export const featuredItems: MenuItem[] = [
         allergens: ['Fish'],
         preparationTime: 8,
         spicyLevel: 0,
-        popular: true
+        popular: true,
+        quantity: 1
     },
     {
         id: '2',
@@ -25,7 +26,8 @@ export const featuredItems: MenuItem[] = [
         allergens: ['Fish', 'Shellfish'],
         preparationTime: 6,
         spicyLevel: 0,
-        popular: false
+        popular: false,
+        quantity: 1
     },
     {
         id: '3',
@@ -38,6 +40,7 @@ export const featuredItems: MenuItem[] = [
         allergens: ['Fish'],
         preparationTime: 15,
         spicyLevel: 0,
-        popular: true
+        popular: true,
+        quantity: 1
     }
 ]

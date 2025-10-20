@@ -17,7 +17,7 @@ export const LandingHeader = () => {
                     <div className="flex items-center space-x-4">
                         <Link
                             to="/admin-login"
-                            className="text-gray-600 hover:text-gray-900 px-4 py-2 text-sm font-light tracking-wide transition-colors duration-300"
+                            className="bg-gray-900 text-white hover:bg-gray-700 px-4 py-2 rounded text-sm font-light tracking-wide transition-colors duration-300"
                         >
                             Management
                         </Link>

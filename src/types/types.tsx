@@ -14,13 +14,14 @@ export type Ingredient = {
 }
 
 export type ProductIngredient = {
-  ingredientId: string
+  id: string
+  name: string
   quantity: number
   unit: Unit
 }
 
-// Updated Product type with productType
 export type Product = {
+  allergens: never[]
   id: string
   name: string
   description: string
@@ -34,7 +35,10 @@ export type Product = {
   isActive?: boolean
   tags?: string[]
   createdAt: string
-  productType: 'ingredientBased' | 'directCost' // New field
+  productType: 'ingredientBased' | 'directCost'
+  preparationVideoUrl?: string;
+  imageUrls: string[];
+  quantity: number
 }
 
 export type Purchase = {
@@ -248,7 +252,7 @@ export type Table = {
 
 // Analytics and Reporting Types
 export type SalesReport = {
-  period: string 
+  period: string
   dateRange: {
     start: string
     end: string
@@ -316,10 +320,30 @@ export interface MenuItem {
   price: number
   image: string
   category: string
-  videoUrl?: string 
+  videoUrl?: string
   ingredients: string[]
   allergens: string[]
-  preparationTime: number  
-  spicyLevel: 0 | 1 | 2 | 3  
-  popular: boolean
+  preparationTime: number
+  spicyLevel: 0 | 1 | 2 | 3
+  popular: boolean;
+  quantity: number
+}
+
+export interface WebProduct {
+  id?: string
+  name: string
+  description: string
+  price: number
+  imageUrl: string
+  category: string
+  isActive: boolean
+  sortOrder: number
+  costPrice?: number
+  sellingPrice?: number
+  profitMargin?: number
+  portionSize?: string
+  preparationTime?: number
+  tags?: string[]
+  productType?: 'ingredientBased' | 'directCost'
+  ingredients?: ProductIngredient[]
 }

@@ -1,32 +1,45 @@
 import { Link } from 'react-router-dom'
 
-export const LandingCTAFooter = () => {
+interface Props {
+    displaySimple: boolean
+}
+
+export const LandingCTAFooter = ({ displaySimple }: Props) => {
     return (
         <>
-            {/* Reservation CTA */}
-            <section className="py-20 bg-gray-900 text-white">
-                <div className="container mx-auto px-6 text-center">
-                    <h2 className="text-2xl font-light mb-4 tracking-tight">Experience Pacifique</h2>
-                    <div className="w-16 h-px bg-gray-600 mx-auto mb-6"></div>
-                    <p className="text-gray-400 mb-8 text-sm font-light tracking-wide max-w-md mx-auto leading-relaxed">
-                        Reserve your table or order for delivery. An elevated dining experience awaits.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                        <Link
-                            to="/order"
-                            className="bg-white text-gray-900 px-8 py-3 text-sm font-light tracking-wide hover:bg-gray-100 transition-all duration-300"
-                        >
-                            RESERVE TABLE
-                        </Link>
-                        <Link
-                            to="/order"
-                            className="border border-white text-white px-8 py-3 text-sm font-light tracking-wide hover:bg-white hover:text-gray-900 transition-all duration-300"
-                        >
-                            ORDER DELIVERY
-                        </Link>
-                    </div>
-                </div>
-            </section>
+            {
+                !displaySimple && (
+                    <>
+                        {/* Reservation CTA */}
+                        <section className="py-20 bg-gray-900 text-white">
+                            <div className="container mx-auto px-6 text-center">
+                                <h2 className="text-2xl font-light mb-4 tracking-tight">Experience Pacifique</h2>
+                                <div className="w-16 h-px bg-gray-600 mx-auto mb-6"></div>
+                                <p className="text-gray-400 mb-8 text-sm font-light tracking-wide max-w-md mx-auto leading-relaxed">
+                                    Reserve your table or order for delivery. An elevated dining experience awaits.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                                    <Link
+                                        to="/order"
+                                        className="bg-white text-gray-900 px-8 py-3 text-sm font-light tracking-wide hover:bg-gray-100 transition-all duration-300"
+                                    >
+                                        RESERVE TABLE
+                                    </Link>
+                                    <Link
+                                        to="/order"
+                                        className="border border-white text-white px-8 py-3 text-sm font-light tracking-wide hover:bg-white hover:text-gray-900 transition-all duration-300"
+                                    >
+                                        ORDER DELIVERY
+                                    </Link>
+                                </div>
+                            </div>
+                        </section>
+
+                    </>
+
+                )
+            }
+
 
             {/* Elegant Footer */}
             <footer className="bg-gray-950 text-white py-16">

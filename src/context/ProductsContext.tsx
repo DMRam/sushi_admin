@@ -1,5 +1,5 @@
 // context/ProductsContext.tsx
-import  { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { type Product } from '../types/types'
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
@@ -73,7 +73,10 @@ export const ProductsProvider: React.FC<{ children: ReactNode }> = ({ children }
             isActive: data.isActive ?? true,
             tags: data.tags || [],
             productType: data.productType || 'ingredientBased',
-            createdAt: convertFirestoreTimestamp(data.createdAt)
+            createdAt: convertFirestoreTimestamp(data.createdAt),
+            quantity: data.quantity || 0,
+            allergens: data.allergens || [],
+            imageUrls: data.imageUrls || []
           })
         })
 

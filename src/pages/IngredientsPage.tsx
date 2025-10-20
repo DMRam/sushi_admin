@@ -1,5 +1,5 @@
-import IngredientForm from '../components/IngredientForm'
-import IngredientList from '../components/IngredientList'
+import IngredientForm from "../components/admin/tabs/products/IngredientForm";
+import IngredientList from "../components/admin/tabs/products/IngredientList";
 
 
 export default function IngredientsPage(){

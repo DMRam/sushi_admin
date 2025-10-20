@@ -9,6 +9,7 @@ import { LandingHeader } from './components/LandingHeader'
 import { LandingHero } from './components/LandingHero'
 import { LandingFeatured } from './components/LandingFeatured'
 import { LandingCTAFooter } from './components/LandingCTAFooter'
+import { LandingContact } from './components/LandingContact'
 
 export default function LandingPage() {
   const addToCart = useCartStore((state) => state.addToCart)
@@ -79,9 +80,9 @@ export default function LandingPage() {
       />
 
       <LandingFeatured handleAddToCart={handleAddToCart} />
+      <LandingContact />
 
-
-      <LandingCTAFooter />
+      <LandingCTAFooter displaySimple={false} />
 
       {/* Minimal Floating Cart */}
       {itemCount > 0 && (
