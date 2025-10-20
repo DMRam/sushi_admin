@@ -79,9 +79,9 @@ export const LandingCTAFooter = ({ displaySimple }: Props) => {
                         <div>
                             <h4 className="text-sm font-light mb-4 tracking-wide">VISIT</h4>
                             <ul className="space-y-2 text-gray-400 text-sm font-light">
-                                <li>Montreal, QC</li>
+                                <li>SHERBROOKE, QC</li>
                                 <li>Tuesday - Sunday</li>
-                                <li>17:00 - 23:00</li>
+                                <li>11:00 - 20:00</li>
                                 <li>+1 (514) 867-5309</li>
                             </ul>
                         </div>
@@ -89,7 +89,7 @@ export const LandingCTAFooter = ({ displaySimple }: Props) => {
 
                     <div className="border-t border-gray-800 mt-12 pt-8 text-center">
                         <p className="text-gray-500 text-xs font-light tracking-wide">
-                            © 2024 PACIFIQUE. CRAFTED WITH INTENTION IN MONTREAL.
+                            © 2024 PACIFIQUE.
                         </p>
                     </div>
                 </div>

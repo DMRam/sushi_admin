@@ -93,14 +93,12 @@ export default function ExpenseBreakdown() {
 
   // Simple pie chart representation
   const ExpensePieChart = () => {
-    const total = Object.values(expensesByCategory).reduce((sum, amount) => sum + amount, 1)
 
     return (
       <div className="flex flex-wrap gap-3 justify-center">
         {Object.entries(expensesByCategory)
           .sort(([, a], [, b]) => (b as number) - (a as number))
           .map(([category, amount]) => {
-            const percentage = ((amount as number) / total) * 100
             const color = getCategoryColor(category)
 
             return (

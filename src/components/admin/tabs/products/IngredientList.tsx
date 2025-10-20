@@ -1,6 +1,7 @@
 import  { useState } from 'react'
-import { useIngredients } from '../context/IngredientsContext'
-import type { Unit } from '../types/types'
+import { useIngredients } from '../../../../context/IngredientsContext';
+import type { Unit } from '../../../../types/types';
+
 
 export default function IngredientList() {
   const { ingredients, removeIngredient, updateIngredient } = useIngredients()

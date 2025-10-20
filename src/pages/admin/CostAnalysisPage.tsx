@@ -38,7 +38,7 @@ export const CostAnalysisPage = () => {
 
     if (product.productType === 'ingredientBased' && product.ingredients.length > 0) {
       const ingredientLimits = product.ingredients.map(item => {
-        const ingredient = ingredients.find(ing => ing.id === item.ingredientId);
+        const ingredient = ingredients.find(ing => ing.id === item.id);
         if (!ingredient) return { units: 0, ingredient: null, currentStock: 0, requiredPerUnit: 0 };
 
         const requiredGrams = convertToGrams(item.quantity, item.unit);
@@ -282,7 +282,7 @@ export const CostAnalysisPage = () => {
                           <h5 className="font-light text-gray-700 mb-2 text-xs tracking-wide">INGREDIENTS NEEDED</h5>
                           <div className="space-y-1">
                             {product.ingredients.map((ing, index) => {
-                              const ingredient = ingredients.find(i => i.id === ing.ingredientId);
+                              const ingredient = ingredients.find(i => i.id === ing.id);
                               if (!ingredient) return null;
 
                               const requiredGrams = convertToGrams(ing.quantity, ing.unit);

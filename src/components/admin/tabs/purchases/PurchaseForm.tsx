@@ -102,8 +102,16 @@ export default function PurchaseForm() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!formData.ingredientId || !formData.quantity || !formData.pricePerKg || !formData.supplier) {
-            alert('Please fill in all required fields')
+
+        // Check only truly required fields
+        if (!formData.ingredientId || !formData.quantity || !formData.pricePerKg || !formData.supplier || !formData.purchaseDate) {
+            alert('Please fill in all required fields: Ingredient, Quantity, Price per Kg, Supplier, and Purchase Date')
+            return
+        }
+
+        // Additional validation for numeric fields
+        if (parseFloat(formData.quantity) <= 0 || parseFloat(formData.pricePerKg) <= 0) {
+            alert('Quantity and Price per Kg must be greater than 0')
             return
         }
 
@@ -198,8 +206,9 @@ export default function PurchaseForm() {
                 pricePerKg: pricePerKg,
                 supplier: formData.supplier.trim(),
                 purchaseDate: formData.purchaseDate,
-                invoiceNumber: formData.invoiceNumber?.trim() || undefined,
-                notes: formData.notes?.trim() || undefined,
+                deliveryDate: formData.deliveryDate || '',
+                invoiceNumber: formData.invoiceNumber?.trim() || '',
+                notes: formData.notes?.trim() || '',
                 quantityGrams: quantityGrams
             })
 

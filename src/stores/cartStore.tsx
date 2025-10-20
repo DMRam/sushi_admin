@@ -14,7 +14,7 @@ interface CartStore {
   clearCart: () => void
 }
 
-export const useCartStore = create<CartStore>((set, get) => ({
+export const useCartStore = create<CartStore>((set, _get) => ({
   cart: [],
 
   addToCart: (item: MenuItem) => {

@@ -1,17 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-
 import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { useIngredients } from '../../../../context/IngredientsContext'
 import { useProducts } from '../../../../context/ProductsContext'
-import { useUserProfile } from '../../../../context/UserProfileContext'
+import { useUserProfile, UserRole } from '../../../../context/UserProfileContext'
 import type { ProductIngredient, Unit } from '../../../../types/types'
 import { calculateProfitMargin } from '../../../../utils/costCalculations'
 import { db, storage } from '../../../../firebase/firebase'
 
 export default function ProductForm() {
     const { ingredients } = useIngredients()
-    const { products, updateProduct, removeProduct } = useProducts()
+    const { products, updateProduct, removeProduct, refreshProducts } = useProducts()
     const { userProfile } = useUserProfile()
 
     const [selectedProductId, setSelectedProductId] = useState<string>('')
@@ -48,7 +47,10 @@ export default function ProductForm() {
 
     const videoInputRef = useRef<HTMLInputElement>(null)
     const imageInputRef = useRef<HTMLInputElement>(null)
-     
+
+    // Check if user is admin
+    const isAdmin = userProfile?.role === UserRole.ADMIN
+
     useEffect(() => {
         if (selectedProductId) {
             const product = products.find(p => p.id === selectedProductId)
@@ -67,10 +69,9 @@ export default function ProductForm() {
                     directCostPrice: !hasIngredients && product.costPrice ? product.costPrice.toString() : ''
                 })
 
-                 
                 setProductIngredients(product.ingredients ? product.ingredients.map(ing => ({
                     id: ing.id,
-                    name: ing.name || getIngredientName(ing.id),  
+                    name: ing.name || getIngredientName(ing.id),
                     quantity: ing.quantity,
                     unit: ing.unit,
                 })) : [])
@@ -180,33 +181,39 @@ export default function ProductForm() {
 
     // Upload files to Firebase Storage
     const uploadFiles = async (productId: string) => {
-        const uploadedMedia = {
-            videoUrl: existingMedia.videoUrl,
-            imageUrls: [...existingMedia.imageUrls]
+        const result = {
+            videoUrl: null as string | null,
+            imageUrls: [] as string[]
         }
 
-        // Upload new video
-        if (preparationVideo) {
-            const videoRef = ref(storage, `products/${productId}/preparation-video`)
-            await uploadBytes(videoRef, preparationVideo)
-            uploadedMedia.videoUrl = await getDownloadURL(videoRef)
-            setUploadProgress(30)
+        try {
+            // Upload images
+            if (productImages.length > 0) {
+                const imageUrls = await Promise.all(
+                    productImages.map(async (file) => {
+                        const filePath = `products/${productId}/images/${file.name}`
+                        const storageRef = ref(storage, filePath)
+                        await uploadBytes(storageRef, file)
+                        const downloadURL = await getDownloadURL(storageRef)
+                        return downloadURL
+                    })
+                )
+                result.imageUrls = imageUrls
+            }
+
+            // Upload video
+            if (preparationVideo) {
+                const videoPath = `products/${productId}/video/${preparationVideo.name}`
+                const videoRef = ref(storage, videoPath)
+                await uploadBytes(videoRef, preparationVideo)
+                result.videoUrl = await getDownloadURL(videoRef)
+            }
+
+            return result
+        } catch (error) {
+            console.error('Error uploading files:', error)
+            throw error
         }
-
-        // Upload new images
-        if (productImages.length > 0) {
-            const uploadPromises = productImages.map(async (image, index) => {
-                const imageRef = ref(storage, `products/${productId}/images/${Date.now()}-${index}`)
-                await uploadBytes(imageRef, image)
-                return getDownloadURL(imageRef)
-            })
-
-            const newImageUrls = await Promise.all(uploadPromises)
-            uploadedMedia.imageUrls = [...uploadedMedia.imageUrls, ...newImageUrls]
-            setUploadProgress(100)
-        }
-
-        return uploadedMedia
     }
 
     const ingredientBasedCost = productIngredients.reduce((total, productIngredient) => {
@@ -273,17 +280,24 @@ export default function ProductForm() {
                 category: formData.category.trim(),
                 portionSize: formData.portionSize.trim(),
                 costPrice: totalCost,
-                sellingPrice: sellingPriceNum > 0 ? sellingPriceNum : undefined,
-                profitMargin: sellingPriceNum > 0 ? profitMargin : undefined,
+                sellingPrice: sellingPriceNum > 0 ? sellingPriceNum : null,
+                profitMargin: sellingPriceNum > 0 ? profitMargin : null,
                 preparationTime: parseInt(formData.preparationTime) || 0,
                 isActive: true,
                 tags,
                 productType,
                 ingredients: productType === 'ingredientBased' ? productIngredients : [],
-                createdAt: new Date().toISOString(),
-                createdBy: userProfile?.displayName || 'unknown',
+                createdAt: selectedProductId ? undefined : new Date().toISOString(),
+                createdBy: selectedProductId ? undefined : (userProfile?.displayName || 'unknown'),
                 updatedAt: new Date().toISOString()
             }
+
+            // Remove undefined values from productData
+            Object.keys(productData).forEach(key => {
+                if (productData[key] === undefined) {
+                    delete productData[key]
+                }
+            })
 
             let productId = selectedProductId
 
@@ -303,10 +317,14 @@ export default function ProductForm() {
                 setUploadProgress(10)
                 const uploadedMedia = await uploadFiles(productId!)
 
-                // Update product with media URLs
-                const mediaUpdate = {
-                    preparationVideoUrl: uploadedMedia.videoUrl,
-                    imageUrls: uploadedMedia.imageUrls
+                // Build media update with proper null handling
+                const mediaUpdate: any = {
+                    imageUrls: uploadedMedia.imageUrls || []
+                }
+
+                // Only add preparationVideoUrl if it exists
+                if (uploadedMedia.videoUrl) {
+                    mediaUpdate.preparationVideoUrl = uploadedMedia.videoUrl
                 }
 
                 const productRef = doc(db, 'products', productId!)
@@ -319,6 +337,9 @@ export default function ProductForm() {
             }
 
             alert('✅ Product saved successfully!')
+
+            await refreshProducts()
+
             resetForm()
             setSelectedProductId('')
         } catch (err) {
@@ -361,6 +382,7 @@ export default function ProductForm() {
             setLoading(false)
         }
     }
+
     const getIngredientName = (id: string) => {
         // First try to find in current product ingredients (in case name is already saved)
         const productIngredient = productIngredients.find(pi => pi.id === id)
@@ -666,7 +688,7 @@ export default function ProductForm() {
                             <option value="">SELECT INGREDIENT</option>
                             {ingredients.map(ingredient => (
                                 <option key={ingredient.id} value={ingredient.id}>
-                                    {ingredient.name} (${ingredient.pricePerKg}/kg)
+                                    {ingredient.name} {isAdmin && `($${ingredient.pricePerKg}/kg)`}
                                 </option>
                             ))}
                         </select>
@@ -713,7 +735,8 @@ export default function ProductForm() {
                                         {getIngredientName(ingredient.id)}
                                     </span>
                                     <span className="text-sm text-gray-600 font-light">
-                                        {ingredient.quantity}{ingredient.unit} - ${getIngredientCost(ingredient).toFixed(2)}
+                                        {ingredient.quantity}{ingredient.unit}
+                                        {isAdmin && ` - $${getIngredientCost(ingredient).toFixed(2)}`}
                                     </span>
                                 </div>
                                 <button
@@ -758,67 +781,87 @@ export default function ProductForm() {
                 </div>
             )}
 
-            {/* Cost Summary */}
-            <div className="bg-white border border-gray-200 rounded-sm p-6">
-                <h3 className="text-lg font-light text-gray-900 tracking-wide mb-4">COST & PRICING</h3>
+            {!isAdmin &&
+                (
+                    <>
+                        <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">SELLING PRICE (OPTIONAL)</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.sellingPrice}
+                            onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
+                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
+                            placeholder="0.00"
+                        />
 
-                {/* Total Cost Display */}
-                <div className="p-4 bg-gray-50 rounded-sm border border-gray-200 mb-4">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                        <span className="font-light text-gray-900 text-sm sm:text-base">
-                            {productType === 'ingredientBased' ? 'CALCULATED PRODUCT COST:' : 'DIRECT PRODUCT COST:'}
-                        </span>
-                        <span className="text-lg font-light text-gray-900">${totalCost.toFixed(2)}</span>
-                    </div>
-                    {productType === 'ingredientBased' && productIngredients.length === 0 && (
-                        <div className="text-sm text-orange-600 mt-1 font-light">
-                            No ingredients added. Cost will be $0.00 until ingredients are added.
+                    </>
+                )
+            }
+
+            {/* Cost Summary - Only show for admin users */}
+            {isAdmin && (
+                <div className="bg-white border border-gray-200 rounded-sm p-6">
+                    <h3 className="text-lg font-light text-gray-900 tracking-wide mb-4">COST & PRICING</h3>
+
+                    {/* Total Cost Display */}
+                    <div className="p-4 bg-gray-50 rounded-sm border border-gray-200 mb-4">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                            <span className="font-light text-gray-900 text-sm sm:text-base">
+                                {productType === 'ingredientBased' ? 'CALCULATED PRODUCT COST:' : 'DIRECT PRODUCT COST:'}
+                            </span>
+                            <span className="text-lg font-light text-gray-900">${totalCost.toFixed(2)}</span>
                         </div>
-                    )}
-                </div>
+                        {productType === 'ingredientBased' && productIngredients.length === 0 && (
+                            <div className="text-sm text-orange-600 mt-1 font-light">
+                                No ingredients added. Cost will be $0.00 until ingredients are added.
+                            </div>
+                        )}
+                    </div>
 
-                {/* Selling Price */}
-                <div>
-                    <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">SELLING PRICE (OPTIONAL)</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData.sellingPrice}
-                        onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                        className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
-                        placeholder="0.00"
-                    />
+                    {/* Selling Price */}
+                    <div>
+                        <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">SELLING PRICE (OPTIONAL)</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.sellingPrice}
+                            onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
+                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
+                            placeholder="0.00"
+                        />
 
-                    {/* Profit Display - Only show when we have a valid selling price */}
-                    {formData.sellingPrice && !isNaN(sellingPriceNum) && sellingPriceNum > 0 && (
-                        <div className="mt-4 p-4 bg-gray-50 rounded-sm border border-gray-200">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                    <div className="text-gray-600 font-light">Cost Price:</div>
-                                    <div className="font-light text-gray-900">${totalCost.toFixed(2)}</div>
-                                </div>
-                                <div>
-                                    <div className="text-gray-600 font-light">Selling Price:</div>
-                                    <div className="font-light text-gray-900">${sellingPriceNum.toFixed(2)}</div>
-                                </div>
-                                <div>
-                                    <div className="text-gray-600 font-light">Profit:</div>
-                                    <div className={`font-light ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                        ${profit.toFixed(2)}
+                        {/* Profit Display - Only show when we have a valid selling price */}
+                        {formData.sellingPrice && !isNaN(sellingPriceNum) && sellingPriceNum > 0 && (
+                            <div className="mt-4 p-4 bg-gray-50 rounded-sm border border-gray-200">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <div className="text-gray-600 font-light">Cost Price:</div>
+                                        <div className="font-light text-gray-900">${totalCost.toFixed(2)}</div>
                                     </div>
-                                </div>
-                                <div>
-                                    <div className="text-gray-600 font-light">Margin:</div>
-                                    <div className={`font-light ${profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                        {profitMargin.toFixed(1)}%
+                                    <div>
+                                        <div className="text-gray-600 font-light">Selling Price:</div>
+                                        <div className="font-light text-gray-900">${sellingPriceNum.toFixed(2)}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-gray-600 font-light">Profit:</div>
+                                        <div className={`font-light ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            ${profit.toFixed(2)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-gray-600 font-light">Margin:</div>
+                                        <div className={`font-light ${profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {profitMargin.toFixed(1)}%
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
