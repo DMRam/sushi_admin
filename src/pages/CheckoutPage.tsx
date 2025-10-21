@@ -10,17 +10,20 @@ import {
 import { LandingCTAFooter } from "./landing/components/LandingCTAFooter";
 import CustomerInformation from "../components/web/CustomerInformation";
 import OrderSummary from "../components/web/OrderSummary";
-import PaymentSection from "../components/web/PaymentSection";
 import type {
     CashOrderResponse,
 } from "../types/stripe_interfaces";
+import PaymentMethodSelector from "./PaymentMethodSelector";
 
 export default function CheckoutPage() {
     const cart = useCartStore((state) => state.cart);
     const clearCart = useCartStore((state) => state.clearCart);
-    const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-    const cartTotal = cart.reduce(
-        (sum, item) => sum + item.price * item.quantity,
+
+    // Safe cart defaults
+    const safeCart = Array.isArray(cart) ? cart : [];
+    const itemCount = safeCart.reduce((sum, item) => sum + (item?.quantity || 0), 0);
+    const cartTotal = safeCart.reduce(
+        (sum, item) => sum + (item?.price || 0) * (item?.quantity || 0),
         0
     );
 
@@ -28,6 +31,7 @@ export default function CheckoutPage() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [orderComplete, setOrderComplete] = useState(false);
     const [orderNumber, setOrderNumber] = useState("");
+    const [currentStep, setCurrentStep] = useState<"info" | "review" | "payment">("info");
 
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -42,7 +46,7 @@ export default function CheckoutPage() {
         city: "",
         zipCode: "",
         deliveryInstructions: "",
-        paymentMethod: "card",
+        paymentMethod: "card", // card or cash
     });
 
     const gst = cartTotal * 0.05;
@@ -68,19 +72,56 @@ export default function CheckoutPage() {
         }));
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const validateCustomerInfo = () => {
+        const requiredFields = {
+            firstName: "First name",
+            lastName: "Last name",
+            email: "Email",
+            phone: "Phone number",
+            address: "Delivery address",
+            city: "City",
+            zipCode: "ZIP code"
+        };
 
-        if (
-            !formData.firstName ||
-            !formData.lastName ||
-            !formData.email ||
-            !formData.phone
-        ) {
-            alert("Please fill in all required customer information");
-            return;
+        const missingFields = Object.entries(requiredFields)
+            .filter(([key]) => !formData[key as keyof typeof formData])
+            .map(([_, label]) => label);
+
+        if (missingFields.length > 0) {
+            alert(`Please fill in the following required fields:\n${missingFields.join("\n")}`);
+            return false;
         }
 
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            alert("Please enter a valid email address");
+            return false;
+        }
+
+        // Basic phone validation
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        const cleanPhone = formData.phone.replace(/\D/g, '');
+        if (!phoneRegex.test(cleanPhone)) {
+            alert("Please enter a valid phone number");
+            return false;
+        }
+
+        return true;
+    };
+
+    const handleContinueToReview = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (validateCustomerInfo()) {
+            setCurrentStep("review");
+        }
+    };
+
+    const handleBackToInfo = () => {
+        setCurrentStep("info");
+    };
+
+    const handlePlaceOrder = async () => {
         if (formData.paymentMethod === "cash") {
             await handleCashPayment();
         } else {
@@ -88,37 +129,26 @@ export default function CheckoutPage() {
         }
     };
 
-    // ✅ STRIPE PAYMENT VIA CALLABLE CLOUD FUNCTION
+    // STRIPE PAYMENT - Redirects to Stripe Checkout
     const handleCardPayment = async () => {
         setIsProcessing(true);
         try {
-            // Log the exact structure of one cart item
-            console.log('Detailed cart item structure:', cart[0]);
-            console.log('All cart item keys:', cart.map(item => Object.keys(item)));
+            console.log('Processing card payment...');
 
-            const cartItems = cart.map((item) => {
-                // Use the exact field names from your cart
-                const cartItem = {
-                    productId: item.id,
-                    name: item.name, // Make sure this matches exactly
-                    price: item.price, // Make sure this matches exactly
-                    quantity: item.quantity || 1,
-                    // Include only the fields that exist in your cart
-                    ...(item.description && { description: item.description }),
-                    ...(item.category && { category: item.category }),
-                    ...(item.image && { image: item.image, imageUrls: [item.image] }),
-                    // Remove any fields that might be undefined or causing issues
-                };
+            const cartItems = safeCart.map((item) => ({
+                productId: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity || 1,
+                ...(item.description && { description: item.description }),
+                ...(item.category && { category: item.category }),
+                ...(item.image && { image: item.image, imageUrls: [item.image] }),
+            }));
 
-                console.log('Final cart item being sent:', cartItem);
-                return cartItem;
-            });
-
-            // Validate before sending
-            const invalidItems = cartItems.filter(item => !item.name || item.price === undefined || item.price === null);
+            // Validate items
+            const invalidItems = cartItems.filter(item => !item.name || item.price === undefined);
             if (invalidItems.length > 0) {
-                console.error('Invalid items found:', invalidItems);
-                throw new Error('Some items in your cart are missing names or prices');
+                throw new Error('Some items in your cart are invalid');
             }
 
             const customerInfo = {
@@ -132,12 +162,7 @@ export default function CheckoutPage() {
                 province: "QC",
             };
 
-            console.log('Final data being sent:', {
-                cartItems: cartItems.map(item => ({ name: item.name, price: item.price, quantity: item.quantity })),
-                customerInfo
-            });
-
-            console.log('Sending to HTTP function...');
+            console.log('Sending to Stripe...');
             const response = await fetch('https://us-central1-sushi-admin.cloudfunctions.net/createCheckoutHTTP', {
                 method: 'POST',
                 headers: {
@@ -152,7 +177,7 @@ export default function CheckoutPage() {
             });
 
             const responseText = await response.text();
-            console.log('Raw response:', responseText);
+            console.log('Stripe response:', responseText);
 
             if (!response.ok) {
                 let errorData;
@@ -161,39 +186,28 @@ export default function CheckoutPage() {
                 } catch {
                     errorData = { error: responseText };
                 }
-
-                console.error('Full error details:', {
-                    status: response.status,
-                    error: errorData,
-                    requestBody: {
-                        cartItems: cartItems.map(item => ({ name: item.name, price: item.price }))
-                    }
-                });
-
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                throw new Error(errorData.error || `Payment failed: ${response.status}`);
             }
 
             const result = JSON.parse(responseText);
-            console.log('Backend HTTP response:', result);
+            console.log('Stripe checkout session created:', result);
 
             if (result.success && result.url) {
-                console.log('Redirecting to Stripe:', result.url);
+                // Redirect to Stripe Checkout - they handle payment details
+                console.log('Redirecting to Stripe Checkout...');
                 window.location.href = result.url;
             } else {
-                throw new Error(result.error || 'Checkout failed');
+                throw new Error(result.error || 'Checkout session creation failed');
             }
         } catch (error: any) {
-            console.error('Checkout error:', error);
-            alert(error.message || 'Something went wrong. Please try again.');
-        } finally {
+            console.error('Card payment error:', error);
+            alert(error.message || 'Payment processing failed. Please try again.');
             setIsProcessing(false);
         }
     };
 
-    // ✅ CASH PAYMENT (CALLABLE)
     const handleCashPayment = async () => {
         setIsProcessing(true);
-
         try {
             const functions = getFunctions();
             const createCashOrder = httpsCallable<
@@ -205,7 +219,7 @@ export default function CheckoutPage() {
                 CashOrderResponse
             >(functions, "createCashOrder");
 
-            const cartItems = cart.map((item) => ({
+            const cartItems = safeCart.map((item) => ({
                 productId: item.id,
                 name: item.name,
                 sellingPrice: item.price,
@@ -250,8 +264,7 @@ export default function CheckoutPage() {
         }
     };
 
-    // ✅ Empty Cart
-    if (cart.length === 0 && !orderComplete) {
+    if (safeCart.length === 0 && !orderComplete) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
                 <div className="container mx-auto px-6 text-center">
@@ -287,7 +300,7 @@ export default function CheckoutPage() {
         );
     }
 
-    // ✅ Order Complete
+    // Order Complete
     if (orderComplete) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -327,9 +340,7 @@ export default function CheckoutPage() {
                             </div>
                             <p className="text-white/60 mb-6 font-light tracking-wide leading-relaxed text-sm">
                                 {formData.paymentMethod === "cash"
-                                    ? `We've received your order for $${finalTotal.toFixed(
-                                        2
-                                    )} CAD. Please have cash ready upon delivery. Your sushi will be ready in approximately 20–30 minutes.`
+                                    ? `We've received your order for $${finalTotal.toFixed(2)} CAD. Please have cash ready upon delivery. Your sushi will be ready in approximately 20–30 minutes.`
                                     : `We've sent a confirmation email to ${formData.email}. Your sushi will be ready in approximately 20–30 minutes.`}
                             </p>
                             <div className="flex flex-col gap-3">
@@ -353,11 +364,52 @@ export default function CheckoutPage() {
         );
     }
 
-    // ✅ Main Checkout View
+    // Step Indicators
+    const StepIndicator = () => (
+        <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center">
+                {/* Step 1: Information */}
+                <div className="flex flex-col items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${currentStep === "info"
+                        ? "bg-white border-white text-gray-900"
+                        : "bg-white/10 border-white/20 text-white"
+                        }`}>
+                        <span className="text-sm font-light">1</span>
+                    </div>
+                    <span className={`text-xs mt-2 font-light tracking-wide ${currentStep === "info" ? "text-white" : "text-white/40"
+                        }`}>
+                        Information
+                    </span>
+                </div>
+
+                <div className="w-12 h-px bg-white/20 mx-2"></div>
+
+                {/* Step 2: Review */}
+                <div className="flex flex-col items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${currentStep === "review"
+                        ? "bg-white border-white text-gray-900"
+                        : currentStep === "payment"
+                            ? "bg-white/10 border-white/20 text-white"
+                            : "bg-white/5 border-white/10 text-white/40"
+                        }`}>
+                        <span className="text-sm font-light">2</span>
+                    </div>
+                    <span className={`text-xs mt-2 font-light tracking-wide ${currentStep === "review" || currentStep === "payment"
+                        ? "text-white"
+                        : "text-white/40"
+                        }`}>
+                        Review & Pay
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Main Checkout View
     return (
         <div className="min-h-screen bg-gray-900">
             <div className="container mx-auto px-4 py-8">
-                <div className="max-w-6xl mx-auto">
+                <div className="max-w-7xl mx-auto"> {/* Increased max-width */}
                     {/* Header */}
                     <header className="mb-8">
                         <Link
@@ -379,70 +431,166 @@ export default function CheckoutPage() {
                             </svg>
                             Back to Menu
                         </Link>
-                        <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center border border-white/20">
-                                <span className="text-white text-sm font-light">1</span>
-                            </div>
-                            <h1 className="text-2xl font-light text-white tracking-wide">
-                                Checkout
-                            </h1>
-                        </div>
-                        <p className="text-white/40 font-light tracking-wide text-sm mt-1">
-                            Complete your order
-                        </p>
+                        <h1 className="text-2xl font-light text-white tracking-wide mb-2">
+                            Checkout
+                        </h1>
+                        <StepIndicator />
                     </header>
 
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={currentStep === "info" ? handleContinueToReview : undefined}>
+                        {/* Mobile Layout */}
                         <div className="block lg:hidden space-y-6">
-                            <OrderSummary
-                                cart={cart}
-                                cartTotal={cartTotal}
-                                itemCount={itemCount}
-                                gst={gst}
-                                qst={qst}
-                                deliveryFee={deliveryFee}
-                                finalTotal={finalTotal}
-                            />
+                            {currentStep === "info" && (
+                                <>
+                                    <CustomerInformation
+                                        formData={formData}
+                                        onInputChange={handleInputChange}
+                                    />
 
-                            <CustomerInformation
-                                formData={formData}
-                                onInputChange={handleInputChange}
-                            />
+                                    <OrderSummary
+                                        cart={safeCart}
+                                        cartTotal={cartTotal}
+                                        itemCount={itemCount}
+                                        gst={gst}
+                                        qst={qst}
+                                        deliveryFee={deliveryFee}
+                                        finalTotal={finalTotal}
+                                    />
 
-                            <PaymentSection
-                                paymentMethod={formData.paymentMethod}
-                                onPaymentMethodChange={handlePaymentMethodChange}
-                                finalTotal={finalTotal}
-                                isProcessing={isProcessing}
-                                onSubmit={handleSubmit}
-                            />
+                                    <div className="sticky bottom-0 bg-gray-900 border-t border-white/10 pt-4 pb-4 -mx-4 px-4 mt-6">
+                                        <button
+                                            type="submit"
+                                            className="bg-white text-gray-900 px-8 py-4 rounded-sm hover:bg-white/90 transition-all duration-300 font-light tracking-wide text-sm w-full"
+                                        >
+                                            Continue to Review
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {currentStep === "review" && (
+                                <>
+                                    <OrderSummary
+                                        cart={safeCart}
+                                        cartTotal={cartTotal}
+                                        itemCount={itemCount}
+                                        gst={gst}
+                                        qst={qst}
+                                        deliveryFee={deliveryFee}
+                                        finalTotal={finalTotal}
+                                    />
+
+                                    <div className="bg-white/5 border border-white/10 rounded-sm p-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-lg font-light text-white tracking-wide">
+                                                Delivery Information
+                                            </h3>
+                                            <button
+                                                type="button"
+                                                onClick={handleBackToInfo}
+                                                className="text-white/60 hover:text-white text-sm font-light tracking-wide"
+                                            >
+                                                Edit
+                                            </button>
+                                        </div>
+                                        <div className="text-white/80 font-light text-sm space-y-2">
+                                            <p>{formData.firstName} {formData.lastName}</p>
+                                            <p>{formData.email}</p>
+                                            <p>{formData.phone}</p>
+                                            <p>{formData.address}, {formData.city}, QC {formData.zipCode}</p>
+                                            {formData.deliveryInstructions && (
+                                                <p className="text-white/60">Instructions: {formData.deliveryInstructions}</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="sticky bottom-0 bg-gray-900 border-t border-white/10 pt-4 pb-4 -mx-4 px-4">
+                                        <PaymentMethodSelector
+                                            paymentMethod={formData.paymentMethod}
+                                            onPaymentMethodChange={handlePaymentMethodChange}
+                                            finalTotal={finalTotal}
+                                            isProcessing={isProcessing}
+                                            onPlaceOrder={handlePlaceOrder}
+                                            onBack={handleBackToInfo}
+                                        />
+                                    </div>
+                                </>
+                            )}
                         </div>
 
-                        <div className="hidden lg:grid grid-cols-2 gap-8">
-                            <div className="space-y-6">
-                                <CustomerInformation
-                                    formData={formData}
-                                    onInputChange={handleInputChange}
-                                />
-                                <PaymentSection
-                                    paymentMethod={formData.paymentMethod}
-                                    onPaymentMethodChange={handlePaymentMethodChange}
-                                    finalTotal={finalTotal}
-                                    isProcessing={isProcessing}
-                                    onSubmit={handleSubmit}
-                                />
+                        {/* Desktop Layout */}
+                        <div className="hidden lg:grid grid-cols-1 xl:grid-cols-4 gap-8"> {/* Better grid system */}
+                            {/* Left Column - Main Content (3/4 width) */}
+                            <div className="xl:col-span-3 space-y-6">
+                                {currentStep === "info" && (
+                                    <>
+                                        <CustomerInformation
+                                            formData={formData}
+                                            onInputChange={handleInputChange}
+                                        />
+
+                                        <div className="flex justify-end pt-4">
+                                            <button
+                                                type="submit"
+                                                className="bg-white text-gray-900 px-8 py-3 rounded-sm hover:bg-white/90 transition-all duration-300 font-light tracking-wide text-sm"
+                                            >
+                                                Continue to Review
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+
+                                {currentStep === "review" && (
+                                    <>
+                                        <div className="bg-white/5 border border-white/10 rounded-sm p-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="text-lg font-light text-white tracking-wide">
+                                                    Delivery Information
+                                                </h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleBackToInfo}
+                                                    className="text-white/60 hover:text-white text-sm font-light tracking-wide"
+                                                >
+                                                    Edit
+                                                </button>
+                                            </div>
+                                            <div className="text-white/80 font-light text-sm space-y-2">
+                                                <p>{formData.firstName} {formData.lastName}</p>
+                                                <p>{formData.email}</p>
+                                                <p>{formData.phone}</p>
+                                                <p>{formData.address}, {formData.city}, QC {formData.zipCode}</p>
+                                                {formData.deliveryInstructions && (
+                                                    <p className="text-white/60">Instructions: {formData.deliveryInstructions}</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <PaymentMethodSelector
+                                            paymentMethod={formData.paymentMethod}
+                                            onPaymentMethodChange={handlePaymentMethodChange}
+                                            finalTotal={finalTotal}
+                                            isProcessing={isProcessing}
+                                            onPlaceOrder={handlePlaceOrder}
+                                            onBack={handleBackToInfo}
+                                        />
+                                    </>
+                                )}
                             </div>
 
-                            <div className="space-y-6">
-                                <OrderSummary
-                                    cart={cart}
-                                    cartTotal={cartTotal}
-                                    itemCount={itemCount}
-                                    gst={gst}
-                                    qst={qst}
-                                    deliveryFee={deliveryFee}
-                                    finalTotal={finalTotal}
-                                />
+                            {/* Right Column - Order Summary (1/4 width) */}
+                            <div className="xl:col-span-1">
+                                <div className="min-w-80"> {/* Ensure minimum width */}
+                                    <OrderSummary
+                                        cart={safeCart}
+                                        cartTotal={cartTotal}
+                                        itemCount={itemCount}
+                                        gst={gst}
+                                        qst={qst}
+                                        deliveryFee={deliveryFee}
+                                        finalTotal={finalTotal}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </form>
