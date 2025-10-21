@@ -326,7 +326,7 @@ export interface MenuItem {
   preparationTime: number
   spicyLevel: 0 | 1 | 2 | 3
   popular: boolean;
-  quantity: number
+  quantity: number;
 }
 
 export interface WebProduct {

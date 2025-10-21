@@ -1,4 +1,3 @@
-// OrderPage.tsx - Fixed with proper ingredient handling
 import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, onSnapshot } from 'firebase/firestore'

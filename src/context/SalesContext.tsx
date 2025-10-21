@@ -1,4 +1,3 @@
-// context/SalesContext.tsx
 import  { createContext, useContext, useState, type ReactNode, useEffect } from 'react'
 import { type SalesRecord } from '../types/types'
 import { collection, addDoc, getDocs, doc, deleteDoc, serverTimestamp } from 'firebase/firestore'

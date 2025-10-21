@@ -1,4 +1,3 @@
-// context/ProductsContext.tsx
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { type Product } from '../types/types'
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore'

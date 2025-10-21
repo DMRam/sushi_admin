@@ -1,4 +1,4 @@
-import ProductForm from '../../components/admin/tabs/products/ProductForm'
+import ProductForm from '../../components/admin/tabs/products/product_form/ProductForm'
 import { ProductList } from '../../components/admin/tabs/products/ProductList'
 
 export default function ProductsPage() {

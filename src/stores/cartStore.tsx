@@ -4,6 +4,9 @@ import type { MenuItem } from '../types/types'
 
 interface CartItem extends MenuItem {
   quantity: number
+  costPrice?: number
+  profitMargin?: number
+  tags?: string[]
 }
 
 interface CartStore {

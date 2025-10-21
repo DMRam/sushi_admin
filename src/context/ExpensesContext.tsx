@@ -1,4 +1,3 @@
-// context/ExpensesContext.tsx
 import  { createContext, useContext, useState, type ReactNode, useEffect } from 'react'
 import { type BusinessExpense } from '../types/types'
 import { collection, addDoc, getDocs, doc, deleteDoc, serverTimestamp } from 'firebase/firestore'

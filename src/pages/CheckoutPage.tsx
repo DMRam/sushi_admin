@@ -1,16 +1,28 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCartStore } from "../stores/cartStore";
+import {
+    getFunctions,
+    httpsCallable,
+    type HttpsCallableResult,
+} from "firebase/functions";
 
 import { LandingCTAFooter } from "./landing/components/LandingCTAFooter";
 import CustomerInformation from "../components/web/CustomerInformation";
 import OrderSummary from "../components/web/OrderSummary";
 import PaymentSection from "../components/web/PaymentSection";
+import type {
+    CashOrderResponse,
+} from "../types/stripe_interfaces";
 
 export default function CheckoutPage() {
     const cart = useCartStore((state) => state.cart);
+    const clearCart = useCartStore((state) => state.clearCart);
     const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-    const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const cartTotal = cart.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+    );
 
     const navigate = useNavigate();
     const [isProcessing, setIsProcessing] = useState(false);
@@ -30,7 +42,7 @@ export default function CheckoutPage() {
         city: "",
         zipCode: "",
         deliveryInstructions: "",
-        paymentMethod: "cash-card",
+        paymentMethod: "card",
     });
 
     const gst = cartTotal * 0.05;
@@ -39,7 +51,9 @@ export default function CheckoutPage() {
     const deliveryFee = cartTotal > 25 ? 0 : 4.99;
     const finalTotal = cartTotal + tax + deliveryFee;
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleInputChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
         const { name, value } = e.target;
         setFormData((prev) => ({
             ...prev,
@@ -56,16 +70,187 @@ export default function CheckoutPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsProcessing(true);
 
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        if (
+            !formData.firstName ||
+            !formData.lastName ||
+            !formData.email ||
+            !formData.phone
+        ) {
+            alert("Please fill in all required customer information");
+            return;
+        }
 
-        const newOrderNumber = `SUSHI-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-        setOrderNumber(newOrderNumber);
-        setOrderComplete(true);
-        setIsProcessing(false);
+        if (formData.paymentMethod === "cash") {
+            await handleCashPayment();
+        } else {
+            await handleCardPayment();
+        }
     };
 
+    // ✅ STRIPE PAYMENT VIA CALLABLE CLOUD FUNCTION
+    const handleCardPayment = async () => {
+        setIsProcessing(true);
+        try {
+            // Log the exact structure of one cart item
+            console.log('Detailed cart item structure:', cart[0]);
+            console.log('All cart item keys:', cart.map(item => Object.keys(item)));
+
+            const cartItems = cart.map((item) => {
+                // Use the exact field names from your cart
+                const cartItem = {
+                    productId: item.id,
+                    name: item.name, // Make sure this matches exactly
+                    price: item.price, // Make sure this matches exactly
+                    quantity: item.quantity || 1,
+                    // Include only the fields that exist in your cart
+                    ...(item.description && { description: item.description }),
+                    ...(item.category && { category: item.category }),
+                    ...(item.image && { image: item.image, imageUrls: [item.image] }),
+                    // Remove any fields that might be undefined or causing issues
+                };
+
+                console.log('Final cart item being sent:', cartItem);
+                return cartItem;
+            });
+
+            // Validate before sending
+            const invalidItems = cartItems.filter(item => !item.name || item.price === undefined || item.price === null);
+            if (invalidItems.length > 0) {
+                console.error('Invalid items found:', invalidItems);
+                throw new Error('Some items in your cart are missing names or prices');
+            }
+
+            const customerInfo = {
+                name: `${formData.firstName} ${formData.lastName}`,
+                email: formData.email,
+                phone: formData.phone,
+                address: formData.address,
+                city: formData.city,
+                zipCode: formData.zipCode,
+                deliveryInstructions: formData.deliveryInstructions,
+                province: "QC",
+            };
+
+            console.log('Final data being sent:', {
+                cartItems: cartItems.map(item => ({ name: item.name, price: item.price, quantity: item.quantity })),
+                customerInfo
+            });
+
+            console.log('Sending to HTTP function...');
+            const response = await fetch('https://us-central1-sushi-admin.cloudfunctions.net/createCheckoutHTTP', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    cartItems,
+                    customerInfo,
+                    userId: 'user-' + Date.now(),
+                    clientUrl: window.location.origin
+                })
+            });
+
+            const responseText = await response.text();
+            console.log('Raw response:', responseText);
+
+            if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = JSON.parse(responseText);
+                } catch {
+                    errorData = { error: responseText };
+                }
+
+                console.error('Full error details:', {
+                    status: response.status,
+                    error: errorData,
+                    requestBody: {
+                        cartItems: cartItems.map(item => ({ name: item.name, price: item.price }))
+                    }
+                });
+
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            const result = JSON.parse(responseText);
+            console.log('Backend HTTP response:', result);
+
+            if (result.success && result.url) {
+                console.log('Redirecting to Stripe:', result.url);
+                window.location.href = result.url;
+            } else {
+                throw new Error(result.error || 'Checkout failed');
+            }
+        } catch (error: any) {
+            console.error('Checkout error:', error);
+            alert(error.message || 'Something went wrong. Please try again.');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // ✅ CASH PAYMENT (CALLABLE)
+    const handleCashPayment = async () => {
+        setIsProcessing(true);
+
+        try {
+            const functions = getFunctions();
+            const createCashOrder = httpsCallable<
+                {
+                    cartItems: any[];
+                    customerInfo: any;
+                    totals: any;
+                },
+                CashOrderResponse
+            >(functions, "createCashOrder");
+
+            const cartItems = cart.map((item) => ({
+                productId: item.id,
+                name: item.name,
+                sellingPrice: item.price,
+                quantity: item.quantity,
+            }));
+
+            const customerInfo = {
+                name: `${formData.firstName} ${formData.lastName}`,
+                email: formData.email,
+                phone: formData.phone,
+                address: formData.address,
+                city: formData.city,
+                zipCode: formData.zipCode,
+                deliveryInstructions: formData.deliveryInstructions,
+            };
+
+            const result: HttpsCallableResult<CashOrderResponse> =
+                await createCashOrder({
+                    cartItems,
+                    customerInfo,
+                    totals: {
+                        subtotal: cartTotal,
+                        gst,
+                        qst,
+                        deliveryFee,
+                        finalTotal,
+                    },
+                });
+
+            if (result.data.success) {
+                setOrderNumber(result.data.orderId);
+                setOrderComplete(true);
+                clearCart();
+            } else {
+                throw new Error(result.data.error || "Order creation failed");
+            }
+        } catch (error: any) {
+            console.error("Cash order error:", error);
+            alert(error.message || "Failed to create order. Please try again.");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // ✅ Empty Cart
     if (cart.length === 0 && !orderComplete) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -84,7 +269,9 @@ export default function CheckoutPage() {
                                 d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
                             />
                         </svg>
-                        <h2 className="text-2xl font-light text-white mb-3 tracking-wide">Your cart is empty</h2>
+                        <h2 className="text-2xl font-light text-white mb-3 tracking-wide">
+                            Your cart is empty
+                        </h2>
                         <p className="text-white/60 mb-6 font-light tracking-wide text-sm">
                             Add some delicious sushi to get started!
                         </p>
@@ -100,6 +287,7 @@ export default function CheckoutPage() {
         );
     }
 
+    // ✅ Order Complete
     if (orderComplete) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -107,19 +295,42 @@ export default function CheckoutPage() {
                     <div className="max-w-md mx-auto text-center">
                         <div className="bg-white/5 border border-white/10 rounded-sm p-8 backdrop-blur-sm">
                             <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
-                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                                <svg
+                                    className="w-6 h-6 text-white"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={1.5}
+                                        d="M5 13l4 4L19 7"
+                                    />
                                 </svg>
                             </div>
-                            <h2 className="text-2xl font-light text-white mb-3 tracking-wide">Order Confirmed!</h2>
-                            <p className="text-white/60 mb-3 font-light tracking-wide text-sm">Thank you for your order</p>
+                            <h2 className="text-2xl font-light text-white mb-3 tracking-wide">
+                                {formData.paymentMethod === "cash"
+                                    ? "Order Confirmed!"
+                                    : "Payment Successful!"}
+                            </h2>
+                            <p className="text-white/60 mb-3 font-light tracking-wide text-sm">
+                                Thank you for your order
+                            </p>
                             <div className="bg-white/5 rounded-sm p-4 mb-6 border border-white/10">
-                                <p className="text-xs text-white/40 font-light tracking-wide mb-1">Order Number</p>
-                                <p className="text-lg font-light text-white font-mono">{orderNumber}</p>
+                                <p className="text-xs text-white/40 font-light tracking-wide mb-1">
+                                    Order Number
+                                </p>
+                                <p className="text-lg font-light text-white font-mono">
+                                    {orderNumber}
+                                </p>
                             </div>
                             <p className="text-white/60 mb-6 font-light tracking-wide leading-relaxed text-sm">
-                                We've sent a confirmation email to <span className="text-white">{formData.email}</span>.
-                                Your sushi will be ready in approximately 20-30 minutes.
+                                {formData.paymentMethod === "cash"
+                                    ? `We've received your order for $${finalTotal.toFixed(
+                                        2
+                                    )} CAD. Please have cash ready upon delivery. Your sushi will be ready in approximately 20–30 minutes.`
+                                    : `We've sent a confirmation email to ${formData.email}. Your sushi will be ready in approximately 20–30 minutes.`}
                             </p>
                             <div className="flex flex-col gap-3">
                                 <Link
@@ -142,6 +353,7 @@ export default function CheckoutPage() {
         );
     }
 
+    // ✅ Main Checkout View
     return (
         <div className="min-h-screen bg-gray-900">
             <div className="container mx-auto px-4 py-8">
@@ -152,8 +364,18 @@ export default function CheckoutPage() {
                             to="/order"
                             className="inline-flex items-center text-white/60 hover:text-white transition-colors duration-300 mb-3 font-light tracking-wide text-sm"
                         >
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+                            <svg
+                                className="w-4 h-4 mr-2"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={1.5}
+                                    d="M15 19l-7-7 7-7"
+                                />
                             </svg>
                             Back to Menu
                         </Link>
@@ -161,13 +383,16 @@ export default function CheckoutPage() {
                             <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center border border-white/20">
                                 <span className="text-white text-sm font-light">1</span>
                             </div>
-                            <h1 className="text-2xl font-light text-white tracking-wide">Checkout</h1>
+                            <h1 className="text-2xl font-light text-white tracking-wide">
+                                Checkout
+                            </h1>
                         </div>
-                        <p className="text-white/40 font-light tracking-wide text-sm mt-1">Complete your order</p>
+                        <p className="text-white/40 font-light tracking-wide text-sm mt-1">
+                            Complete your order
+                        </p>
                     </header>
 
                     <form onSubmit={handleSubmit}>
-                        {/* Mobile Layout */}
                         <div className="block lg:hidden space-y-6">
                             <OrderSummary
                                 cart={cart}
@@ -179,7 +404,10 @@ export default function CheckoutPage() {
                                 finalTotal={finalTotal}
                             />
 
-                            <CustomerInformation formData={formData} onInputChange={handleInputChange} />
+                            <CustomerInformation
+                                formData={formData}
+                                onInputChange={handleInputChange}
+                            />
 
                             <PaymentSection
                                 paymentMethod={formData.paymentMethod}
@@ -190,10 +418,12 @@ export default function CheckoutPage() {
                             />
                         </div>
 
-                        {/* Desktop Layout */}
                         <div className="hidden lg:grid grid-cols-2 gap-8">
                             <div className="space-y-6">
-                                <CustomerInformation formData={formData} onInputChange={handleInputChange} />
+                                <CustomerInformation
+                                    formData={formData}
+                                    onInputChange={handleInputChange}
+                                />
                                 <PaymentSection
                                     paymentMethod={formData.paymentMethod}
                                     onPaymentMethodChange={handlePaymentMethodChange}

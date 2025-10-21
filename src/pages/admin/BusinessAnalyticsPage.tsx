@@ -7,7 +7,7 @@ import { usePurchases } from '../../context/PurchasesContext'
 import BreakEvenAnalysis from '../../components/admin/BreakEvenAnalysis'
 import ProfitabilityChart from '../../components/admin/tabs/business_analytics/ProfitabilityChart'
 import ExpenseBreakdown from '../../components/admin/tabs/business_analytics/ExpenseBreakdown'
-import ProfitAllocation from '../../components/admin/ProfitAllocation'
+import ProfitAllocation from '../../components/admin/tabs/business_analytics/profit_allocations/ProfitAllocation'
 import QuickExpenseForm from '../../components/admin/tabs/business_analytics/QuickExpenseForm'
 import SalesChart from '../../components/admin/tabs/sales_tracking/SalesChart'
 

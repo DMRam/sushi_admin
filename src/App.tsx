@@ -23,6 +23,7 @@ import OrderPage from './pages/OrderPage'
 import CheckoutPage from './pages/CheckoutPage'
 import NavBar from './components/web/NavBar'
 import ProtectedRoute from './components/web/ProtectedRoute'
+import SuccessPage from './pages/SuccessPage'
 
 // Main app content that requires authentication
 function AppContent() {
@@ -61,6 +62,7 @@ function PublicRoutes() {
       <Route path="/admin-login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
+      <Route path="/success" element={<SuccessPage />} />
       <Route path="/admin/*" element={
         <ProtectedRoute>
           <AppContent />
