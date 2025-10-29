@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
     videoRef: React.RefObject<HTMLVideoElement | null>
@@ -10,10 +11,11 @@ interface Props {
     handleVideoError: () => void
     videos: string[];
     videoError: boolean
-
 }
 
 export const LandingHero = ({ videoRef, currentVideoIndex, handleVideoLoad, videoLoaded, handleVideoError, videos, videoError }: Props) => {
+    const { t } = useTranslation()
+    
     return (
         <>
             <section className="relative min-h-[85vh] flex items-center justify-center bg-gray-900 overflow-hidden">
@@ -43,7 +45,9 @@ export const LandingHero = ({ videoRef, currentVideoIndex, handleVideoLoad, vide
                                     <div className="wave"></div>
                                     <div className="wave"></div>
                                 </div>
-                                <p className="text-white/60 text-sm font-light tracking-wide">Loading the Pacifique experience...</p>
+                                <p className="text-white/60 text-sm font-light tracking-wide">
+                                    {t('landing.loadingExperience', 'Loading the Pacifique experience...')}
+                                </p>
                             </div>
                         </div>
                     )}
@@ -62,7 +66,8 @@ export const LandingHero = ({ videoRef, currentVideoIndex, handleVideoLoad, vide
                     {/* Sophisticated Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-b from-gray-900/40 via-gray-900/15 to-gray-900/30">
                         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(255,255,255,0.15)_0%,_transparent_70%)]"></div>
-                    </div>        </div>
+                    </div>        
+                </div>
 
                 {/* Hero Content - Improved Layout */}
                 <div className="relative container mx-auto px-6 text-center text-white">
@@ -80,7 +85,7 @@ export const LandingHero = ({ videoRef, currentVideoIndex, handleVideoLoad, vide
                             <div className="flex justify-center items-center space-x-6 mb-6">
                                 <div className="w-12 h-px bg-white/30"></div>
                                 <p className="text-lg font-light tracking-widest text-white/80 uppercase">
-                                    Ceviche & Sushi Bar
+                                    {t('landing.cevicheSushiBar', 'Ceviche & Sushi Bar')}
                                 </p>
                                 <div className="w-12 h-px bg-white/30"></div>
                             </div>
@@ -90,7 +95,7 @@ export const LandingHero = ({ videoRef, currentVideoIndex, handleVideoLoad, vide
 
                         {/* Description */}
                         <p className="text-xl text-white/80 mb-12 font-light tracking-wide leading-relaxed max-w-2xl mx-auto">
-                            Fresh, local, and delicious.
+                            {t('landing.heroDescription', 'Fresh, local, and delicious.')}
                         </p>
 
                         {/* CTA Buttons */}
@@ -99,7 +104,7 @@ export const LandingHero = ({ videoRef, currentVideoIndex, handleVideoLoad, vide
                                 to="/order"
                                 className="group border border-white text-white px-20 py-4 rounded-sm text-base font-light tracking-wider hover:bg-white hover:text-gray-900 transition-all duration-300 flex items-center justify-center space-x-2"
                             >
-                                <span>EXPLORE OUR MENU</span>
+                                <span>{t('landing.exploreMenu', 'EXPLORE OUR MENU')}</span>
                                 <svg
                                     className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300"
                                     fill="none"
@@ -133,7 +138,6 @@ export const LandingHero = ({ videoRef, currentVideoIndex, handleVideoLoad, vide
                     ))}
                 </div>
             </section>
-
         </>
     )
 }

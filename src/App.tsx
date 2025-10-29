@@ -1,52 +1,62 @@
-import { SalesProvider } from './context/SalesContext'
-import { ExpensesProvider } from './context/ExpensesContext'
-import BusinessAnalyticsPage from './pages/admin/BusinessAnalyticsPage'
-import { IngredientsProvider } from './context/IngredientsContext'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { ProductsProvider } from './context/ProductsContext'
-import { PurchasesProvider } from './context/PurchasesContext'
-import { CostAnalysisPage } from './pages/admin/CostAnalysisPage'
-import ProductsPage from './pages/admin/ProductsPage'
-import PurchasesPage from './pages/admin/PurchasesPage'
-import SalesTrackingPage from './pages/admin/SalesTrackingPage'
-import StockPage from './pages/admin/StockPage'
-import { SettingsProvider } from './context/SettingContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import LoginPage from './pages/admin/LoginPage'
-import RegisterPage from './pages/RegisterPage'
 import { UserProfileProvider } from './context/UserProfileContext'
 import { InvitationProvider } from './context/InvitationContext'
-import AdminPage from './pages/AdminPage'
-import ProfilePage from './pages/ProfilePage'
+import LoginPage from './pages/admin/LoginPage'
+import RegisterPage from './pages/RegisterPage'
 import LandingPage from './pages/landing/LandingPage'
 import OrderPage from './pages/OrderPage'
 import CheckoutPage from './pages/CheckoutPage'
-import NavBar from './components/web/NavBar'
-import ProtectedRoute from './components/web/ProtectedRoute'
 import SuccessPage from './pages/SuccessPage'
+import ProtectedRoute from './components/web/ProtectedRoute'
+import { lazy, Suspense } from 'react'
+
+// Lazy load all admin components (assuming default exports)
+const SalesTrackingPage = lazy(() => import('./pages/admin/SalesTrackingPage'))
+const PurchasesPage = lazy(() => import('./pages/admin/PurchasesPage'))
+const StockPage = lazy(() => import('./pages/admin/StockPage'))
+const ProductsPage = lazy(() => import('./pages/admin/ProductsPage'))
+const CostAnalysisPage = lazy(() => import('./pages/admin/CostAnalysisPage'))
+const BusinessAnalyticsPage = lazy(() => import('./pages/admin/BusinessAnalyticsPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+const ProfilePage = lazy(() => import('./pages/admin/ProfilePage'))
+const NavBar = lazy(() => import('./components/web/NavBar'))
+
+// Lazy load context providers
+const AdminProviders = lazy(() => import('./components/AdminProviders'))
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center h-64">
+    <div className="text-lg text-gray-600 font-light">Loading...</div>
+  </div>
+)
 
 // Main app content that requires authentication
 function AppContent() {
   const { user } = useAuth()
 
-  console.log('🎯 AppContent rendering, user:', user?.email)
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* NavBar should always show when user is authenticated */}
-      {user && <NavBar />}
+      {user && (
+        <Suspense fallback={<div>Loading navigation...</div>}>
+          <NavBar />
+        </Suspense>
+      )}
       <main className="container mx-auto p-4">
-        <Routes>
-          <Route path="/sales-tracking" element={<SalesTrackingPage />} />
-          <Route path="/purchases" element={<PurchasesPage />} />
-          <Route path="/stock" element={<StockPage />} />
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/cost-analysis" element={<CostAnalysisPage />} />
-          <Route path="/business-analytics" element={<BusinessAnalyticsPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/" element={<Navigate to="/sales-tracking" replace />} />
-        </Routes>
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            <Route path="/sales-tracking" element={<SalesTrackingPage />} />
+            <Route path="/purchases" element={<PurchasesPage />} />
+            <Route path="/stock" element={<StockPage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/cost-analysis" element={<CostAnalysisPage />} />
+            <Route path="/business-analytics" element={<BusinessAnalyticsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/" element={<Navigate to="/sales-tracking" replace />} />
+          </Routes>
+        </Suspense>
       </main>
     </div>
   )
@@ -65,7 +75,11 @@ function PublicRoutes() {
       <Route path="/success" element={<SuccessPage />} />
       <Route path="/admin/*" element={
         <ProtectedRoute>
-          <AppContent />
+          <Suspense fallback={<LoadingSpinner />}>
+            <AdminProviders>
+              <AppContent />
+            </AdminProviders>
+          </Suspense>
         </ProtectedRoute>
       } />
     </Routes>
@@ -77,19 +91,7 @@ export default function App() {
     <AuthProvider>
       <InvitationProvider>
         <UserProfileProvider>
-          <IngredientsProvider>
-            <SettingsProvider>
-              <ProductsProvider>
-                <PurchasesProvider>
-                  <SalesProvider>
-                    <ExpensesProvider>
-                      <PublicRoutes />
-                    </ExpensesProvider>
-                  </SalesProvider>
-                </PurchasesProvider>
-              </ProductsProvider>
-            </SettingsProvider>
-          </IngredientsProvider>
+          <PublicRoutes />
         </UserProfileProvider>
       </InvitationProvider>
     </AuthProvider>

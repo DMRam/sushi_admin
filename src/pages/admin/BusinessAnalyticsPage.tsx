@@ -443,15 +443,26 @@ export default function BusinessAnalyticsPage() {
         }
 
         const recentSales = getRecentSales(30)
-        const totalRevenue = recentSales.reduce((sum, sale) => sum + (sale.quantity * sale.salePrice), 0)
-        const totalUnitsSold = recentSales.reduce((sum, sale) => sum + sale.quantity, 0)
+
+        // Calculate totals from all products in sales records
+        const totalRevenue = recentSales.reduce((sum, sale) =>
+            sum + sale.totalAmount, 0
+        )
+
+        const totalUnitsSold = recentSales.reduce((sum, sale) =>
+            sum + sale.products.reduce((productSum, product) =>
+                productSum + product.quantity, 0
+            ), 0
+        )
+
         const monthlyExpenses = getMonthlyExpenses()
 
-        // Calculate INGREDIENT COSTS
+        // Calculate INGREDIENT COSTS from product cost prices
         const ingredientCosts = recentSales.reduce((sum, sale) => {
-            const product = products.find(p => p.id === sale.productId)
-            const costPrice = product?.costPrice || 0
-            return sum + (costPrice * sale.quantity)
+            return sum + sale.products.reduce((productSum, product) => {
+                const productCost = product.costPrice || 0
+                return productSum + (productCost * product.quantity)
+            }, 0)
         }, 0)
 
         // Calculate inventory value

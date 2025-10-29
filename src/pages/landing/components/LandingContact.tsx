@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export function LandingContact() {
+    const { t } = useTranslation()
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -30,7 +32,7 @@ export function LandingContact() {
             message: ''
         })
         setIsSubmitting(false)
-        alert('Thank you for your catering inquiry! We\'ll contact you within 24 hours to discuss your event.')
+        alert(t('landing.thankYouMessage', 'Thank you for your catering inquiry! We\'ll contact you within 24 hours to discuss your event.'))
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -45,11 +47,10 @@ export function LandingContact() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-16">
                     <h2 className="text-3xl font-light text-gray-900 mb-4">
-                        Catering & Events
+                        {t('landing.cateringEvents', 'Catering & Events')}
                     </h2>
                     <p className="text-gray-600 font-light max-w-2xl mx-auto">
-                        Elevate your events with our premium ceviche and sushi catering.
-                        From intimate gatherings to corporate events, we bring the ocean's freshness to you.
+                        {t('landing.cateringDescription', 'Elevate your events with our premium ceviche and sushi catering. From intimate gatherings to corporate events, we bring the ocean\'s freshness to you.')}
                     </p>
                 </div>
 
@@ -59,7 +60,7 @@ export function LandingContact() {
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div>
                                 <label htmlFor="name" className="block text-sm font-light text-gray-700 mb-2">
-                                    Contact Name *
+                                    {t('landing.contactName', 'Contact Name *')}
                                 </label>
                                 <input
                                     type="text"
@@ -69,14 +70,14 @@ export function LandingContact() {
                                     value={formData.name}
                                     onChange={handleChange}
                                     className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-gray-900 transition-colors"
-                                    placeholder="Your full name"
+                                    placeholder={t('landing.namePlaceholder', 'Your full name')}
                                 />
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label htmlFor="email" className="block text-sm font-light text-gray-700 mb-2">
-                                        Email Address *
+                                        {t('landing.emailAddress', 'Email Address *')}
                                     </label>
                                     <input
                                         type="email"
@@ -86,13 +87,13 @@ export function LandingContact() {
                                         value={formData.email}
                                         onChange={handleChange}
                                         className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-gray-900 transition-colors"
-                                        placeholder="your.email@example.com"
+                                        placeholder={t('landing.emailPlaceholder', 'your.email@example.com')}
                                     />
                                 </div>
 
                                 <div>
                                     <label htmlFor="phone" className="block text-sm font-light text-gray-700 mb-2">
-                                        Phone Number *
+                                        {t('landing.phoneNumber', 'Phone Number *')}
                                     </label>
                                     <input
                                         type="tel"
@@ -102,7 +103,7 @@ export function LandingContact() {
                                         value={formData.phone}
                                         onChange={handleChange}
                                         className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-gray-900 transition-colors"
-                                        placeholder="(555) 123-4567"
+                                        placeholder={t('landing.phonePlaceholder', '(555) 123-4567')}
                                     />
                                 </div>
                             </div>
@@ -110,7 +111,7 @@ export function LandingContact() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label htmlFor="partySize" className="block text-sm font-light text-gray-700 mb-2">
-                                        Estimated Party Size *
+                                        {t('landing.partySize', 'Estimated Party Size *')}
                                     </label>
                                     <select
                                         id="partySize"
@@ -120,17 +121,17 @@ export function LandingContact() {
                                         onChange={handleChange}
                                         className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-gray-900 transition-colors"
                                     >
-                                        <option value="">Select size</option>
-                                        <option value="10-25">10-25 people</option>
-                                        <option value="26-50">26-50 people</option>
-                                        <option value="51-100">51-100 people</option>
-                                        <option value="100+">100+ people</option>
+                                        <option value="">{t('landing.selectSize', 'Select size')}</option>
+                                        <option value="10-25">{t('landing.size10_25', '10-25 people')}</option>
+                                        <option value="26-50">{t('landing.size26_50', '26-50 people')}</option>
+                                        <option value="51-100">{t('landing.size51_100', '51-100 people')}</option>
+                                        <option value="100+">{t('landing.size100plus', '100+ people')}</option>
                                     </select>
                                 </div>
 
                                 <div>
                                     <label htmlFor="eventType" className="block text-sm font-light text-gray-700 mb-2">
-                                        Event Type *
+                                        {t('landing.eventType', 'Event Type *')}
                                     </label>
                                     <select
                                         id="eventType"
@@ -140,19 +141,19 @@ export function LandingContact() {
                                         onChange={handleChange}
                                         className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-gray-900 transition-colors"
                                     >
-                                        <option value="">Select type</option>
-                                        <option value="corporate">Corporate Event</option>
-                                        <option value="wedding">Wedding</option>
-                                        <option value="birthday">Birthday Party</option>
-                                        <option value="private">Private Gathering</option>
-                                        <option value="other">Other</option>
+                                        <option value="">{t('landing.selectType', 'Select type')}</option>
+                                        <option value="corporate">{t('landing.corporateEvent', 'Corporate Event')}</option>
+                                        <option value="wedding">{t('landing.wedding', 'Wedding')}</option>
+                                        <option value="birthday">{t('landing.birthdayParty', 'Birthday Party')}</option>
+                                        <option value="private">{t('landing.privateGathering', 'Private Gathering')}</option>
+                                        <option value="other">{t('landing.other', 'Other')}</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div>
                                 <label htmlFor="message" className="block text-sm font-light text-gray-700 mb-2">
-                                    Event Details *
+                                    {t('landing.eventDetails', 'Event Details *')}
                                 </label>
                                 <textarea
                                     id="message"
@@ -162,7 +163,7 @@ export function LandingContact() {
                                     value={formData.message}
                                     onChange={handleChange}
                                     className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-gray-900 transition-colors resize-none"
-                                    placeholder="Tell us about your event date, dietary restrictions, and any special requests..."
+                                    placeholder={t('landing.messagePlaceholder', 'Tell us about your event date, dietary restrictions, and any special requests...')}
                                 />
                             </div>
 
@@ -171,7 +172,7 @@ export function LandingContact() {
                                 disabled={isSubmitting}
                                 className="w-full bg-gray-900 text-white py-4 px-6 font-light tracking-wide hover:bg-gray-800 disabled:bg-gray-400 transition-all duration-300"
                             >
-                                {isSubmitting ? 'Submitting...' : 'Request Catering Quote'}
+                                {isSubmitting ? t('landing.submitting', 'Submitting...') : t('landing.requestQuote', 'Request Catering Quote')}
                             </button>
                         </form>
                     </div>
@@ -179,62 +180,67 @@ export function LandingContact() {
                     {/* Catering Information & Loyalty Program */}
                     <div className="space-y-8">
                         <div>
-                            <h3 className="text-xl font-light text-gray-900 mb-4">Catering Services</h3>
+                            <h3 className="text-xl font-light text-gray-900 mb-4">
+                                {t('landing.cateringServices', 'Catering Services')}
+                            </h3>
                             <p className="text-gray-600 font-light mb-6">
-                                Experience the perfect blend of Peruvian ceviche and Japanese sushi artistry.
-                                Our catering brings restaurant-quality freshness to your location.
+                                {t('landing.cateringServicesDescription', 'Experience the perfect blend of Peruvian ceviche and Japanese sushi artistry. Our catering brings restaurant-quality freshness to your location.')}
                             </p>
                             <ul className="space-y-3 text-gray-600 font-light">
                                 <li className="flex items-center">
                                     <span className="w-2 h-2 bg-gray-900 mr-3"></span>
-                                    Fresh ceviche bar with live preparation
+                                    {t('landing.service1', 'Fresh ceviche bar with live preparation')}
                                 </li>
                                 <li className="flex items-center">
                                     <span className="w-2 h-2 bg-gray-900 mr-3"></span>
-                                    Sushi platters & hand rolls
+                                    {t('landing.service2', 'Sushi platters & hand rolls')}
                                 </li>
                                 <li className="flex items-center">
                                     <span className="w-2 h-2 bg-gray-900 mr-3"></span>
-                                    Professional sushi chefs on-site
+                                    {t('landing.service3', 'Professional sushi chefs on-site')}
                                 </li>
                                 <li className="flex items-center">
                                     <span className="w-2 h-2 bg-gray-900 mr-3"></span>
-                                    Custom menu development
+                                    {t('landing.service4', 'Custom menu development')}
                                 </li>
                                 <li className="flex items-center">
                                     <span className="w-2 h-2 bg-gray-900 mr-3"></span>
-                                    Full setup & cleanup included
+                                    {t('landing.service5', 'Full setup & cleanup included')}
                                 </li>
                             </ul>
                         </div>
 
                         {/* Loyalty Program Preview */}
                         <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-6 text-white">
-                            <h3 className="text-xl font-light mb-3">Coming Soon: Pacifique Rewards</h3>
+                            <h3 className="text-xl font-light mb-3">
+                                {t('landing.loyaltyProgram', 'Coming Soon: Pacifique Rewards')}
+                            </h3>
                             <p className="font-light mb-4 text-gray-200">
-                                Our mobile app with loyalty program. Earn points with every order and enjoy exclusive benefits.
+                                {t('landing.loyaltyDescription', 'Our mobile app with loyalty program. Earn points with every order and enjoy exclusive benefits.')}
                             </p>
                             <ul className="space-y-2 text-sm font-light text-gray-200">
-                                <li>• Earn 1 point per $1 spent</li>
-                                <li>• Free delivery on all app orders</li>
-                                <li>• Exclusive menu items</li>
-                                <li>• Birthday rewards & special offers</li>
-                                <li>• Priority catering booking</li>
+                                <li>• {t('landing.benefit1', 'Earn 1 point per $1 spent')}</li>
+                                <li>• {t('landing.benefit2', 'Free delivery on all app orders')}</li>
+                                <li>• {t('landing.benefit3', 'Exclusive menu items')}</li>
+                                <li>• {t('landing.benefit4', 'Birthday rewards & special offers')}</li>
+                                <li>• {t('landing.benefit5', 'Priority catering booking')}</li>
                             </ul>
                             <div className="mt-4 text-xs font-light text-gray-300">
-                                Mobile app launching next season
+                                {t('landing.appLaunching', 'Mobile app launching next season')}
                             </div>
                         </div>
 
                         <div className="border-t border-gray-200 pt-8">
-                            <h3 className="text-xl font-light text-gray-900 mb-4">Contact Our Events Team</h3>
+                            <h3 className="text-xl font-light text-gray-900 mb-4">
+                                {t('landing.contactTeam', 'Contact Our Events Team')}
+                            </h3>
                             <div className="space-y-3 text-gray-600 font-light">
                                 <p>📧 events@ceviche-sushi.com</p>
                                 <p>📞 +1 (555) 123-SUSHI</p>
                                 <p>📍 123 Ocean Drive, Miami, FL 33101</p>
                                 <p className="text-sm mt-4">
-                                    <strong>Catering Hours:</strong><br />
-                                    Mon-Sun: 7:00 AM - 9:00 PM
+                                    <strong>{t('landing.cateringHours', 'Catering Hours:')}</strong><br />
+                                    {t('landing.hours', 'Mon-Sun: 7:00 AM - 9:00 PM')}
                                 </p>
                             </div>
                         </div>

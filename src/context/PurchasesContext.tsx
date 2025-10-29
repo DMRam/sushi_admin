@@ -55,7 +55,7 @@ export const PurchasesProvider: React.FC<{ children: ReactNode }> = ({ children 
     try {
       // Delete from Firebase
       await deleteDoc(doc(db, 'purchases', purchaseId))
-      
+
       // Update local state
       setPurchases(prev => prev.filter(purchase => purchase.id !== purchaseId))
     } catch (error) {
@@ -71,18 +71,19 @@ export const PurchasesProvider: React.FC<{ children: ReactNode }> = ({ children 
       .slice(0, count)
   }
 
+  // In your PurchasesContext.tsx - update the loadPurchases function
   useEffect(() => {
     const loadPurchases = async () => {
       try {
         setLoading(true)
         setError(null)
-        
+
         // Load purchases ordered by purchase date (most recent first)
         const q = query(
-          collection(db, 'purchases'), 
+          collection(db, 'purchases'),
           orderBy('purchaseDate', 'desc')
         )
-        
+
         const querySnapshot = await getDocs(q)
         const purchasesList: Purchase[] = []
 
@@ -90,8 +91,11 @@ export const PurchasesProvider: React.FC<{ children: ReactNode }> = ({ children 
           const data = doc.data()
           purchasesList.push({
             id: doc.id,
+            purchaseType: data.purchaseType || 'ingredient', // Default to 'ingredient' for backward compatibility
             ingredientId: data.ingredientId,
             ingredientName: data.ingredientName,
+            supplyName: data.supplyName,
+            supplyCategory: data.supplyCategory,
             quantity: data.quantity,
             unit: data.unit,
             totalCost: data.totalCost,

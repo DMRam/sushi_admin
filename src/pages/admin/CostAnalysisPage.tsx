@@ -2,7 +2,7 @@ import { useProducts } from "../../context/ProductsContext";
 import { useIngredients } from "../../context/IngredientsContext";
 import { productCost } from "../../utils/costCalculations";
 
-export const CostAnalysisPage = () => {
+export default function CostAnalysisPage() {
   const { products, loading: productsLoading } = useProducts();
   const { ingredients, loading: ingredientsLoading } = useIngredients();
 

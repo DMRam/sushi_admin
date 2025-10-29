@@ -5,14 +5,6 @@ import { useProducts } from '../../../../../context/ProductsContext'
 import { useSettings } from '../../../../../context/SettingContext'
 import { ProfitAllocationComponent } from './components/ProfitAllocationComponent'
 
-type AllocationSettings = {
-  taxRate: number;
-  reinvestmentPercentage: number;
-  ownerPayPercentage: number;
-  emergencyFundPercentage: number;
-  monthlyOwnerSalary: number;
-  useFixedSalary: boolean;
-};
 
 const fmtCurrency = (v: number, digits = 0) =>
   `$${Number.isFinite(v) ? v.toFixed(digits) : '0'}`
@@ -60,15 +52,11 @@ export default function ProfitAllocation() {
       return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear
     })
 
-    const totalRevenue = monthlySales.reduce((sum, sale) => sum + (sale.quantity * sale.salePrice), 0)
+    const totalRevenue = monthlySales.reduce((sum, sale) => sum + sale.totalAmount, 0)
     const monthlyExpenses = getMonthlyExpenses()
 
-    // Calculate COGS (Cost of Goods Sold)
-    const cogs = monthlySales.reduce((sum, sale) => {
-      const product = products.find(p => p.id === sale.productId)
-      const costPrice = product?.costPrice || 0
-      return sum + (costPrice * sale.quantity)
-    }, 0)
+    // Calculate COGS (Cost of Goods Sold) - using costTotal from sales records
+    const cogs = monthlySales.reduce((sum, sale) => sum + (sale.costTotal || 0), 0)
 
     const grossProfit = Math.max(0, totalRevenue - cogs)
     const netProfit = grossProfit - monthlyExpenses
@@ -83,7 +71,7 @@ export default function ProfitAllocation() {
     }
   }, [getRecentSales, getMonthlyExpenses, products])
 
-  // Calculate profit allocation with proper percentage validation
+  // Calculate profit allocation - return the format expected by ProfitAllocationComponent
   const profitAllocation = useMemo(() => {
     const { netProfit } = currentMonthFinancials
 
@@ -169,20 +157,14 @@ export default function ProfitAllocation() {
 
     // Distribute the remaining percentage among other categories
     const remainingPercentage = 100 - value
-    const newSettings: AllocationSettings = { ...allocationSettings };
+    const newSettings: any = { ...allocationSettings, [key]: value }
 
     if (currentTotal > 0 && remainingPercentage > 0) {
-      const otherKeys = Object.keys(allocationSettings).filter(
-        (k) => k !== 'taxRate' && k !== 'useFixedSalary' // example exclusions
-      ) as (keyof AllocationSettings)[];
-
-      otherKeys.forEach((k) => {
-        const currentValue = allocationSettings[k];
-        if (typeof currentValue === 'number') {
-          const proportion = currentValue / currentTotal;
-          (newSettings as any)[k] = Math.round(remainingPercentage * proportion);
-        }
-      });
+      otherKeys.forEach(k => {
+        const currentValue = allocationSettings[k as keyof typeof allocationSettings] as number
+        const proportion = currentValue / currentTotal
+        newSettings[k] = Math.round(remainingPercentage * proportion)
+      })
     }
 
     setAllocationSettings(newSettings)

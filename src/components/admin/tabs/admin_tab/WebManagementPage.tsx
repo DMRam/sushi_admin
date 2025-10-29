@@ -38,8 +38,8 @@ export default function WebManagementPage() {
     const [pages, setPages] = useState<PageContent[]>([])
     const [products, setProducts] = useState<WebProduct[]>([])
     const [siteConfig, setSiteConfig] = useState<SiteConfig>({
-        siteTitle: 'My Sports League',
-        siteDescription: 'Welcome to our sports league management system',
+        siteTitle: '',
+        siteDescription: ' ',
         maintenanceMode: false,
         contactEmail: ''
     })
@@ -118,10 +118,11 @@ export default function WebManagementPage() {
                     name: data.name || 'Unnamed Product',
                     description: data.description || '',
                     price: typeof data.sellingPrice === 'number' ? data.sellingPrice :
-                        typeof data.price === 'number' ? data.price : 0, // Fallback to price if sellingPrice doesn't exist
-                    imageUrl: data.imageUrls?.[0] || data.imageUrl || '', // Support both imageUrls and imageUrl
+                        typeof data.price === 'number' ? data.price : 0,
+                    imageUrl: data.imageUrls?.[0] || data.imageUrl || '',
                     category: data.category || 'general',
                     isActive: data.isActive !== undefined ? data.isActive : true,
+                    featured: data.featured || false,
                     sortOrder: typeof data.sortOrder === 'number' ? data.sortOrder : 0,
                     costPrice: typeof data.costPrice === 'number' ? data.costPrice : 0,
                     sellingPrice: typeof data.sellingPrice === 'number' ? data.sellingPrice : 0,
@@ -208,6 +209,7 @@ export default function WebManagementPage() {
                 portionSize: product.portionSize || '',
                 preparationTime: typeof product.preparationTime === 'number' ? product.preparationTime : 0,
                 isActive: product.isActive !== undefined ? product.isActive : true,
+                featured: product.featured || false,
                 tags: Array.isArray(product.tags) ? product.tags : [],
                 productType: product.productType || 'directCost',
                 // Ensure ingredients array is properly formatted
@@ -517,6 +519,7 @@ export default function WebManagementPage() {
                                 imageUrl: '',
                                 category: 'general',
                                 isActive: true,
+                                featured: false,
                                 sortOrder: products.length,
                                 costPrice: 0,
                                 sellingPrice: 0,
@@ -564,6 +567,7 @@ export default function WebManagementPage() {
     )
 }
 
+// Product Form Component
 // Product Form Component
 function ProductForm({ product, onChange, onSave, onCancel, loading }: {
     product: WebProduct
@@ -696,17 +700,33 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
                         placeholder="Popular, Spicy, Vegan"
                     />
                 </div>
-                <div className="md:col-span-2 flex items-center">
-                    <input
-                        type="checkbox"
-                        id="productActive"
-                        checked={product.isActive}
-                        onChange={(e) => onChange({ ...product, isActive: e.target.checked })}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="productActive" className="ml-2 block text-sm text-gray-700 font-light">
-                        Product is active and visible to customers
-                    </label>
+
+                {/* Add Featured Toggle */}
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center">
+                        <input
+                            type="checkbox"
+                            id="productActive"
+                            checked={product.isActive}
+                            onChange={(e) => onChange({ ...product, isActive: e.target.checked })}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="productActive" className="ml-2 block text-sm text-gray-700 font-light">
+                            Product is active and visible to customers
+                        </label>
+                    </div>
+                    <div className="flex items-center">
+                        <input
+                            type="checkbox"
+                            id="productFeatured"
+                            checked={product.featured || false}
+                            onChange={(e) => onChange({ ...product, featured: e.target.checked })}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="productFeatured" className="ml-2 block text-sm text-gray-700 font-light">
+                            Featured product (shows on landing page)
+                        </label>
+                    </div>
                 </div>
             </div>
             <div className="flex space-x-3 mt-6">
@@ -732,6 +752,7 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
 }
 
 // Product List Component
+// Product List Component
 function ProductList({ products, onEdit, onDelete, formatPrice }: {
     products: WebProduct[]
     onEdit: (product: WebProduct) => void
@@ -753,9 +774,16 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                                     {product.category || 'No category'}
                                 </div>
                             </div>
-                            <span className={`inline-flex px-2 py-1 text-xs font-light rounded-full ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {product.isActive ? 'Active' : 'Inactive'}
-                            </span>
+                            <div className="flex flex-col items-end space-y-1">
+                                <span className={`inline-flex px-2 py-1 text-xs font-light rounded-full ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    {product.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                                {product.featured && (
+                                    <span className="inline-flex px-2 py-1 text-xs font-light rounded-full bg-yellow-100 text-yellow-800">
+                                        Featured
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         <div className="text-xs text-gray-600 mb-2 font-light line-clamp-2">
                             {product.description || 'No description'}
@@ -812,6 +840,9 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                                 Status
                             </th>
                             <th className="px-4 sm:px-6 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider">
+                                Featured
+                            </th>
+                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider">
                                 Actions
                             </th>
                         </tr>
@@ -842,6 +873,11 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                                 <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                                     <span className={`inline-flex px-3 py-1 text-xs font-light rounded-full ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                         {product.isActive ? 'Active' : 'Inactive'}
+                                    </span>
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                                    <span className={`inline-flex px-3 py-1 text-xs font-light rounded-full ${product.featured ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
+                                        {product.featured ? 'Yes' : 'No'}
                                     </span>
                                 </td>
                                 <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm space-x-2">

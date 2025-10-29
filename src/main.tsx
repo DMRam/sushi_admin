@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { IngredientsProvider } from './context/IngredientsContext'
 import { ProductsProvider } from './context/ProductsContext'
 import App from './App'
+import './i18n';
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(

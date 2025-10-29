@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 interface PaymentMethodSelectorProps {
     paymentMethod: string;
     onPaymentMethodChange: (method: string) => void;
@@ -15,10 +17,12 @@ export default function PaymentMethodSelector({
     onPlaceOrder,
     onBack
 }: PaymentMethodSelectorProps) {
+    const { t } = useTranslation()
+
     return (
         <div className="bg-white/5 border border-white/10 rounded-sm p-6">
             <h3 className="text-lg font-light text-white tracking-wide mb-4">
-                Payment Method
+                {t('common.paymentMethod')}
             </h3>
 
             <div className="space-y-4 mb-6">
@@ -41,13 +45,13 @@ export default function PaymentMethodSelector({
                             value="card"
                             checked={paymentMethod === "card"}
                             onChange={(e) => onPaymentMethodChange(e.target.value)}
-                            className="sr-only" // Hide the actual input, use custom styling
+                            className="sr-only"
                         />
                     </div>
                     <div className="flex-1">
-                        <div className="text-white font-light">Credit/Debit Card</div>
+                        <div className="text-white font-light">{t('paymentMethod.card')}</div>
                         <div className="text-white/60 text-sm font-light mt-1">
-                            Pay securely with Stripe. You'll be redirected to complete payment.
+                            {t('paymentMethod.cardDescription')}
                         </div>
                     </div>
                     <div className="flex space-x-2">
@@ -79,13 +83,13 @@ export default function PaymentMethodSelector({
                             value="cash"
                             checked={paymentMethod === "cash"}
                             onChange={(e) => onPaymentMethodChange(e.target.value)}
-                            className="sr-only" // Hide the actual input, use custom styling
+                            className="sr-only"
                         />
                     </div>
                     <div className="flex-1">
-                        <div className="text-white font-light">Cash on Delivery</div>
+                        <div className="text-white font-light">{t('paymentMethod.cash')}</div>
                         <div className="text-white/60 text-sm font-light mt-1">
-                            Pay with cash when your order arrives
+                            {t('paymentMethod.cashDescription')}
                         </div>
                     </div>
                     <div className="text-white/40">
@@ -104,7 +108,7 @@ export default function PaymentMethodSelector({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <div className="text-blue-300 text-sm font-light">
-                            <strong>Secure Payment:</strong> You'll be redirected to Stripe to complete your payment securely. We never store your card details.
+                            <strong>{t('paymentMethod.securePayment')}:</strong> {t('paymentMethod.securePaymentDescription')}
                         </div>
                     </div>
                 </div>
@@ -118,7 +122,7 @@ export default function PaymentMethodSelector({
                     disabled={isProcessing}
                     className="bg-white/5 border border-white/10 text-white px-6 py-3 rounded-sm hover:bg-white/10 transition-all duration-300 font-light tracking-wide text-sm flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    Back to Information
+                    {t('checkoutPage.backToInfo')}
                 </button>
                 <button
                     type="button"
@@ -129,12 +133,12 @@ export default function PaymentMethodSelector({
                     {isProcessing ? (
                         <div className="flex items-center justify-center space-x-2">
                             <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-                            <span>Processing...</span>
+                            <span>{t('common.processing')}</span>
                         </div>
                     ) : paymentMethod === "card" ? (
-                        `Pay $${finalTotal.toFixed(2)}`
+                        `${t('paymentMethod.pay')} $${finalTotal.toFixed(2)}`
                     ) : (
-                        `Place Order - $${finalTotal.toFixed(2)}`
+                        `${t('common.placeOrder')} - $${finalTotal.toFixed(2)}`
                     )}
                 </button>
             </div>

@@ -1,8 +1,8 @@
-// pages/UserManagementPage.tsx
 import { useState, useEffect } from 'react'
 import { useUserProfile, UserRole } from '../context/UserProfileContext'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
+
 
 interface UserData {
   uid: string
@@ -17,6 +17,7 @@ export default function UserManagementPage() {
   const { userProfile, updateUserRole, hasPermission } = useUserProfile()
   const [users, setUsers] = useState<UserData[]>([])
   const [_loading, setLoading] = useState(true)
+
 
   useEffect(() => {
     if (userProfile && hasPermission(UserRole.ADMIN)) {
@@ -93,9 +94,9 @@ export default function UserManagementPage() {
                   </div>
                 </div>
                 <span className={`inline-flex px-2 py-1 text-xs font-light rounded-full flex-shrink-0 ml-2 ${user.role === UserRole.ADMIN ? 'bg-purple-100 text-purple-800' :
-                    user.role === UserRole.MANAGER ? 'bg-blue-100 text-blue-800' :
-                      user.role === UserRole.STAFF ? 'bg-green-100 text-green-800' :
-                        'bg-gray-100 text-gray-800'
+                  user.role === UserRole.MANAGER ? 'bg-blue-100 text-blue-800' :
+                    user.role === UserRole.STAFF ? 'bg-green-100 text-green-800' :
+                      'bg-gray-100 text-gray-800'
                   }`}>
                   {user.role}
                 </span>
@@ -171,9 +172,9 @@ export default function UserManagementPage() {
                   </td>
                   <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-3 py-1 text-xs font-light rounded-full ${user.role === UserRole.ADMIN ? 'bg-purple-100 text-purple-800' :
-                        user.role === UserRole.MANAGER ? 'bg-blue-100 text-blue-800' :
-                          user.role === UserRole.STAFF ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
+                      user.role === UserRole.MANAGER ? 'bg-blue-100 text-blue-800' :
+                        user.role === UserRole.STAFF ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
                       }`}>
                       {user.role}
                     </span>

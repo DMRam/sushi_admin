@@ -6,6 +6,7 @@ import {
     httpsCallable,
     type HttpsCallableResult,
 } from "firebase/functions";
+import { useTranslation } from "react-i18next";
 
 import { LandingCTAFooter } from "./landing/components/LandingCTAFooter";
 import CustomerInformation from "../components/web/CustomerInformation";
@@ -15,12 +16,61 @@ import type {
 } from "../types/stripe_interfaces";
 import PaymentMethodSelector from "./PaymentMethodSelector";
 
+interface FormData {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    address: string;
+    city: string;
+    zipCode: string;
+    deliveryInstructions: string;
+    paymentMethod: string;
+}
+
+interface CartItem {
+    id?: string;
+    name: string;
+    price: number;
+    quantity?: number;
+    description?: string;
+    category?: string;
+    image?: string;
+    imageUrl?: string;
+    thumbnail?: string;
+    mainImage?: string;
+    photo?: string;
+    img?: string;
+    picture?: string;
+    images?: string[];
+    imageUrls?: string[];
+}
+
+interface CustomerInfo {
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    city: string;
+    zipCode: string;
+    deliveryInstructions: string;
+    province: string;
+}
+
+interface Totals {
+    subtotal: number;
+    gst: number;
+    qst: number;
+    deliveryFee: number;
+    finalTotal: number;
+}
+
 export default function CheckoutPage() {
     const cart = useCartStore((state) => state.cart);
     const clearCart = useCartStore((state) => state.clearCart);
+    const { t } = useTranslation();
 
-    // Safe cart defaults
-    const safeCart = Array.isArray(cart) ? cart : [];
+    const safeCart: CartItem[] = Array.isArray(cart) ? cart : [];
     const itemCount = safeCart.reduce((sum, item) => sum + (item?.quantity || 0), 0);
     const cartTotal = safeCart.reduce(
         (sum, item) => sum + (item?.price || 0) * (item?.quantity || 0),
@@ -37,7 +87,7 @@ export default function CheckoutPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }, []);
 
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<FormData>({
         firstName: "",
         lastName: "",
         email: "",
@@ -46,14 +96,14 @@ export default function CheckoutPage() {
         city: "",
         zipCode: "",
         deliveryInstructions: "",
-        paymentMethod: "card", // card or cash
+        paymentMethod: "card",
     });
 
-    const gst = cartTotal * 0.05;
-    const qst = cartTotal * 0.09975;
+    const gst = Number((cartTotal * 0.05).toFixed(2));
+    const qst = Number((cartTotal * 0.09975).toFixed(2));
     const tax = gst + qst;
     const deliveryFee = cartTotal > 25 ? 0 : 4.99;
-    const finalTotal = cartTotal + tax + deliveryFee;
+    const finalTotal = Number((cartTotal + tax + deliveryFee).toFixed(2));
 
     const handleInputChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -72,38 +122,36 @@ export default function CheckoutPage() {
         }));
     };
 
-    const validateCustomerInfo = () => {
+    const validateCustomerInfo = (): boolean => {
         const requiredFields = {
-            firstName: "First name",
-            lastName: "Last name",
-            email: "Email",
-            phone: "Phone number",
-            address: "Delivery address",
-            city: "City",
-            zipCode: "ZIP code"
+            firstName: t('common.firstName'),
+            lastName: t('common.lastName'),
+            email: t('common.email'),
+            phone: t('common.phone'),
+            address: t('common.address'),
+            city: t('common.city'),
+            zipCode: t('common.zipCode')
         };
 
         const missingFields = Object.entries(requiredFields)
-            .filter(([key]) => !formData[key as keyof typeof formData])
+            .filter(([key]) => !formData[key as keyof FormData]?.trim())
             .map(([_, label]) => label);
 
         if (missingFields.length > 0) {
-            alert(`Please fill in the following required fields:\n${missingFields.join("\n")}`);
+            alert(`${t('checkoutPage.requiredFields')}\n${missingFields.join("\n")}`);
             return false;
         }
 
-        // Basic email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(formData.email)) {
-            alert("Please enter a valid email address");
+            alert(t('checkoutPage.validEmail'));
             return false;
         }
 
-        // Basic phone validation
         const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
         const cleanPhone = formData.phone.replace(/\D/g, '');
         if (!phoneRegex.test(cleanPhone)) {
-            alert("Please enter a valid phone number");
+            alert(t('checkoutPage.validPhone'));
             return false;
         }
 
@@ -129,40 +177,184 @@ export default function CheckoutPage() {
         }
     };
 
-    // STRIPE PAYMENT - Redirects to Stripe Checkout
+    // Enhanced image URL validation and collection
+    const collectValidImageUrls = (item: CartItem): string[] => {
+        const validUrls: string[] = [];
+
+        const addIfValidUrl = (url: any): boolean => {
+            if (typeof url !== 'string') return false;
+
+            const trimmedUrl = url.trim();
+            if (!trimmedUrl) return false;
+
+            try {
+                // Check if it's a valid URL
+                new URL(trimmedUrl);
+                // Check if it's an image URL (basic check)
+                const isImage = /\.(jpg|jpeg|png|webp|gif|bmp|svg)(\?.*)?$/i.test(trimmedUrl) ||
+                    trimmedUrl.includes('cloudinary') ||
+                    trimmedUrl.includes('firebase') ||
+                    trimmedUrl.includes('storage.googleapis.com');
+
+                if (isImage && !validUrls.includes(trimmedUrl)) {
+                    validUrls.push(trimmedUrl);
+                    return true;
+                }
+            } catch (error) {
+                // Not a valid URL
+                console.warn(`Invalid image URL for ${item.name}:`, trimmedUrl);
+            }
+            return false;
+        };
+
+        // Check all possible image fields
+        const imageFields = [
+            item.image,
+            item.imageUrl,
+            item.thumbnail,
+            item.mainImage,
+            item.photo,
+            item.img,
+            item.picture
+        ];
+
+        // Process single image fields
+        imageFields.forEach(field => addIfValidUrl(field));
+
+        // Process array fields
+        if (Array.isArray(item.images)) {
+            item.images.forEach((url: string) => addIfValidUrl(url));
+        }
+        if (Array.isArray(item.imageUrls)) {
+            item.imageUrls.forEach((url: string) => addIfValidUrl(url));
+        }
+
+        console.log(`🖼️ Collected ${validUrls.length} valid images for ${item.name}:`, validUrls);
+        return validUrls;
+    };
+
     const handleCardPayment = async () => {
         setIsProcessing(true);
+
         try {
-            console.log('Processing card payment...');
+            console.log('🔄 Starting card payment processing...');
 
-            const cartItems = safeCart.map((item) => ({
-                productId: item.id,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity || 1,
-                ...(item.description && { description: item.description }),
-                ...(item.category && { category: item.category }),
-                ...(item.image && { image: item.image, imageUrls: [item.image] }),
-            }));
-
-            // Validate items
-            const invalidItems = cartItems.filter(item => !item.name || item.price === undefined);
-            if (invalidItems.length > 0) {
-                throw new Error('Some items in your cart are invalid');
+            // Enhanced cart validation
+            if (!safeCart || safeCart.length === 0) {
+                throw new Error('Your cart is empty. Please add items before proceeding.');
             }
 
-            const customerInfo = {
-                name: `${formData.firstName} ${formData.lastName}`,
-                email: formData.email,
-                phone: formData.phone,
-                address: formData.address,
-                city: formData.city,
-                zipCode: formData.zipCode,
-                deliveryInstructions: formData.deliveryInstructions,
+            // Enhanced cart items preparation with better image handling
+            const cartItems = safeCart.map((item, index) => {
+                // Validate required fields
+                if (!item.name || item.name.trim() === "") {
+                    throw new Error(`Item ${index + 1} is missing a name`);
+                }
+
+                if (item.price === undefined || item.price === null) {
+                    throw new Error(`Item "${item.name}" is missing price information`);
+                }
+
+                if (typeof item.price !== "number" || item.price < 0) {
+                    throw new Error(`Item "${item.name}" has an invalid price`);
+                }
+
+                if (item.quantity && (item.quantity < 1 || !Number.isInteger(item.quantity))) {
+                    throw new Error(`Item "${item.name}" has an invalid quantity`);
+                }
+
+                // Collect valid image URLs
+                const validImageUrls = collectValidImageUrls(item);
+
+                // Prepare cart item with enhanced image handling
+                const cartItem: any = {
+                    productId: item.id || `item-${index}-${Date.now()}`,
+                    name: item.name.trim(),
+                    price: Number(item.price),
+                    quantity: item.quantity || 1,
+                    ...(item.description && {
+                        description: item.description.substring(0, 495)
+                    }),
+                    ...(item.category && { category: item.category }),
+                };
+
+                // Add images if we have valid ones
+                if (validImageUrls.length > 0) {
+                    cartItem.image = validImageUrls[0]; // Primary image
+                    cartItem.imageUrls = validImageUrls.slice(0, 8); // All images (Stripe limit)
+
+                    console.log(`✅ Added ${validImageUrls.length} images to ${cartItem.name}`);
+                } else {
+                    console.warn(`⚠️ No valid images found for ${cartItem.name}`);
+                }
+
+                console.log(`📦 Prepared item: ${cartItem.name}`, {
+                    price: cartItem.price,
+                    quantity: cartItem.quantity,
+                    images: cartItem.imageUrls?.length || 0
+                });
+
+                return cartItem;
+            });
+
+            console.log('✅ Cart items validated:', cartItems.length);
+
+            // Enhanced customer info preparation
+            const customerInfo: CustomerInfo = {
+                name: `${formData.firstName} ${formData.lastName}`.trim(),
+                email: formData.email.trim(),
+                phone: formData.phone?.trim() || "",
+                address: formData.address?.trim() || "",
+                city: formData.city?.trim() || "",
+                zipCode: formData.zipCode?.trim() || "",
+                deliveryInstructions: formData.deliveryInstructions?.trim() || "",
                 province: "QC",
             };
 
-            console.log('Sending to Stripe...');
+            // Validate required customer fields
+            const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city', 'zipCode'];
+            const missingFields = requiredFields.filter(field => !formData[field as keyof FormData]?.trim());
+
+            if (missingFields.length > 0) {
+                throw new Error(`Please fill in all required fields: ${missingFields.join(', ')}`);
+            }
+
+            // Enhanced totals calculation with validation
+            const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+            if (subtotal <= 0) {
+                throw new Error('Invalid cart total. Please check your items.');
+            }
+
+            const gst = Number((subtotal * 0.05).toFixed(2));
+            const qst = Number((subtotal * 0.09975).toFixed(2));
+            const tax = gst + qst;
+            const deliveryFee = subtotal > 25 ? 0 : 4.99;
+            const finalTotal = Number((subtotal + tax + deliveryFee).toFixed(2));
+
+            console.log('💰 Enhanced totals calculation:', {
+                subtotal,
+                gst,
+                qst,
+                tax,
+                deliveryFee,
+                finalTotal,
+                itemCount: cartItems.length
+            });
+
+            // Enhanced API request with better error handling and timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+            console.log('🚀 Sending request to Stripe checkout...');
+            console.log('📦 Cart items being sent:', cartItems.map(item => ({
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                images: item.imageUrls?.length || 0,
+                imageUrls: item.imageUrls
+            })));
+
             const response = await fetch('https://us-central1-sushi-admin.cloudfunctions.net/createCheckoutHTTP', {
                 method: 'POST',
                 headers: {
@@ -171,37 +363,104 @@ export default function CheckoutPage() {
                 body: JSON.stringify({
                     cartItems,
                     customerInfo,
-                    userId: 'user-' + Date.now(),
+                    totals: {
+                        subtotal: subtotal,
+                        gst: gst,
+                        qst: qst,
+                        deliveryFee: deliveryFee,
+                        finalTotal: finalTotal
+                    },
+                    userId: 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
                     clientUrl: window.location.origin
-                })
+                }),
+                signal: controller.signal
             });
 
-            const responseText = await response.text();
-            console.log('Stripe response:', responseText);
+            clearTimeout(timeoutId);
+
+            console.log('📨 Stripe response status:', response.status);
 
             if (!response.ok) {
                 let errorData;
+                const responseText = await response.text();
+
                 try {
                     errorData = JSON.parse(responseText);
                 } catch {
-                    errorData = { error: responseText };
+                    errorData = { error: `Server error: ${response.status}` };
                 }
-                throw new Error(errorData.error || `Payment failed: ${response.status}`);
+
+                console.error('❌ Stripe API error:', errorData);
+
+                // Enhanced error messages based on status code
+                switch (response.status) {
+                    case 400:
+                        throw new Error(errorData.details || errorData.error || 'Invalid request. Please check your cart.');
+                    case 500:
+                        throw new Error('Payment service is temporarily unavailable. Please try again.');
+                    default:
+                        throw new Error(errorData.error || `Payment failed: ${response.status}`);
+                }
             }
 
-            const result = JSON.parse(responseText);
-            console.log('Stripe checkout session created:', result);
+            const result = await response.json();
+            console.log('✅ Stripe checkout session created:', result);
 
             if (result.success && result.url) {
-                // Redirect to Stripe Checkout - they handle payment details
-                console.log('Redirecting to Stripe Checkout...');
+                console.log('🔗 Redirecting to Stripe Checkout...');
+
+                // Add analytics or tracking before redirect
+                if (typeof gtag !== 'undefined') {
+                    gtag('event', 'begin_checkout', {
+                        currency: 'CAD',
+                        value: finalTotal,
+                        items: cartItems.map(item => ({
+                            item_id: item.productId,
+                            item_name: item.name,
+                            price: item.price,
+                            quantity: item.quantity
+                        }))
+                    });
+                }
+
+                // Store cart data in sessionStorage in case of redirect issues
+                sessionStorage.setItem('pendingCheckout', JSON.stringify({
+                    cartItems,
+                    customerInfo,
+                    totals: { subtotal, gst, qst, deliveryFee, finalTotal },
+                    timestamp: Date.now()
+                }));
+
+                // Redirect to Stripe
                 window.location.href = result.url;
             } else {
                 throw new Error(result.error || 'Checkout session creation failed');
             }
+
         } catch (error: any) {
-            console.error('Card payment error:', error);
-            alert(error.message || 'Payment processing failed. Please try again.');
+            console.error('💥 Card payment error:', error);
+
+            // Enhanced error handling with user-friendly messages
+            let userMessage = error.message || 'Payment processing failed. Please try again.';
+
+            if (error.name === 'AbortError') {
+                userMessage = 'Request timeout. Please check your connection and try again.';
+            }
+
+            if (error.message.includes('network') || error.message.includes('fetch')) {
+                userMessage = 'Network error. Please check your internet connection and try again.';
+            }
+
+            // Show error to user
+            alert(userMessage);
+
+            // Log detailed error for debugging
+            console.error('Detailed error:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
+
             setIsProcessing(false);
         }
     };
@@ -219,14 +478,25 @@ export default function CheckoutPage() {
                 CashOrderResponse
             >(functions, "createCashOrder");
 
-            const cartItems = safeCart.map((item) => ({
-                productId: item.id,
-                name: item.name,
-                sellingPrice: item.price,
-                quantity: item.quantity,
-            }));
+            // Enhanced cart items for cash payment with image handling
+            const cartItems = safeCart.map((item, index) => {
+                const validImageUrls = collectValidImageUrls(item);
 
-            const customerInfo = {
+                return {
+                    productId: item.id || `item-${index}-${Date.now()}`,
+                    name: item.name,
+                    sellingPrice: item.price,
+                    quantity: item.quantity || 1,
+                    ...(item.description && { description: item.description }),
+                    ...(item.category && { category: item.category }),
+                    ...(validImageUrls.length > 0 && {
+                        image: validImageUrls[0],
+                        images: validImageUrls
+                    }),
+                };
+            });
+
+            const customerInfo: CustomerInfo = {
                 name: `${formData.firstName} ${formData.lastName}`,
                 email: formData.email,
                 phone: formData.phone,
@@ -234,25 +504,31 @@ export default function CheckoutPage() {
                 city: formData.city,
                 zipCode: formData.zipCode,
                 deliveryInstructions: formData.deliveryInstructions,
+                province: "QC",
+            };
+
+            const totals: Totals = {
+                subtotal: cartTotal,
+                gst,
+                qst,
+                deliveryFee,
+                finalTotal,
             };
 
             const result: HttpsCallableResult<CashOrderResponse> =
                 await createCashOrder({
                     cartItems,
                     customerInfo,
-                    totals: {
-                        subtotal: cartTotal,
-                        gst,
-                        qst,
-                        deliveryFee,
-                        finalTotal,
-                    },
+                    totals,
                 });
 
             if (result.data.success) {
                 setOrderNumber(result.data.orderId);
                 setOrderComplete(true);
                 clearCart();
+
+                // Clear any pending checkout data
+                sessionStorage.removeItem('pendingCheckout');
             } else {
                 throw new Error(result.data.error || "Order creation failed");
             }
@@ -283,16 +559,16 @@ export default function CheckoutPage() {
                             />
                         </svg>
                         <h2 className="text-2xl font-light text-white mb-3 tracking-wide">
-                            Your cart is empty
+                            {t('checkoutPage.emptyCart')}
                         </h2>
                         <p className="text-white/60 mb-6 font-light tracking-wide text-sm">
-                            Add some delicious sushi to get started!
+                            {t('checkoutPage.emptyCartDescription')}
                         </p>
                         <Link
                             to="/order"
                             className="border border-white text-white px-6 py-3 rounded-sm hover:bg-white hover:text-gray-900 transition-all duration-300 font-light tracking-wide text-sm inline-block"
                         >
-                            Browse Menu
+                            {t('checkoutPage.browseMenu')}
                         </Link>
                     </div>
                 </div>
@@ -300,7 +576,6 @@ export default function CheckoutPage() {
         );
     }
 
-    // Order Complete
     if (orderComplete) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -324,15 +599,15 @@ export default function CheckoutPage() {
                             </div>
                             <h2 className="text-2xl font-light text-white mb-3 tracking-wide">
                                 {formData.paymentMethod === "cash"
-                                    ? "Order Confirmed!"
-                                    : "Payment Successful!"}
+                                    ? t('checkoutPage.orderConfirmed')
+                                    : t('checkoutPage.paymentSuccessful')}
                             </h2>
                             <p className="text-white/60 mb-3 font-light tracking-wide text-sm">
-                                Thank you for your order
+                                {t('checkoutPage.thanksOrder')}
                             </p>
                             <div className="bg-white/5 rounded-sm p-4 mb-6 border border-white/10">
                                 <p className="text-xs text-white/40 font-light tracking-wide mb-1">
-                                    Order Number
+                                    {t('checkoutPage.orderNumber')}
                                 </p>
                                 <p className="text-lg font-light text-white font-mono">
                                     {orderNumber}
@@ -340,21 +615,21 @@ export default function CheckoutPage() {
                             </div>
                             <p className="text-white/60 mb-6 font-light tracking-wide leading-relaxed text-sm">
                                 {formData.paymentMethod === "cash"
-                                    ? `We've received your order for $${finalTotal.toFixed(2)} CAD. Please have cash ready upon delivery. Your sushi will be ready in approximately 20–30 minutes.`
-                                    : `We've sent a confirmation email to ${formData.email}. Your sushi will be ready in approximately 20–30 minutes.`}
+                                    ? t('checkoutPage.cashPaymentMessage', { amount: finalTotal.toFixed(2) })
+                                    : t('checkoutPage.cardPaymentMessage', { email: formData.email })}
                             </p>
                             <div className="flex flex-col gap-3">
                                 <Link
                                     to="/order"
                                     className="border border-white text-white px-4 py-3 rounded-sm hover:bg-white hover:text-gray-900 transition-all duration-300 font-light tracking-wide text-sm"
                                 >
-                                    Order Again
+                                    {t('checkoutPage.orderAgain')}
                                 </Link>
                                 <button
                                     onClick={() => navigate("/")}
                                     className="bg-white/5 border border-white/10 text-white px-4 py-3 rounded-sm hover:bg-white/10 transition-all duration-300 font-light tracking-wide text-sm"
                                 >
-                                    Back to Home
+                                    {t('checkoutPage.backHome')}
                                 </button>
                             </div>
                         </div>
@@ -364,11 +639,9 @@ export default function CheckoutPage() {
         );
     }
 
-    // Step Indicators
     const StepIndicator = () => (
         <div className="flex items-center justify-center mb-8">
             <div className="flex items-center">
-                {/* Step 1: Information */}
                 <div className="flex flex-col items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${currentStep === "info"
                         ? "bg-white border-white text-gray-900"
@@ -378,13 +651,12 @@ export default function CheckoutPage() {
                     </div>
                     <span className={`text-xs mt-2 font-light tracking-wide ${currentStep === "info" ? "text-white" : "text-white/40"
                         }`}>
-                        Information
+                        {t('checkoutPage.information')}
                     </span>
                 </div>
 
                 <div className="w-12 h-px bg-white/20 mx-2"></div>
 
-                {/* Step 2: Review */}
                 <div className="flex flex-col items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${currentStep === "review"
                         ? "bg-white border-white text-gray-900"
@@ -398,19 +670,17 @@ export default function CheckoutPage() {
                         ? "text-white"
                         : "text-white/40"
                         }`}>
-                        Review & Pay
+                        {t('checkoutPage.reviewPay')}
                     </span>
                 </div>
             </div>
         </div>
     );
 
-    // Main Checkout View
     return (
         <div className="min-h-screen bg-gray-900">
             <div className="container mx-auto px-4 py-8">
-                <div className="max-w-7xl mx-auto"> {/* Increased max-width */}
-                    {/* Header */}
+                <div className="max-w-7xl mx-auto">
                     <header className="mb-8">
                         <Link
                             to="/order"
@@ -429,16 +699,15 @@ export default function CheckoutPage() {
                                     d="M15 19l-7-7 7-7"
                                 />
                             </svg>
-                            Back to Menu
+                            {t('checkoutPage.backMenu')}
                         </Link>
                         <h1 className="text-2xl font-light text-white tracking-wide mb-2">
-                            Checkout
+                            {t('checkoutPage.checkout')}
                         </h1>
                         <StepIndicator />
                     </header>
 
                     <form onSubmit={currentStep === "info" ? handleContinueToReview : undefined}>
-                        {/* Mobile Layout */}
                         <div className="block lg:hidden space-y-6">
                             {currentStep === "info" && (
                                 <>
@@ -462,7 +731,7 @@ export default function CheckoutPage() {
                                             type="submit"
                                             className="bg-white text-gray-900 px-8 py-4 rounded-sm hover:bg-white/90 transition-all duration-300 font-light tracking-wide text-sm w-full"
                                         >
-                                            Continue to Review
+                                            {t('checkoutPage.continueReview')}
                                         </button>
                                     </div>
                                 </>
@@ -483,14 +752,14 @@ export default function CheckoutPage() {
                                     <div className="bg-white/5 border border-white/10 rounded-sm p-6">
                                         <div className="flex items-center justify-between mb-4">
                                             <h3 className="text-lg font-light text-white tracking-wide">
-                                                Delivery Information
+                                                {t('checkoutPage.deliveryInfo')}
                                             </h3>
                                             <button
                                                 type="button"
                                                 onClick={handleBackToInfo}
                                                 className="text-white/60 hover:text-white text-sm font-light tracking-wide"
                                             >
-                                                Edit
+                                                {t('checkoutPage.edit')}
                                             </button>
                                         </div>
                                         <div className="text-white/80 font-light text-sm space-y-2">
@@ -499,7 +768,7 @@ export default function CheckoutPage() {
                                             <p>{formData.phone}</p>
                                             <p>{formData.address}, {formData.city}, QC {formData.zipCode}</p>
                                             {formData.deliveryInstructions && (
-                                                <p className="text-white/60">Instructions: {formData.deliveryInstructions}</p>
+                                                <p className="text-white/60">{t('checkoutPage.instructions')}: {formData.deliveryInstructions}</p>
                                             )}
                                         </div>
                                     </div>
@@ -518,9 +787,7 @@ export default function CheckoutPage() {
                             )}
                         </div>
 
-                        {/* Desktop Layout */}
-                        <div className="hidden lg:grid grid-cols-1 xl:grid-cols-4 gap-8"> {/* Better grid system */}
-                            {/* Left Column - Main Content (3/4 width) */}
+                        <div className="hidden lg:grid grid-cols-1 xl:grid-cols-4 gap-8">
                             <div className="xl:col-span-3 space-y-6">
                                 {currentStep === "info" && (
                                     <>
@@ -534,7 +801,7 @@ export default function CheckoutPage() {
                                                 type="submit"
                                                 className="bg-white text-gray-900 px-8 py-3 rounded-sm hover:bg-white/90 transition-all duration-300 font-light tracking-wide text-sm"
                                             >
-                                                Continue to Review
+                                                {t('checkoutPage.continueReview')}
                                             </button>
                                         </div>
                                     </>
@@ -545,14 +812,14 @@ export default function CheckoutPage() {
                                         <div className="bg-white/5 border border-white/10 rounded-sm p-6">
                                             <div className="flex items-center justify-between mb-4">
                                                 <h3 className="text-lg font-light text-white tracking-wide">
-                                                    Delivery Information
+                                                    {t('checkoutPage.deliveryInfo')}
                                                 </h3>
                                                 <button
                                                     type="button"
                                                     onClick={handleBackToInfo}
                                                     className="text-white/60 hover:text-white text-sm font-light tracking-wide"
                                                 >
-                                                    Edit
+                                                    {t('checkoutPage.edit')}
                                                 </button>
                                             </div>
                                             <div className="text-white/80 font-light text-sm space-y-2">
@@ -561,7 +828,7 @@ export default function CheckoutPage() {
                                                 <p>{formData.phone}</p>
                                                 <p>{formData.address}, {formData.city}, QC {formData.zipCode}</p>
                                                 {formData.deliveryInstructions && (
-                                                    <p className="text-white/60">Instructions: {formData.deliveryInstructions}</p>
+                                                    <p className="text-white/60">{t('checkoutPage.instructions')}: {formData.deliveryInstructions}</p>
                                                 )}
                                             </div>
                                         </div>
@@ -578,9 +845,8 @@ export default function CheckoutPage() {
                                 )}
                             </div>
 
-                            {/* Right Column - Order Summary (1/4 width) */}
                             <div className="xl:col-span-1">
-                                <div className="min-w-80"> {/* Ensure minimum width */}
+                                <div className="min-w-80">
                                     <OrderSummary
                                         cart={safeCart}
                                         cartTotal={cartTotal}

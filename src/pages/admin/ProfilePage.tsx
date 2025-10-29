@@ -1,5 +1,5 @@
 import  { useState } from 'react'
-import { useUserProfile } from '../context/UserProfileContext'
+import { useUserProfile } from '../../context/UserProfileContext'
 
 export default function ProfilePage() {
   const { userProfile, updateProfile } = useUserProfile()

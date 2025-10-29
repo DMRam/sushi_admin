@@ -62,6 +62,7 @@ export const ProductsProvider: React.FC<{ children: ReactNode }> = ({ children }
           id: doc.id,
           name: data.name || '',
           description: data.description || '',
+          preparation: data.preparation || '',
           ingredients: data.ingredients || [],
           costPrice: data.costPrice || 0,
           sellingPrice: data.sellingPrice,

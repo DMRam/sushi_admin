@@ -25,6 +25,7 @@ export type Product = {
   id: string
   name: string
   description: string
+  preparation: string
   ingredients: ProductIngredient[]
   costPrice?: number
   sellingPrice?: number
@@ -39,12 +40,17 @@ export type Product = {
   preparationVideoUrl?: string;
   imageUrls: string[];
   quantity: number
+  featured?: boolean
 }
 
+// In your types file (types.ts)
 export type Purchase = {
   id: string
+  purchaseType: 'ingredient' | 'supply'
   ingredientId: string
   ingredientName: string
+  supplyName?: string
+  supplyCategory?: 'packaging' | 'cleaning' | 'delivery' | 'office' | 'other'
   quantity: number
   unit: Unit
   totalCost: number
@@ -99,15 +105,39 @@ export type WasteRecord = {
   notes?: string
 }
 
-export type SalesRecord = {
+export interface SaleProduct {
   id: string
-  productId: string
+  name: string
   quantity: number
   salePrice: number
-  saleDate: string
-  createdAt: string
-  lowStockFlag?: boolean // New field to track if sale was made with low stock
+  originalPrice: number
+  costPrice?: number
 }
+
+export interface SalesRecord {
+  id: string
+  orderId: string
+  products: SaleProduct[]
+  subtotal: number
+  discountAmount?: number
+  taxes?: {
+    gst: number
+    qst: number
+    total: number
+  }
+  totalAmount: number
+  costTotal?: number
+  profitTotal?: number
+  saleDate: string
+  createdAt: string | Date
+  customerName: string
+  customerEmail: string
+  saleType: string
+  paymentStatus: string
+  lowStockFlag: boolean
+  stripeSessionId?: string
+}
+
 
 export type BusinessExpense = {
   id: string
@@ -317,6 +347,7 @@ export interface MenuItem {
   id: string
   name: string
   description: string
+  preparation: string
   price: number
   image: string
   category: string
@@ -345,5 +376,6 @@ export interface WebProduct {
   preparationTime?: number
   tags?: string[]
   productType?: 'ingredientBased' | 'directCost'
-  ingredients?: ProductIngredient[]
+  ingredients?: ProductIngredient[];
+  featured?: boolean
 }

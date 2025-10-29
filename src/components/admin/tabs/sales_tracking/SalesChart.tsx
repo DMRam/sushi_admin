@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react'
 import { useSales } from '../../../../context/SalesContext'
 import { useProducts } from '../../../../context/ProductsContext'
 
-
 export default function SalesChart() {
   const { sales, getRecentSales } = useSales()
   const { products } = useProducts()
@@ -15,6 +14,15 @@ export default function SalesChart() {
     // Group sales by date
     const salesByDate = recentSales.reduce((acc, sale) => {
       const date = new Date(sale.saleDate).toLocaleDateString()
+
+      // Calculate totals from all products in the sale
+      const saleRevenue = sale.products.reduce((sum, product) =>
+        sum + (product.quantity * product.salePrice), 0
+      )
+      const saleUnits = sale.products.reduce((sum, product) =>
+        sum + product.quantity, 0
+      )
+
       if (!acc[date]) {
         acc[date] = {
           revenue: 0,
@@ -22,8 +30,8 @@ export default function SalesChart() {
           transactions: 0
         }
       }
-      acc[date].revenue += sale.quantity * sale.salePrice
-      acc[date].units += sale.quantity
+      acc[date].revenue += saleRevenue
+      acc[date].units += saleUnits
       acc[date].transactions += 1
       return acc
     }, {} as Record<string, { revenue: number; units: number; transactions: number }>)
@@ -42,9 +50,22 @@ export default function SalesChart() {
 
     return products
       .map(product => {
-        const productSales = recentSales.filter(sale => sale.productId === product.id)
-        const revenue = productSales.reduce((sum, sale) => sum + (sale.quantity * sale.salePrice), 0)
-        const units = productSales.reduce((sum, sale) => sum + sale.quantity, 0)
+        // Find all sales that contain this product
+        const productSales = recentSales.filter(sale =>
+          sale.products.some(p => p.id === product.id)
+        )
+
+        // Calculate totals from product sales
+        const productDetails = productSales.flatMap(sale =>
+          sale.products.filter(p => p.id === product.id)
+        )
+
+        const revenue = productDetails.reduce((sum, product) =>
+          sum + (product.quantity * product.salePrice), 0
+        )
+        const units = productDetails.reduce((sum, product) =>
+          sum + product.quantity, 0
+        )
 
         return {
           productId: product.id,

@@ -11,10 +11,25 @@ export default function ProfitabilityChart() {
 
     return products
       .map(product => {
-        const productSales = recentSales.filter(sale => sale.productId === product.id)
-        const revenue = productSales.reduce((sum, sale) => sum + (sale.quantity * sale.salePrice), 0)
-        const unitsSold = productSales.reduce((sum, sale) => sum + sale.quantity, 0)
-        const totalCost = (product.costPrice || 0) * unitsSold
+        // Filter sales for this product and calculate totals
+        const productSales = recentSales.filter(sale =>
+          sale.products.some(p => p.id === product.id)
+        )
+
+        // Calculate totals from all products in sales records
+        const productSalesDetails = productSales.flatMap(sale =>
+          sale.products.filter(p => p.id === product.id)
+        )
+
+        const revenue = productSalesDetails.reduce((sum, product) =>
+          sum + (product.quantity * product.salePrice), 0
+        )
+        const unitsSold = productSalesDetails.reduce((sum, product) =>
+          sum + product.quantity, 0
+        )
+        const totalCost = productSalesDetails.reduce((sum, product) =>
+          sum + ((product.costPrice || 0) * product.quantity), 0
+        )
         const profit = revenue - totalCost
         const margin = revenue > 0 ? (profit / revenue) * 100 : 0
         const profitPerUnit = unitsSold > 0 ? profit / unitsSold : 0

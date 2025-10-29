@@ -80,7 +80,9 @@ export default function LandingPage() {
       />
 
       <LandingFeatured handleAddToCart={handleAddToCart} />
-      <LandingContact />
+      <div id="contact">
+        <LandingContact />
+      </div>
 
       <LandingCTAFooter displaySimple={false} />
 
