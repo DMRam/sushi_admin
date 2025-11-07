@@ -7,7 +7,7 @@ import {
     type HttpsCallableResult,
 } from "firebase/functions";
 import { useTranslation } from "react-i18next";
-
+import { supabase } from "../lib/supabase";
 import { LandingCTAFooter } from "./landing/components/LandingCTAFooter";
 import CustomerInformation from "../components/web/CustomerInformation";
 import OrderSummary from "../components/web/OrderSummary";
@@ -15,6 +15,9 @@ import type {
     CashOrderResponse,
 } from "../types/stripe_interfaces";
 import PaymentMethodSelector from "./PaymentMethodSelector";
+import { AuthModal } from "./components/AuthModal";
+import { auth } from "../firebase/firebase";
+import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
 
 interface FormData {
     firstName: string;
@@ -65,10 +68,23 @@ interface Totals {
     finalTotal: number;
 }
 
+interface UserProfile {
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    points: number;
+    address?: string;
+    city?: string;
+    zip_code?: string;
+}
+
 export default function CheckoutPage() {
     const cart = useCartStore((state) => state.cart);
     const clearCart = useCartStore((state) => state.clearCart);
     const { t } = useTranslation();
+    const navigate = useNavigate();
 
     const safeCart: CartItem[] = Array.isArray(cart) ? cart : [];
     const itemCount = safeCart.reduce((sum, item) => sum + (item?.quantity || 0), 0);
@@ -77,14 +93,45 @@ export default function CheckoutPage() {
         0
     );
 
-    const navigate = useNavigate();
     const [isProcessing, setIsProcessing] = useState(false);
     const [orderComplete, setOrderComplete] = useState(false);
     const [orderNumber, setOrderNumber] = useState("");
     const [currentStep, setCurrentStep] = useState<"info" | "review" | "payment">("info");
 
+    // Authentication & Points State
+    const [user, setUser] = useState<UserProfile | null>(null);
+    const [isLoadingUser, setIsLoadingUser] = useState(true);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [isLoginMode, setIsLoginMode] = useState(true);
+    const [authForm, setAuthForm] = useState({
+        email: '',
+        password: '',
+        firstName: '',
+        lastName: '',
+        phone: ''
+    });
+    const [isAuthLoading, setIsAuthLoading] = useState(false);
+    const [authError, setAuthError] = useState('');
+
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
+        // checkUser();
+    }, []);
+
+    // Add Firebase auth state listener
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in with Firebase
+                checkUser();
+            } else {
+                // User is signed out
+                setUser(null);
+                setIsLoadingUser(false);
+            }
+        });
+
+        return () => unsubscribe();
     }, []);
 
     const [formData, setFormData] = useState<FormData>({
@@ -105,6 +152,353 @@ export default function CheckoutPage() {
     const deliveryFee = cartTotal > 25 ? 0 : 4.99;
     const finalTotal = Number((cartTotal + tax + deliveryFee).toFixed(2));
 
+    // Calculate points for this order (example: 1 point per $1 spent)
+    const pointsEarned = Math.floor(cartTotal);
+
+    // Authentication Functions
+    const checkUser = async () => {
+        try {
+            const currentUser = auth.currentUser;
+
+            console.log('Checking user in checkout:', currentUser);
+
+            if (currentUser) {
+
+                console.log('User is logged in with UID:', currentUser.uid);
+                // Fetch client profile from Supabase using Firebase UID
+                const { data: clientProfile, error } = await supabase
+                    .from('client_profiles')
+                    .select('*')
+                    .eq('firebase_uid', currentUser.uid)
+                    .single();
+
+                if (error) {
+                    console.error('Error fetching client profile:', error);
+                    setIsLoadingUser(false);
+                    return;
+                }
+
+                console.log('Fetched client profile:', clientProfile);
+
+                if (clientProfile) {
+                    // Split full_name into first and last name
+                    const fullName = clientProfile.full_name || '';
+                    const nameParts = fullName.split(' ');
+                    const firstName = nameParts[0] || '';
+                    const lastName = nameParts.slice(1).join(' ') || '';
+
+                    setUser({
+                        id: clientProfile.id,
+                        email: clientProfile.email,
+                        first_name: firstName,
+                        last_name: lastName,
+                        phone: clientProfile.phone,
+                        points: clientProfile.points,
+                        address: clientProfile.address,
+                        city: clientProfile.city,
+                        zip_code: clientProfile.zip_code
+                    });
+
+                    // Auto-fill form with user data
+                    setFormData(prev => ({
+                        ...prev,
+                        firstName: firstName,
+                        lastName: lastName,
+                        email: clientProfile.email || '',
+                        phone: clientProfile.phone || '',
+                        address: clientProfile.address || '',
+                        city: clientProfile.city || '',
+                        zipCode: clientProfile.zip_code || ''
+                    }));
+                    setIsLoadingUser(false);
+                }
+            } else {
+                setIsLoadingUser(false);
+            }
+        } catch (error) {
+            console.error('Error checking user:', error);
+            setIsLoadingUser(false);
+        }
+    };
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsAuthLoading(true);
+        setAuthError('');
+
+        try {
+            // Use Firebase Auth for login
+            const userCredential = await signInWithEmailAndPassword(
+                auth,
+                authForm.email,
+                authForm.password
+            );
+
+            const firebaseUser = userCredential.user;
+
+            // Now fetch the client profile from Supabase using Firebase UID
+            const { data: clientProfile, error } = await supabase
+                .from('client_profiles')
+                .select('*')
+                .eq('firebase_uid', firebaseUser.uid)
+                .single();
+
+            if (error) {
+                console.error('Error fetching client profile:', error);
+                setAuthError('User profile not found');
+                return;
+            }
+
+            console.log('+++++ Fetched client profile on login:', clientProfile);
+
+            if (clientProfile) {
+                // Split full_name into first and last name
+                const fullName = clientProfile.full_name || '';
+                const nameParts = fullName.split(' ');
+                const firstName = nameParts[0] || '';
+                const lastName = nameParts.slice(1).join(' ') || '';
+
+                // Set user state with the client profile
+                setUser({
+                    id: clientProfile.id,
+                    email: clientProfile.email,
+                    first_name: firstName,
+                    last_name: lastName,
+                    phone: clientProfile.phone,
+                    points: clientProfile.points,
+                    address: clientProfile.address,
+                    city: clientProfile.city,
+                    zip_code: clientProfile.zip_code
+                });
+
+                // Update form data
+                setFormData(prev => ({
+                    ...prev,
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: clientProfile.email || '',
+                    phone: clientProfile.phone || '',
+                    address: clientProfile.address || '',
+                    city: clientProfile.city || '',
+                    zipCode: clientProfile.zip_code || ''
+                }));
+
+                console.log('@@@@@@ User logged in and form updated');
+                setShowAuthModal(false);
+                setAuthForm({ email: '', password: '', firstName: '', lastName: '', phone: '' });
+            }
+
+        } catch (error: any) {
+            console.error('Login error:', error);
+            setAuthError(error.message || 'Login failed');
+        } finally {
+            setIsAuthLoading(false);
+        }
+    };
+
+    const handleSignup = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsAuthLoading(true);
+        setAuthError('');
+
+        try {
+            // Create user with Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(
+                auth,
+                authForm.email,
+                authForm.password
+            );
+
+            const firebaseUser = userCredential.user;
+
+            // Combine first and last name into full_name for Supabase
+            const fullName = `${authForm.firstName} ${authForm.lastName}`.trim();
+
+            // Create client profile in Supabase
+            const { data: clientProfile, error: profileError } = await supabase
+                .from('client_profiles')
+                .insert({
+                    firebase_uid: firebaseUser.uid,
+                    email: authForm.email,
+                    full_name: fullName,
+                    phone: authForm.phone,
+                    points: 0,
+                    created_at: new Date().toISOString(),
+                })
+                .select()
+                .single();
+
+            if (profileError) throw profileError;
+
+            if (clientProfile) {
+                // Set user state
+                setUser({
+                    id: clientProfile.id,
+                    email: clientProfile.email,
+                    first_name: authForm.firstName,
+                    last_name: authForm.lastName,
+                    phone: clientProfile.phone,
+                    points: clientProfile.points
+                });
+
+                setShowAuthModal(false);
+                setAuthForm({ email: '', password: '', firstName: '', lastName: '', phone: '' });
+            }
+
+        } catch (error: any) {
+            console.error('Signup error:', error);
+            setAuthError(error.message || 'Signup failed');
+        } finally {
+            setIsAuthLoading(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        await auth.signOut();
+        setUser(null);
+        setFormData(prev => ({
+            ...prev,
+            firstName: "",
+            lastName: "",
+            email: "",
+            phone: ""
+        }));
+    };
+
+    // Add this function to handle points after successful card payment
+useEffect(() => {
+    const processPendingPoints = async () => {
+        try {
+            const pendingPoints = sessionStorage.getItem('pendingPointsOrder');
+            if (pendingPoints) {
+                const { userId, orderId, pointsEarned } = JSON.parse(pendingPoints);
+                
+                console.log('🔄 Processing pending points:', { userId, orderId, pointsEarned });
+
+                // If user is logged in and matches the stored userId
+                if (user && userId === user.id) {
+                    await addPointsTransaction(
+                        orderId,
+                        pointsEarned,
+                        'earn',
+                        `Points earned for order #${orderId}`
+                    );
+                    
+                    console.log('✅ Points processed successfully');
+                    sessionStorage.removeItem('pendingPointsOrder');
+                    
+                    // Show success message to user
+                    alert(`🎉 You earned ${pointsEarned} points for your order!`);
+                } else if (!user) {
+                    console.log('👤 No user logged in, keeping points pending');
+                    // Keep points pending until user logs in
+                }
+            }
+        } catch (error) {
+            console.error('💥 Error processing pending points:', error);
+        }
+    };
+
+    processPendingPoints();
+}, [user]); // Only depend on user changes
+
+    // Points System Functions
+    const addPointsTransaction = async (orderId: string, points: number, type: 'earn' | 'redeem' | 'adjustment', description: string) => {
+        if (!user) {
+            console.log('No user found, skipping points transaction');
+            return;
+        }
+
+        try {
+            console.log('➕ Adding points transaction for order:', orderId);
+            console.log('👤 User:', user.id, 'Points:', points, 'Type:', type);
+
+            // 1. Add to pointshistory
+            const pointsHistoryData: any = {
+                user_id: user.id,
+                order_id: orderId,
+                points: points,
+                description: `${type}: ${description}`,
+                created_at: new Date().toISOString(),
+            };
+
+            const { error: pointsError } = await supabase
+                .from('points_history')
+                .insert(pointsHistoryData);
+
+
+
+            console.log('💾 Points history entry:', pointsHistoryData);
+
+            
+            if (pointsError) {
+                console.error('📝 Points history error (non-critical):', pointsError);
+                // Continue anyway - don't block for points history issues
+            } else {
+                console.log('✅ Points history recorded');
+            }
+
+            // 2. Get current points balance from user_points table
+            const { data: currentPoints, error: fetchError } = await supabase
+                .from('user_points')
+                .select('points')
+                .eq('user_id', user.id)
+                .single();
+
+            let newBalance = points;
+
+            if (!fetchError && currentPoints) {
+                // Add to existing balance
+                newBalance = (currentPoints.points || 0) + points;
+            }
+
+            console.log('💳 Balance update:', {
+                current: currentPoints?.points || 0,
+                change: `+${points}`,
+                new: newBalance
+            });
+
+            // 3. Update user_points balance with upsert
+            const { error: upsertError } = await supabase
+                .from('user_points')
+                .upsert({
+                    user_id: user.id,
+                    points: newBalance,
+                    updated_at: new Date().toISOString(),
+                    ...(!currentPoints && { created_at: new Date().toISOString() }) // Only set created_at for new records
+                }, {
+                    onConflict: 'user_id'
+                });
+
+            if (upsertError) {
+                console.error('❌ Error updating user_points:', upsertError);
+                throw upsertError;
+            }
+
+            console.log('✅ User points balance updated');
+
+            // 4. Also update client_profiles.total_points for consistency
+            await supabase
+                .from('client_profiles')
+                .update({
+                    total_points: newBalance,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', user.id);
+
+            console.log('✅ Client profile points updated');
+
+            // 5. Update local user state
+            setUser(prev => prev ? { ...prev, points: newBalance } : null);
+
+            console.log('🎉 Points transaction completed successfully');
+
+        } catch (error) {
+            console.error('💥 Error in points transaction:', error);
+            // Don't throw the error - points shouldn't block the order
+        }
+    };
+
     const handleInputChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
@@ -121,6 +515,7 @@ export default function CheckoutPage() {
             paymentMethod: method,
         }));
     };
+
 
     const validateCustomerInfo = (): boolean => {
         const requiredFields = {
@@ -177,7 +572,6 @@ export default function CheckoutPage() {
         }
     };
 
-    // Enhanced image URL validation and collection
     const collectValidImageUrls = (item: CartItem): string[] => {
         const validUrls: string[] = [];
 
@@ -188,9 +582,7 @@ export default function CheckoutPage() {
             if (!trimmedUrl) return false;
 
             try {
-                // Check if it's a valid URL
                 new URL(trimmedUrl);
-                // Check if it's an image URL (basic check)
                 const isImage = /\.(jpg|jpeg|png|webp|gif|bmp|svg)(\?.*)?$/i.test(trimmedUrl) ||
                     trimmedUrl.includes('cloudinary') ||
                     trimmedUrl.includes('firebase') ||
@@ -201,13 +593,11 @@ export default function CheckoutPage() {
                     return true;
                 }
             } catch (error) {
-                // Not a valid URL
                 console.warn(`Invalid image URL for ${item.name}:`, trimmedUrl);
             }
             return false;
         };
 
-        // Check all possible image fields
         const imageFields = [
             item.image,
             item.imageUrl,
@@ -218,10 +608,8 @@ export default function CheckoutPage() {
             item.picture
         ];
 
-        // Process single image fields
         imageFields.forEach(field => addIfValidUrl(field));
 
-        // Process array fields
         if (Array.isArray(item.images)) {
             item.images.forEach((url: string) => addIfValidUrl(url));
         }
@@ -229,7 +617,6 @@ export default function CheckoutPage() {
             item.imageUrls.forEach((url: string) => addIfValidUrl(url));
         }
 
-        console.log(`🖼️ Collected ${validUrls.length} valid images for ${item.name}:`, validUrls);
         return validUrls;
     };
 
@@ -237,16 +624,11 @@ export default function CheckoutPage() {
         setIsProcessing(true);
 
         try {
-            console.log('🔄 Starting card payment processing...');
-
-            // Enhanced cart validation
             if (!safeCart || safeCart.length === 0) {
                 throw new Error('Your cart is empty. Please add items before proceeding.');
             }
 
-            // Enhanced cart items preparation with better image handling
             const cartItems = safeCart.map((item, index) => {
-                // Validate required fields
                 if (!item.name || item.name.trim() === "") {
                     throw new Error(`Item ${index + 1} is missing a name`);
                 }
@@ -263,10 +645,8 @@ export default function CheckoutPage() {
                     throw new Error(`Item "${item.name}" has an invalid quantity`);
                 }
 
-                // Collect valid image URLs
                 const validImageUrls = collectValidImageUrls(item);
 
-                // Prepare cart item with enhanced image handling
                 const cartItem: any = {
                     productId: item.id || `item-${index}-${Date.now()}`,
                     name: item.name.trim(),
@@ -278,28 +658,14 @@ export default function CheckoutPage() {
                     ...(item.category && { category: item.category }),
                 };
 
-                // Add images if we have valid ones
                 if (validImageUrls.length > 0) {
-                    cartItem.image = validImageUrls[0]; // Primary image
-                    cartItem.imageUrls = validImageUrls.slice(0, 8); // All images (Stripe limit)
-
-                    console.log(`✅ Added ${validImageUrls.length} images to ${cartItem.name}`);
-                } else {
-                    console.warn(`⚠️ No valid images found for ${cartItem.name}`);
+                    cartItem.image = validImageUrls[0];
+                    cartItem.imageUrls = validImageUrls.slice(0, 8);
                 }
-
-                console.log(`📦 Prepared item: ${cartItem.name}`, {
-                    price: cartItem.price,
-                    quantity: cartItem.quantity,
-                    images: cartItem.imageUrls?.length || 0
-                });
 
                 return cartItem;
             });
 
-            console.log('✅ Cart items validated:', cartItems.length);
-
-            // Enhanced customer info preparation
             const customerInfo: CustomerInfo = {
                 name: `${formData.firstName} ${formData.lastName}`.trim(),
                 email: formData.email.trim(),
@@ -311,15 +677,16 @@ export default function CheckoutPage() {
                 province: "QC",
             };
 
-            // Validate required customer fields
-            const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city', 'zipCode'];
-            const missingFields = requiredFields.filter(field => !formData[field as keyof FormData]?.trim());
-
-            if (missingFields.length > 0) {
-                throw new Error(`Please fill in all required fields: ${missingFields.join(', ')}`);
+            // Update user profile with address info if logged in
+            if (user) {
+                console.log('Attempting to update user profile before payment...');
+                const updateSuccess = await updateUserProfile(customerInfo);
+                if (!updateSuccess) {
+                    console.warn('Profile update failed, but continuing with payment...');
+                }
             }
 
-            // Enhanced totals calculation with validation
+
             const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
             if (subtotal <= 0) {
@@ -332,53 +699,42 @@ export default function CheckoutPage() {
             const deliveryFee = subtotal > 25 ? 0 : 4.99;
             const finalTotal = Number((subtotal + tax + deliveryFee).toFixed(2));
 
-            console.log('💰 Enhanced totals calculation:', {
-                subtotal,
-                gst,
-                qst,
-                tax,
-                deliveryFee,
-                finalTotal,
-                itemCount: cartItems.length
-            });
-
-            // Enhanced API request with better error handling and timeout
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-            console.log('🚀 Sending request to Stripe checkout...');
-            console.log('📦 Cart items being sent:', cartItems.map(item => ({
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-                images: item.imageUrls?.length || 0,
-                imageUrls: item.imageUrls
-            })));
+            const requestBody: any = {
+                cartItems,
+                customerInfo,
+                totals: {
+                    subtotal: subtotal,
+                    gst: gst,
+                    qst: qst,
+                    deliveryFee: deliveryFee,
+                    finalTotal: finalTotal
+                },
+                userId: user?.id || 'guest-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                clientUrl: window.location.origin
+            };
+
+            // Add points information if user is logged in
+            if (user) {
+                requestBody.pointsInfo = {
+                    userId: user.id,
+                    pointsEarned: pointsEarned,
+                    currentBalance: user.points
+                };
+            }
 
             const response = await fetch('https://us-central1-sushi-admin.cloudfunctions.net/createCheckoutHTTP', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    cartItems,
-                    customerInfo,
-                    totals: {
-                        subtotal: subtotal,
-                        gst: gst,
-                        qst: qst,
-                        deliveryFee: deliveryFee,
-                        finalTotal: finalTotal
-                    },
-                    userId: 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-                    clientUrl: window.location.origin
-                }),
+                body: JSON.stringify(requestBody),
                 signal: controller.signal
             });
 
             clearTimeout(timeoutId);
-
-            console.log('📨 Stripe response status:', response.status);
 
             if (!response.ok) {
                 let errorData;
@@ -390,9 +746,6 @@ export default function CheckoutPage() {
                     errorData = { error: `Server error: ${response.status}` };
                 }
 
-                console.error('❌ Stripe API error:', errorData);
-
-                // Enhanced error messages based on status code
                 switch (response.status) {
                     case 400:
                         throw new Error(errorData.details || errorData.error || 'Invalid request. Please check your cart.');
@@ -404,12 +757,18 @@ export default function CheckoutPage() {
             }
 
             const result = await response.json();
-            console.log('✅ Stripe checkout session created:', result);
 
             if (result.success && result.url) {
-                console.log('🔗 Redirecting to Stripe Checkout...');
+                // Store order info for points processing after payment
+                if (user) {
+                    sessionStorage.setItem('pendingPointsOrder', JSON.stringify({
+                        userId: user.id,
+                        orderId: result.orderId || `order-${Date.now()}`,
+                        pointsEarned: pointsEarned,
+                        cartTotal: cartTotal
+                    }));
+                }
 
-                // Add analytics or tracking before redirect
                 if (typeof gtag !== 'undefined') {
                     gtag('event', 'begin_checkout', {
                         currency: 'CAD',
@@ -423,7 +782,6 @@ export default function CheckoutPage() {
                     });
                 }
 
-                // Store cart data in sessionStorage in case of redirect issues
                 sessionStorage.setItem('pendingCheckout', JSON.stringify({
                     cartItems,
                     customerInfo,
@@ -431,7 +789,6 @@ export default function CheckoutPage() {
                     timestamp: Date.now()
                 }));
 
-                // Redirect to Stripe
                 window.location.href = result.url;
             } else {
                 throw new Error(result.error || 'Checkout session creation failed');
@@ -440,7 +797,6 @@ export default function CheckoutPage() {
         } catch (error: any) {
             console.error('💥 Card payment error:', error);
 
-            // Enhanced error handling with user-friendly messages
             let userMessage = error.message || 'Payment processing failed. Please try again.';
 
             if (error.name === 'AbortError') {
@@ -451,17 +807,68 @@ export default function CheckoutPage() {
                 userMessage = 'Network error. Please check your internet connection and try again.';
             }
 
-            // Show error to user
             alert(userMessage);
+            setIsProcessing(false);
+        }
+    };
 
-            // Log detailed error for debugging
-            console.error('Detailed error:', {
-                name: error.name,
-                message: error.message,
-                stack: error.stack
+    // Update the updateUserProfile function with better error handling
+    const updateUserProfile = async (customerInfo: CustomerInfo): Promise<boolean> => {
+        if (!user) {
+            console.log('No user found, skipping profile update');
+            return false;
+        }
+
+        try {
+            const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+
+            console.log('Updating user profile with:', {
+                userId: user.id,
+                fullName,
+                email: formData.email,
+                phone: formData.phone,
+                address: customerInfo.address,
+                city: customerInfo.city,
+                zipCode: customerInfo.zipCode
             });
 
-            setIsProcessing(false);
+            const { error } = await supabase
+                .from('client_profiles')
+                .update({
+                    full_name: fullName,
+                    email: formData.email,
+                    phone: formData.phone,
+                    address: customerInfo.address,
+                    city: customerInfo.city,
+                    zip_code: customerInfo.zipCode,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', user.id);
+
+            if (error) {
+                console.error('Supabase update error:', error);
+                throw error;
+            }
+
+            // Also update local user state with the new data
+            setUser(prev => prev ? {
+                ...prev,
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                email: formData.email,
+                phone: formData.phone,
+                address: customerInfo.address,
+                city: customerInfo.city,
+                zip_code: customerInfo.zipCode
+            } : null);
+
+            console.log('User profile updated successfully');
+            return true;
+
+        } catch (error) {
+            console.error('Error updating user profile:', error);
+            alert('Failed to update your profile information. Please try again.');
+            return false;
         }
     };
 
@@ -474,11 +881,11 @@ export default function CheckoutPage() {
                     cartItems: any[];
                     customerInfo: any;
                     totals: any;
+                    pointsInfo?: any;
                 },
                 CashOrderResponse
             >(functions, "createCashOrder");
 
-            // Enhanced cart items for cash payment with image handling
             const cartItems = safeCart.map((item, index) => {
                 const validImageUrls = collectValidImageUrls(item);
 
@@ -507,6 +914,11 @@ export default function CheckoutPage() {
                 province: "QC",
             };
 
+            // Update user profile with address info if logged in
+            if (user) {
+                await updateUserProfile(customerInfo);
+            }
+
             const totals: Totals = {
                 subtotal: cartTotal,
                 gst,
@@ -515,19 +927,39 @@ export default function CheckoutPage() {
                 finalTotal,
             };
 
+            const requestData: any = {
+                cartItems,
+                customerInfo,
+                totals,
+            };
+
+            // Add points information if user is logged in
+            if (user) {
+                requestData.pointsInfo = {
+                    userId: user.id,
+                    pointsEarned: pointsEarned,
+                    currentBalance: user.points
+                };
+            }
+
             const result: HttpsCallableResult<CashOrderResponse> =
-                await createCashOrder({
-                    cartItems,
-                    customerInfo,
-                    totals,
-                });
+                await createCashOrder(requestData);
 
             if (result.data.success) {
                 setOrderNumber(result.data.orderId);
                 setOrderComplete(true);
                 clearCart();
 
-                // Clear any pending checkout data
+                // Add points for cash order
+                if (user) {
+                    await addPointsTransaction(
+                        result.data.orderId,
+                        pointsEarned,
+                        'earn',
+                        `Points earned for order ${result.data.orderId}`
+                    );
+                }
+
                 sessionStorage.removeItem('pendingCheckout');
             } else {
                 throw new Error(result.data.error || "Order creation failed");
@@ -539,6 +971,30 @@ export default function CheckoutPage() {
             setIsProcessing(false);
         }
     };
+
+    // Add this function to handle points after successful card payment
+    useEffect(() => {
+        const processPendingPoints = async () => {
+            const pendingPoints = sessionStorage.getItem('pendingPointsOrder');
+            if (pendingPoints && user) {
+                const { userId, orderId, pointsEarned } = JSON.parse(pendingPoints);
+
+                if (userId === user.id) {
+                    await addPointsTransaction(
+                        orderId,
+                        pointsEarned,
+                        'earn',
+                        `Points earned for order #${orderId}`
+                    );
+                    sessionStorage.removeItem('pendingPointsOrder');
+                }
+            }
+        };
+
+        if (user) {
+            processPendingPoints();
+        }
+    }, [user]);
 
     if (safeCart.length === 0 && !orderComplete) {
         return (
@@ -605,6 +1061,19 @@ export default function CheckoutPage() {
                             <p className="text-white/60 mb-3 font-light tracking-wide text-sm">
                                 {t('checkoutPage.thanksOrder')}
                             </p>
+
+                            {/* Points Earned Display */}
+                            {user && pointsEarned > 0 && (
+                                <div className="bg-green-500/10 border border-green-500/20 rounded-sm p-4 mb-4">
+                                    <p className="text-green-400 text-sm font-light">
+                                        🎉 You earned <strong>{pointsEarned} points</strong>!
+                                    </p>
+                                    <p className="text-green-400/60 text-xs mt-1">
+                                        New balance: {user.points + pointsEarned} points
+                                    </p>
+                                </div>
+                            )}
+
                             <div className="bg-white/5 rounded-sm p-4 mb-6 border border-white/10">
                                 <p className="text-xs text-white/40 font-light tracking-wide mb-1">
                                     {t('checkoutPage.orderNumber')}
@@ -679,6 +1148,22 @@ export default function CheckoutPage() {
 
     return (
         <div className="min-h-screen bg-gray-900">
+            {showAuthModal && (
+                <AuthModal
+                    isLoginMode={isLoginMode}
+                    setIsLoginMode={setIsLoginMode}
+                    authForm={authForm}
+                    setAuthForm={setAuthForm}
+                    handleLogin={handleLogin}
+                    handleSignup={handleSignup}
+                    isAuthLoading={isAuthLoading}
+                    authError={authError}
+                    setAuthError={setAuthError}
+                    setShowAuthModal={setShowAuthModal}
+                />
+            )}
+
+
             <div className="container mx-auto px-4 py-8">
                 <div className="max-w-7xl mx-auto">
                     <header className="mb-8">
@@ -701,12 +1186,55 @@ export default function CheckoutPage() {
                             </svg>
                             {t('checkoutPage.backMenu')}
                         </Link>
-                        <h1 className="text-2xl font-light text-white tracking-wide mb-2">
-                            {t('checkoutPage.checkout')}
-                        </h1>
+
+                        {/* User Auth Status */}
+                        <div className="flex justify-between items-center mb-4">
+                            <h1 className="text-2xl font-light text-white tracking-wide">
+                                {t('checkoutPage.checkout')}
+                            </h1>
+
+                            {isLoadingUser ? (
+                                <div className="text-white/40 text-sm">Loading...</div>
+                            ) : user ? (
+                                <div className="flex items-center gap-4">
+                                    <div className="text-right">
+                                        <p className="text-white text-sm">Hello, {user.first_name}</p>
+                                        <p className="text-white/60 text-xs">
+                                            {user.points} points
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="text-white/60 hover:text-white text-sm border border-white/20 px-3 py-1 rounded-sm"
+                                        type="button"
+                                    >
+                                        Logout
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setShowAuthModal(true)}
+                                    className="text-white/60 hover:text-white text-sm border border-white/20 px-3 py-1 rounded-sm"
+                                    type="button"
+                                >
+                                    Sign In / Sign Up
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Points Info Banner */}
+                        {user && (
+                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-sm p-3 mb-4">
+                                <p className="text-blue-400 text-sm text-center">
+                                    🎉 You'll earn <strong>{pointsEarned} points</strong> with this order!
+                                </p>
+                            </div>
+                        )}
+
                         <StepIndicator />
                     </header>
 
+                    {/* MAIN FORM - AuthModal is now completely outside this */}
                     <form onSubmit={currentStep === "info" ? handleContinueToReview : undefined}>
                         <div className="block lg:hidden space-y-6">
                             {currentStep === "info" && (
@@ -865,5 +1393,5 @@ export default function CheckoutPage() {
 
             <LandingCTAFooter displaySimple={true} />
         </div>
-    );
+    )
 }

@@ -379,3 +379,15 @@ export interface WebProduct {
   ingredients?: ProductIngredient[];
   featured?: boolean
 }
+
+export interface ClientProfile {
+  id: string
+  firebase_uid: string
+  email: string
+  full_name: string
+  phone?: string
+  created_at: string
+  updated_at: string
+  total_points: number
+  current_tier: string
+}

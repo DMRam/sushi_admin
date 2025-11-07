@@ -213,7 +213,7 @@ export function LandingContact() {
                         {/* Loyalty Program Preview */}
                         <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-6 text-white">
                             <h3 className="text-xl font-light mb-3">
-                                {t('landing.loyaltyProgram', 'Coming Soon: Pacifique Rewards')}
+                                {t('landing.loyaltyProgram', 'Coming Soon: MaiSushi Rewards')}
                             </h3>
                             <p className="font-light mb-4 text-gray-200">
                                 {t('landing.loyaltyDescription', 'Our mobile app with loyalty program. Earn points with every order and enjoy exclusive benefits.')}
@@ -235,9 +235,9 @@ export function LandingContact() {
                                 {t('landing.contactTeam', 'Contact Our Events Team')}
                             </h3>
                             <div className="space-y-3 text-gray-600 font-light">
-                                <p>📧 events@ceviche-sushi.com</p>
+                                <p>📧 events@maisushi.ca</p>
                                 <p>📞 +1 (555) 123-SUSHI</p>
-                                <p>📍 123 Ocean Drive, Miami, FL 33101</p>
+                                <p>📍 1647 King Ouest, Sherbrooke, QC, J5N 4R6</p>
                                 <p className="text-sm mt-4">
                                     <strong>{t('landing.cateringHours', 'Catering Hours:')}</strong><br />
                                     {t('landing.hours', 'Mon-Sun: 7:00 AM - 9:00 PM')}

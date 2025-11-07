@@ -10,6 +10,8 @@ import CheckoutPage from './pages/CheckoutPage'
 import SuccessPage from './pages/SuccessPage'
 import ProtectedRoute from './components/web/ProtectedRoute'
 import { lazy, Suspense } from 'react'
+import ThemePreviewPage from './pages/ThemePreviewPage'
+import { ThemeProvider } from './context/ThemeContext'
 
 // Lazy load all admin components (assuming default exports)
 const SalesTrackingPage = lazy(() => import('./pages/admin/SalesTrackingPage'))
@@ -24,6 +26,11 @@ const NavBar = lazy(() => import('./components/web/NavBar'))
 
 // Lazy load context providers
 const AdminProviders = lazy(() => import('./components/AdminProviders'))
+
+// Lazy load client auth pages
+const ClientLogin = lazy(() => import('./pages/client_hub/ClientLoginPage'))
+const ClientRegistration = lazy(() => import('./pages/client_hub/ClientRegistrationPage'))
+const ClientDashboard = lazy(() => import('./pages/client_hub/ClientDashboard'))
 
 // Loading component
 const LoadingSpinner = () => (
@@ -73,6 +80,26 @@ function PublicRoutes() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/success" element={<SuccessPage />} />
+      <Route path="/theme-preview" element={<ThemePreviewPage />} />
+
+
+      {/* Client Auth Routes */}
+      <Route path="/client-login" element={
+        <Suspense fallback={<LoadingSpinner />}>
+          <ClientLogin />
+        </Suspense>
+      } />
+      <Route path="/client-register" element={
+        <Suspense fallback={<LoadingSpinner />}>
+          <ClientRegistration />
+        </Suspense>
+      } />
+      <Route path="/client-dashboard" element={
+        <Suspense fallback={<LoadingSpinner />}>
+          <ClientDashboard />
+        </Suspense>
+      } />
+
       <Route path="/admin/*" element={
         <ProtectedRoute>
           <Suspense fallback={<LoadingSpinner />}>
@@ -88,12 +115,14 @@ function PublicRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <InvitationProvider>
-        <UserProfileProvider>
-          <PublicRoutes />
-        </UserProfileProvider>
-      </InvitationProvider>
-    </AuthProvider>
-  )
+    <ThemeProvider>
+      <AuthProvider>
+        <InvitationProvider>
+          <UserProfileProvider>
+            <PublicRoutes />
+          </UserProfileProvider>
+        </InvitationProvider>
+      </AuthProvider>
+    </ThemeProvider>
+  );
 }

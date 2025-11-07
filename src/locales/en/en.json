@@ -1,4 +1,35 @@
 {
+  "header": {
+    "byPacifique": "by Pacifique",
+    "menu": "Menu",
+    "contact": "Contact",
+    "points": "pts",
+    "signIn": "Sign In"
+  },
+  "featured": {
+    "signatureCreations": "Signature Creations",
+    "chefsPick": "Chef's Pick",
+    "featured": "Featured",
+    "loading": "Loading...",
+    "loadingDescription": "Loading description...",
+    "errorLoading": "Failed to load featured items",
+    "connectionError": "Failed to connect to server",
+    "tryAgain": "Try Again",
+    "noItems": "No featured items available",
+    "viewMenu": "View Complete Menu",
+    "addToCart": "Add to Order"
+  },
+  "hero": {
+    "authentic": "Authentic",
+    "japaneseExperience": "Japanese Experience",
+    "tagline": "Masterful sushi craftsmanship meets contemporary elegance",
+    "orderNow": "Order Now"
+  },
+  "cart": {
+    "items": "ITEMS",
+    "pointsEarned": "pts earned",
+    "checkout": "CHECKOUT"
+  },
   "userManagement": {
     "title": "USER MANAGEMENT",
     "subtitle": "Manage user roles and permissions",
@@ -112,7 +143,10 @@
     "admin": "Admin",
     "profile": "Profile",
     "logout": "Logout",
-    "management": "Management"
+    "management": "Management",
+    "client": "Client",
+    "staff": "Staff Portal",
+    "orders": "View Orders"
   },
   "landing": {
     "philosophy": "We focus on balance, freshness, and honest flavor in every dish.",
@@ -161,7 +195,7 @@
     "service3": "Professional sushi chefs on-site",
     "service4": "Custom menu development",
     "service5": "Full setup & cleanup included",
-    "loyaltyProgram": "Coming Soon: Pacifique Rewards",
+    "loyaltyProgram": "Coming Soon: MaiSushi Rewards",
     "loyaltyDescription": "Our mobile app with loyalty program. Earn points with every order and enjoy exclusive benefits.",
     "benefit1": "Earn 1 point per $1 spent",
     "benefit2": "Free delivery on all app orders",
@@ -171,8 +205,8 @@
     "appLaunching": "Mobile app launching next season",
     "contactTeam": "Contact Our Events Team",
     "cateringHours": "Catering Hours:",
-    "hours": "Mon-Sun: 7:00 AM - 9:00 PM",
-    "experiencePacifique": "Experience Pacifique",
+    "hours": "Tue-Sat: 10:00 AM - 8:30 PM",
+    "experienceMaiSushi": "Experience MaiSushi",
     "ctaDescription": "Reserve your table or order for delivery. An elevated dining experience awaits.",
     "reserveTable": "RESERVE TABLE",
     "orderDelivery": "ORDER DELIVERY",
@@ -184,7 +218,7 @@
     "location": "SHERBROOKE, QC",
     "days": "Tuesday - Sunday",
     "phone": "+1 (514) 867-5309",
-    "loadingExperience": "Loading the Pacifique experience...",
+    "loadingExperience": "Loading the MaiSushi experience...",
     "cevicheSushiBar": "Ceviche & Sushi Bar",
     "heroDescription": "Fresh, local, and delicious.",
     "exploreMenu": "EXPLORE OUR MENU"
@@ -242,6 +276,23 @@
     "item": "item",
     "items": "items",
     "minutes": "minutes",
-    "placeOrder": "Place Order"
+    "placeOrder": "Place Order",
+    "client": "Client",
+    "orderNow": "ORDER NOW",
+    "createAccount": "Create Account"
+  },
+
+  "footer": {
+    "staffAdminLogin": "Staff/Admin Login",
+    "staffAdminAccess": "STAFF & ADMIN ACCESS",
+    "staffAdminDescription": "Access your management dashboard with authorized credentials.",
+    "adminLogin": "Admin Login",
+    "staffLogin": "Staff Login",
+    "loyaltyDescription": "Earn points with every order. Redeem for exclusive rewards and discounts.",
+    "joinNow": "Join now",
+    "quickLinks": "QUICK LINKS",
+    "adminMode": "Admin Mode",
+    "staffMode": "Staff Mode",
+    "version": "Version 1.0.0"
   }
 }

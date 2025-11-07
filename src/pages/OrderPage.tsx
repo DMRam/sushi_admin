@@ -77,7 +77,7 @@ export default function OrderPage() {
                 id: product.id,
                 name: product.name || 'Unnamed Product',
                 description: product.description || '',
-                preparation:product.preparation || '',
+                preparation: product.preparation || '',
                 price: product.sellingPrice || 0,
                 image: product.imageUrls?.[0] || '/images/placeholder-food.jpg',
                 category: product.category || 'uncategorized',
@@ -160,7 +160,7 @@ export default function OrderPage() {
                                     <span className="text-gray-900 bg-white text-lg font-light">P</span>
                                 </div>
                                 <div className="text-left">
-                                    <span className="text-xl font-light text-white tracking-wider hidden sm:block">PACIFIQUE</span>
+                                    <span className="text-xl font-light text-white tracking-wider hidden sm:block">MaiSushi</span>
                                     <p className="text-xs text-gray-500 font-light tracking-wider">{t('orderPage.cevicheSushiBar')}</p>
                                 </div>
                             </div>
@@ -190,6 +190,12 @@ export default function OrderPage() {
                                 className="bg-white/5 text-white/60 px-4 py-2 rounded-sm hover:bg-white/10 hover:text-white transition-all duration-300 border border-white/10 font-light tracking-wide text-sm"
                             >
                                 {t('orderPage.admin')}
+                            </Link>
+                            <Link
+                                to="/client-login"
+                                className="bg-white/5 text-white/60 px-4 py-2 rounded-sm hover:bg-white/10 hover:text-white transition-all duration-300 border border-white/10 font-light tracking-wide text-sm"
+                            >
+                                {t('nav.client', 'Client')}
                             </Link>
                             <div className="relative">
                                 <Link
@@ -261,6 +267,13 @@ export default function OrderPage() {
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
                                     {t('orderPage.admin')}
+                                </Link>
+                                <Link
+                                    to="/client-login"
+                                    className="block text-white/60 hover:text-white transition-colors duration-300 font-light tracking-wide py-2 border-b border-white/10"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    {t('nav.client', 'Client')}
                                 </Link>
                                 <div className="pt-2">
                                     <Link
