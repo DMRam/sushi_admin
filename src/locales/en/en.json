@@ -21,7 +21,7 @@
   },
   "hero": {
     "authentic": "Authentic",
-    "japaneseExperience": "Japanese Experience",
+    "japaneseExperience": "Sushi Experience",
     "tagline": "Masterful sushi craftsmanship meets contemporary elegance",
     "orderNow": "Order Now"
   },
@@ -68,7 +68,7 @@
     "home": "Home",
     "admin": "Admin",
     "cart": "Cart",
-    "ourMenu": "OUR MENU",
+    "ourMenu": "MENU",
     "cevicheSushiBar": "Ceviche & Sushi Bar",
     "discoverDescription": "Discover our authentic sushi creations. Tap on any dish to watch how it's made!",
     "allItems": "All Items",
@@ -76,7 +76,14 @@
     "searchResults": "Showing {{count}} of {{total}} items for \"{{term}}\"",
     "noItemsFound": "No items found",
     "adjustSearch": "Try adjusting your search or filter",
-    "checkout": "Checkout"
+    "checkout": "Checkout",
+    "totalCreations": "Total Creations",
+    "categories": "Categories",
+    "exploreCategories": "Explore Our Categories",
+    "culinaryPortfolio": "Journey through our culinary portfolio",
+    "foundMatches": "Found {{count}} matches for \"{{term}}\"",
+    "showcasingCreations": "Showcasing {{count}} culinary creations",
+    "categorySelections": "{{count}} {{category}} selections"
   },
   "orderSummary": {
     "title": "Order Summary",
@@ -294,5 +301,30 @@
     "adminMode": "Admin Mode",
     "staffMode": "Staff Mode",
     "version": "Version 1.0.0"
+  },
+  "buildYourSushi": {
+    "title": "Build Your Sushi",
+    "subtitle": "Create your perfect sushi roll with fresh ingredients",
+    "yourCreation": "Your Creation",
+    "startSelecting": "Start by selecting ingredients from the left",
+    "ingredientsSelected": "ingredients selected",
+    "reset": "Reset",
+    "addToCart": "Add to Cart",
+    "loadingIngredients": "Loading fresh ingredients...",
+    "failedToLoad": "Failed to load ingredients",
+    "usingAvailable": "Using available ingredients",
+    "noIngredientsCategory": "No ingredients available in this category",
+    "checkBackLater": "Check back later for fresh stock",
+    "categories": {
+      "base": "Bases",
+      "protein": "Proteins",
+      "vegetables": "Vegetables",
+      "toppings": "Toppings",
+      "sauces": "Sauces"
+    },
+    "ingredient": {
+      "max": "max",
+      "add": "Add"
+    }
   }
 }

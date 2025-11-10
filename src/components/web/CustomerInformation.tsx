@@ -41,7 +41,7 @@ export default function CustomerInformation({ formData, onInputChange }: Custome
                             placeholder={t('customerInformation.firstNamePlaceholder')}
                         />
                     </div>
-                    <div>
+                    {/* <div>
                         <label className="block text-sm font-light text-white/60 mb-2">{t('common.lastName')} *</label>
                         <input
                             type="text"
@@ -52,7 +52,7 @@ export default function CustomerInformation({ formData, onInputChange }: Custome
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-sm text-white placeholder-white/40 focus:outline-none focus:border-white/30 transition-all duration-300 font-light"
                             placeholder={t('customerInformation.lastNamePlaceholder')}
                         />
-                    </div>
+                    </div> */}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

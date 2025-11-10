@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Menu, X, LayoutDashboard } from 'lucide-react'
+import { Menu, X, LayoutDashboard, ShoppingCart } from 'lucide-react'
 import { AuthModal } from '../../components/AuthModal'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth } from '../../../firebase/firebase'
 import { supabase } from '../../../lib/supabase'
+import logo from '../../../assets/logo/mai_sushi_v3_dark.png'
+import { useCartStore } from '../../../stores/cartStore'
 
 interface UserProfile {
     id: string;
@@ -22,6 +24,10 @@ interface UserProfile {
 export const LandingHeader = () => {
     const { t } = useTranslation()
     const [isOpen, setIsOpen] = useState(false)
+
+    // Cart state
+    const cart = useCartStore((state) => state.cart)
+    const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
     // User state
     const [user, setUser] = useState<UserProfile | null>(null)
@@ -50,7 +56,6 @@ export const LandingHeader = () => {
                 setIsLoadingUser(false)
             }
         })
-
         return () => unsubscribe()
     }, [])
 
@@ -70,7 +75,6 @@ export const LandingHeader = () => {
             }
 
             if (clientProfile) {
-                // Split full_name into first and last name
                 const fullName = clientProfile.full_name || ''
                 const nameParts = fullName.split(' ')
                 const firstName = nameParts[0] || ''
@@ -102,9 +106,7 @@ export const LandingHeader = () => {
         setAuthError('')
 
         try {
-            // Import the auth functions
             const { signInWithEmailAndPassword } = await import('firebase/auth')
-
             const userCredential = await signInWithEmailAndPassword(
                 auth,
                 authForm.email,
@@ -112,8 +114,6 @@ export const LandingHeader = () => {
             )
 
             const firebaseUser = userCredential.user
-
-            // Fetch the client profile from Supabase
             const { data: clientProfile, error } = await supabase
                 .from('client_profiles')
                 .select('*')
@@ -127,7 +127,6 @@ export const LandingHeader = () => {
             }
 
             if (clientProfile) {
-                // Split full_name into first and last name
                 const fullName = clientProfile.full_name || ''
                 const nameParts = fullName.split(' ')
                 const firstName = nameParts[0] || ''
@@ -148,7 +147,6 @@ export const LandingHeader = () => {
                 setShowAuthModal(false)
                 setAuthForm({ email: '', password: '', firstName: '', lastName: '', phone: '' })
             }
-
         } catch (error: any) {
             console.error('Login error:', error)
             setAuthError(error.message || 'Login failed')
@@ -163,9 +161,7 @@ export const LandingHeader = () => {
         setAuthError('')
 
         try {
-            // Import the auth functions
             const { createUserWithEmailAndPassword } = await import('firebase/auth')
-
             const userCredential = await createUserWithEmailAndPassword(
                 auth,
                 authForm.email,
@@ -173,11 +169,8 @@ export const LandingHeader = () => {
             )
 
             const firebaseUser = userCredential.user
-
-            // Combine first and last name into full_name for Supabase
             const fullName = `${authForm.firstName} ${authForm.lastName}`.trim()
 
-            // Create client profile in Supabase
             const { data: clientProfile, error: profileError } = await supabase
                 .from('client_profiles')
                 .insert({
@@ -206,7 +199,6 @@ export const LandingHeader = () => {
                 setShowAuthModal(false)
                 setAuthForm({ email: '', password: '', firstName: '', lastName: '', phone: '' })
             }
-
         } catch (error: any) {
             console.error('Signup error:', error)
             setAuthError(error.message || 'Signup failed')
@@ -228,7 +220,6 @@ export const LandingHeader = () => {
         setIsLoginMode(loginMode)
         setShowAuthModal(true)
         setAuthError('')
-        // Reset form when opening modal
         if (loginMode) {
             setAuthForm(prev => ({ ...prev, firstName: '', lastName: '', phone: '' }))
         }
@@ -236,90 +227,117 @@ export const LandingHeader = () => {
 
     return (
         <>
-            <header className="bg-white shadow-sm border-b border-gray-100 fixed w-full top-0 left-0 z-40">
-                {/* Add viewport meta tag enforcement */}
-                <div className="container mx-auto px-4 sm:px-6 py-4 flex justify-between items-center max-w-full overflow-hidden">
-                    {/* Brand - made more compact for mobile */}
-                    <Link to="/" className="flex items-center space-x-2 flex-shrink-0">
-                        <div className="w-2 h-6 sm:w-3 sm:h-8 bg-red-600 rounded-full"></div>
-                        <h1 className="text-xl sm:text-2xl font-light tracking-tight text-gray-900 whitespace-nowrap">
-                            Mai<span className="font-medium">Sushi</span>
-                        </h1>
-                        <span className="hidden xs:inline text-xs text-gray-500 font-light ml-2 border-l border-gray-300 pl-2">
-                            {t('header.byPacifique', 'by Pacifique')}
-                        </span>
-                    </Link>
-
-                    {/* Desktop Nav */}
-                    <nav className="hidden md:flex space-x-8 items-center flex-shrink-0">
-                        <Link
-                            to="/order"
-                            className="text-gray-700 hover:text-red-600 text-sm font-light transition-colors duration-300 whitespace-nowrap"
-                        >
-                            {t('header.menu', 'Menu')}
+            <header className="bg-white shadow-sm border-b border-gray-100 fixed inset-x-0 top-0 z-40">
+                <div className="w-full px-3 sm:px-4 md:px-8 py-4 overflow-x-clip">
+                    <div className="flex items-center justify-between gap-3">
+                        <Link to="/" className="flex items-center min-w-0 shrink-0">
+                            <img
+                                src={logo}
+                                alt="MaiSushi Logo"
+                                className="block h-12 sm:h-16 w-auto max-w-[200px] object-contain"
+                                loading="eager"
+                                decoding="async"
+                            />
                         </Link>
 
-                        <a
-                            href="#contact"
-                            className="text-gray-700 hover:text-red-600 text-sm font-light transition-colors duration-300 whitespace-nowrap"
-                        >
-                            {t('header.contact', 'Contact')}
-                        </a>
-
-                        {/* Dashboard Link - Only show when user is logged in */}
-                        {user && (
+                        {/* Desktop Nav */}
+                        <nav className="hidden md:flex items-center gap-8 shrink min-w-0">
                             <Link
-                                to="/client-dashboard"
-                                className="text-gray-700 hover:text-red-600 text-sm font-light transition-colors duration-300 flex items-center space-x-1 whitespace-nowrap"
+                                to="/order"
+                                className="text-gray-700 hover:text-red-600 text-sm font-light transition-colors duration-300 whitespace-nowrap"
                             >
-                                <LayoutDashboard size={16} />
-                                <span>Dashboard</span>
+                                {t('header.menu', 'Menu')}
                             </Link>
-                        )}
 
-                        {/* User Section */}
-                        <div className="flex items-center space-x-4 ml-4 pl-4 border-l border-gray-200 flex-shrink-0">
-                            {isLoadingUser ? (
-                                <div className="text-xs text-gray-400 whitespace-nowrap">Loading...</div>
-                            ) : user ? (
-                                <div className="flex items-center space-x-3">
-                                    <div className="flex items-center space-x-2">
-                                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0"></div>
-                                        <span className="text-sm text-gray-600 font-light whitespace-nowrap">
-                                            {user.points || 0} {t('header.points', 'pts')}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <span className="text-sm text-gray-700 font-medium whitespace-nowrap">
-                                            {user.first_name || 'User'}
-                                        </span>
-                                        <button
-                                            onClick={handleLogout}
-                                            className="text-xs text-gray-500 hover:text-gray-700 transition-colors duration-300 font-light whitespace-nowrap"
-                                        >
-                                            Logout
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={() => openAuthModal(true)}
-                                    className="text-xs text-gray-500 hover:text-gray-700 transition-colors duration-300 font-light whitespace-nowrap"
+                            <a
+                                href="#contact"
+                                className="text-gray-700 hover:text-red-600 text-sm font-light transition-colors duration-300 whitespace-nowrap"
+                            >
+                                {t('header.contact', 'Contact')}
+                            </a>
+
+                            {user && (
+                                <Link
+                                    to="/client-dashboard"
+                                    className="text-gray-700 hover:text-red-600 text-sm font-light transition-colors duration-300 flex items-center gap-1 whitespace-nowrap"
                                 >
-                                    {t('header.signIn', 'Sign In')}
-                                </button>
+                                    <LayoutDashboard size={16} />
+                                    <span>Dashboard</span>
+                                </Link>
                             )}
-                        </div>
-                    </nav>
 
-                    {/* Mobile menu button */}
-                    <button
-                        onClick={() => setIsOpen(!isOpen)}
-                        className="md:hidden text-gray-700 hover:text-red-600 focus:outline-none transition flex-shrink-0 ml-2"
-                        aria-label="Toggle menu"
-                    >
-                        {isOpen ? <X size={20} /> : <Menu size={20} />}
-                    </button>
+                            {/* Cart for Desktop */}
+                            <Link
+                                to="/checkout"
+                                className="relative text-gray-700 hover:text-red-600 transition-colors duration-300 flex items-center gap-2 whitespace-nowrap group"
+                            >
+                                <ShoppingCart size={18} />
+                                <span className="text-sm font-light">Cart</span>
+                                {itemCount > 0 && (
+                                    <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium group-hover:scale-110 transition-transform">
+                                        {itemCount}
+                                    </span>
+                                )}
+                            </Link>
+
+                            <div className="flex items-center gap-4 pl-4 border-l border-gray-200">
+                                {isLoadingUser ? (
+                                    <div className="text-xs text-gray-400 whitespace-nowrap">Loading...</div>
+                                ) : user ? (
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                            <span className="text-sm text-gray-600 font-light whitespace-nowrap">
+                                                {user.points || 0} {t('header.points', 'pts')}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-gray-700 font-medium whitespace-nowrap">
+                                                {user.first_name || 'User'}
+                                            </span>
+                                            <button
+                                                onClick={handleLogout}
+                                                className="text-xs text-gray-500 hover:text-gray-700 transition-colors duration-300 font-light whitespace-nowrap"
+                                            >
+                                                Logout
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => openAuthModal(true)}
+                                        className="text-xs text-gray-500 hover:text-gray-700 transition-colors duration-300 font-light whitespace-nowrap"
+                                    >
+                                        {t('header.signIn', 'Sign In')}
+                                    </button>
+                                )}
+                            </div>
+                        </nav>
+
+                        {/* Mobile menu button and cart */}
+                        <div className="flex items-center gap-3 md:hidden">
+                            {/* Cart for Mobile */}
+                            <Link
+                                to="/checkout"
+                                className="relative text-gray-700 hover:text-red-600 transition-colors duration-300 p-2"
+                            >
+                                <ShoppingCart size={20} />
+                                {itemCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium">
+                                        {itemCount}
+                                    </span>
+                                )}
+                            </Link>
+
+                            <button
+                                onClick={() => setIsOpen(!isOpen)}
+                                className="text-gray-700 hover:text-red-600 focus:outline-none transition shrink-0"
+                                aria-label="Toggle menu"
+                            >
+                                {isOpen ? <X size={22} /> : <Menu size={22} />}
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Mobile Dropdown Menu */}
@@ -344,12 +362,28 @@ export const LandingHeader = () => {
                             {t('header.contact', 'Contact')}
                         </a>
 
-                        {/* Dashboard Link - Mobile - Only show when user is logged in */}
+                        {/* Cart in Mobile Menu */}
+                        <Link
+                            to="/checkout"
+                            onClick={() => setIsOpen(false)}
+                            className="text-gray-700 hover:text-red-600 text-sm font-light transition flex items-center justify-between py-2 border-t border-gray-200"
+                        >
+                            <div className="flex items-center gap-2">
+                                <ShoppingCart size={16} />
+                                <span>Cart</span>
+                            </div>
+                            {itemCount > 0 && (
+                                <span className="bg-red-600 text-white text-xs rounded-full px-2 py-1 min-w-6 text-center">
+                                    {itemCount} items
+                                </span>
+                            )}
+                        </Link>
+
                         {user && (
                             <Link
                                 to="/client-dashboard"
                                 onClick={() => setIsOpen(false)}
-                                className="text-gray-700 hover:text-red-600 text-sm font-light transition flex items-center space-x-2"
+                                className="text-gray-700 hover:text-red-600 text-sm font-light transition flex items-center gap-2"
                             >
                                 <LayoutDashboard size={16} />
                                 <span>Dashboard</span>
@@ -362,8 +396,8 @@ export const LandingHeader = () => {
                             </div>
                         ) : user ? (
                             <div className="pt-3 border-t border-gray-200 space-y-3">
-                                <div className="flex items-center space-x-2">
-                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                <div className="flex items-center gap-2">
+                                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                                     <span className="text-sm text-gray-600 font-light">
                                         {user.points || 0} {t('header.points', 'pts')}
                                     </span>

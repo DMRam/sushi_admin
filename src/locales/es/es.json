@@ -21,7 +21,7 @@
   },
   "hero": {
     "authentic": "Auténtico",
-    "japaneseExperience": "Experiencia Japonesa",
+    "japaneseExperience": "Experiencia en Sushi",
     "tagline": "La maestría del sushi se encuentra con la elegancia contemporánea",
     "orderNow": "Ordenar Ahora"
   },
@@ -76,7 +76,15 @@
     "searchResults": "Mostrando {{count}} de {{total}} artículos para \"{{term}}\"",
     "noItemsFound": "No se encontraron artículos",
     "adjustSearch": "Intente ajustar su búsqueda o filtro",
-    "checkout": "Pedir"
+    "checkout": "Pedir",
+    "totalCreations": "Creaciones Totales",
+    "categories": "Categorías",
+    "exploreCategories": "Explora Nuestras Categorías",
+    "culinaryPortfolio": "Recorre nuestro portfolio culinario",
+
+    "foundMatches": "Encontradas {{count}} coincidencias para \"{{term}}\"",
+    "showcasingCreations": "Mostrando {{count}} creaciones culinarias",
+    "categorySelections": "{{count}} selecciones de {{category}}"
   },
   "orderSummary": {
     "title": "Resumen del Pedido",
@@ -275,6 +283,32 @@
     "items": "artículos",
     "minutes": "minutos",
     "placeOrder": "Realizar Pedido",
-    "client": "Cliente"
+    "client": "Cliente",
+    "orderNow": "Ordenar Ahora"
+  },
+  "buildYourSushi": {
+    "title": "Construye Tu Sushi",
+    "subtitle": "Crea tu rollo de sushi perfecto con ingredientes frescos",
+    "yourCreation": "Tu Creación",
+    "startSelecting": "Comienza seleccionando ingredientes de la izquierda",
+    "ingredientsSelected": "ingredientes seleccionados",
+    "reset": "Reiniciar",
+    "addToCart": "Agregar al Carrito",
+    "loadingIngredients": "Cargando ingredientes frescos...",
+    "failedToLoad": "Error al cargar ingredientes",
+    "usingAvailable": "Usando ingredientes disponibles",
+    "noIngredientsCategory": "No hay ingredientes disponibles en esta categoría",
+    "checkBackLater": "Vuelve más tarde para stock fresco",
+    "categories": {
+      "base": "Bases",
+      "protein": "Proteínas",
+      "vegetables": "Vegetales",
+      "toppings": "Toppings",
+      "sauces": "Salsas"
+    },
+    "ingredient": {
+      "max": "máx",
+      "add": "Agregar"
+    }
   }
 }

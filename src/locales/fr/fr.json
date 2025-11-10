@@ -21,7 +21,7 @@
   },
   "hero": {
     "authentic": "Authentique",
-    "japaneseExperience": "Expérience Japonaise",
+    "japaneseExperience": "Expérience Sushi",
     "tagline": "L'artisanat du sushi rencontre l'élégance contemporaine",
     "orderNow": "Commander Maintenant"
   },
@@ -68,7 +68,7 @@
     "home": "Accueil",
     "admin": "Admin",
     "cart": "Panier",
-    "ourMenu": "NOTRE MENU",
+    "ourMenu": "MENU",
     "cevicheSushiBar": "Bar à Ceviche & Sushi",
     "discoverDescription": "Découvrez nos créations de sushi authentiques. Appuyez sur n'importe quel plat pour voir comment il est préparé !",
     "allItems": "Tous les Articles",
@@ -76,7 +76,16 @@
     "searchResults": "Affichage de {{count}} sur {{total}} articles pour \"{{term}}\"",
     "noItemsFound": "Aucun article trouvé",
     "adjustSearch": "Essayez d'ajuster votre recherche ou filtre",
-    "checkout": "Commander"
+    "checkout": "Commander",
+    "totalCreations": "Créations Totales",
+    "categories": "Catégories",
+    "exploreCategories": "Explorez Nos Catégories", 
+    "culinaryPortfolio": "Parcourez notre portfolio culinaire",
+    
+    
+    "foundMatches": "Trouvé {{count}} résultats pour \"{{term}}\"",
+    "showcasingCreations": "Présentation de {{count}} créations culinaires",
+    "categorySelections": "{{count}} sélections {{category}}"
   },
   "orderSummary": {
     "title": "Résumé de la Commande",
@@ -275,6 +284,32 @@
     "items": "articles",
     "minutes": "minutes",
     "placeOrder": "Passer la Commande",
-    "client": "Client"
+    "client": "Client",
+    "orderNow": "Commander Maintenant"
+  },
+   "buildYourSushi": {
+    "title": "Créez Votre Sushi",
+    "subtitle": "Créez votre rouleau de sushi parfait avec des ingrédients frais",
+    "yourCreation": "Votre Création",
+    "startSelecting": "Commencez par sélectionner des ingrédients à gauche",
+    "ingredientsSelected": "ingrédients sélectionnés",
+    "reset": "Réinitialiser",
+    "addToCart": "Ajouter au Panier",
+    "loadingIngredients": "Chargement des ingrédients frais...",
+    "failedToLoad": "Échec du chargement des ingrédients",
+    "usingAvailable": "Utilisation des ingrédients disponibles",
+    "noIngredientsCategory": "Aucun ingrédient disponible dans cette catégorie",
+    "checkBackLater": "Revenez plus tard pour du stock frais",
+    "categories": {
+      "base": "Bases",
+      "protein": "Protéines",
+      "vegetables": "Légumes", 
+      "toppings": "Garnitures",
+      "sauces": "Sauces"
+    },
+    "ingredient": {
+      "max": "max",
+      "add": "Ajouter"
+    }
   }
 }

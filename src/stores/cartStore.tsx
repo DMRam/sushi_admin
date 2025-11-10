@@ -1,65 +1,61 @@
-// stores/cartStore.ts
-import { create } from 'zustand'
-import type { MenuItem } from '../types/types'
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type { MenuItem } from "../types/types";
 
-interface CartItem extends MenuItem {
-  quantity: number
-  costPrice?: number
-  profitMargin?: number
-  tags?: string[]
+export interface CartItem extends MenuItem {
+  quantity: number;
 }
 
-interface CartStore {
-  cart: CartItem[]
-  addToCart: (item: MenuItem) => void
-  removeFromCart: (id: string) => void
-  updateQuantity: (id: string, change: number) => void
-  clearCart: () => void
+export interface CartStore {
+  cart: CartItem[];
+  addToCart: (item: MenuItem) => void;
+  removeFromCart: (item: MenuItem) => void;
+  clearCart: () => void;
 }
 
-export const useCartStore = create<CartStore>((set, _get) => ({
-  cart: [],
+export const useCartStore = create<CartStore>()(
+  persist(
+    (set, _get) => ({
+      cart: [],
 
-  addToCart: (item: MenuItem) => {
-    set((state) => {
-      const existingItem = state.cart.find((cartItem) => cartItem.id === item.id)
-      if (existingItem) {
-        return {
-          cart: state.cart.map((cartItem) =>
-            cartItem.id === item.id
-              ? { ...cartItem, quantity: cartItem.quantity + 1 }
-              : cartItem
-          ),
-        }
-      } else {
-        return { cart: [...state.cart, { ...item, quantity: 1 }] }
-      }
-    })
-  },
+      addToCart: (item) => {
+        set((state) => {
+          const existing = state.cart.find((c) => c.id === item.id);
+          if (existing) {
+            return {
+              cart: state.cart.map((c) =>
+                c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c
+              ),
+            };
+          }
+          return { cart: [...state.cart, { ...item, quantity: 1 }] };
+        });
+      },
 
-  removeFromCart: (id: string) =>
-    set((state) => ({
-      cart: state.cart.filter((item) => item.id !== id),
-    })),
+      removeFromCart: (item) => {
+        set((state) => {
+          const existing = state.cart.find((c) => c.id === item.id);
+          if (!existing) return state;
 
-  updateQuantity: (id: string, change: number) =>
-    set((state) => {
-      const existingItem = state.cart.find((item) => item.id === id)
-      if (!existingItem) return state
+          const newQuantity = existing.quantity - 1;
+          if (newQuantity <= 0) {
+            return { cart: state.cart.filter((c) => c.id !== item.id) };
+          }
 
-      const newQuantity = existingItem.quantity + change
-      if (newQuantity <= 0) {
-        return {
-          cart: state.cart.filter((item) => item.id !== id),
-        }
-      } else {
-        return {
-          cart: state.cart.map((item) =>
-            item.id === id ? { ...item, quantity: newQuantity } : item
-          ),
-        }
-      }
+          return {
+            cart: state.cart.map((c) =>
+              c.id === item.id ? { ...c, quantity: newQuantity } : c
+            ),
+          };
+        });
+      },
+
+      clearCart: () => set({ cart: [] }),
     }),
-
-  clearCart: () => set({ cart: [] }),
-}))
+    {
+      name: "mai-sushi-cart",
+      version: 1,
+      partialize: (state) => ({ cart: state.cart }),
+    }
+  )
+);

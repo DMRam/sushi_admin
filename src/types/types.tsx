@@ -385,9 +385,16 @@ export interface ClientProfile {
   firebase_uid: string
   email: string
   full_name: string
+  first_name: string;
+  last_name: string;
+  points: number;
+  address?: string;
+  city?: string;
+  zip_code?: string;
   phone?: string
   created_at: string
   updated_at: string
   total_points: number
   current_tier: string
+
 }

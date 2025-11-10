@@ -5,13 +5,12 @@ import { InvitationProvider } from './context/InvitationContext'
 import LoginPage from './pages/admin/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import LandingPage from './pages/landing/LandingPage'
-import OrderPage from './pages/OrderPage'
-import CheckoutPage from './pages/CheckoutPage'
 import SuccessPage from './pages/SuccessPage'
 import ProtectedRoute from './components/web/ProtectedRoute'
 import { lazy, Suspense } from 'react'
 import ThemePreviewPage from './pages/ThemePreviewPage'
-import { ThemeProvider } from './context/ThemeContext'
+import OrderPage from './pages/orders/OrderPage'
+import CheckoutPage from './pages/orders/CheckoutPage'
 
 // Lazy load all admin components (assuming default exports)
 const SalesTrackingPage = lazy(() => import('./pages/admin/SalesTrackingPage'))
@@ -115,7 +114,6 @@ function PublicRoutes() {
 
 export default function App() {
   return (
-    <ThemeProvider>
       <AuthProvider>
         <InvitationProvider>
           <UserProfileProvider>
@@ -123,6 +121,5 @@ export default function App() {
           </UserProfileProvider>
         </InvitationProvider>
       </AuthProvider>
-    </ThemeProvider>
   );
 }

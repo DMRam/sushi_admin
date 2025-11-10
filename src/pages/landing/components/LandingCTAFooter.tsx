@@ -4,6 +4,7 @@ import { FooterLanguageSwitcher } from '../../../components/web/LanguageSelector
 import { HashLink } from 'react-router-hash-link'
 import { useAuth } from '../../../context/AuthContext'
 import { useState } from 'react'
+import logo from '../../../assets/logo/mai_sushi_v3_white.png'
 
 interface Props {
     displaySimple: boolean
@@ -67,13 +68,15 @@ export const LandingCTAFooter = ({ displaySimple, user, isAdmin, isStaff }: Prop
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-6xl mx-auto">
                         <div className="col-span-1 md:col-span-2">
                             <div className="flex items-center space-x-3 mb-6">
-                                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                                {/* <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
                                     <span className="text-gray-900 text-sm font-light">M</span>
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-light">MaiSushi</h3>
                                     <p className="text-xs text-gray-400 font-light tracking-wide">SUSHI | OMAKASE BAR</p>
-                                </div>
+                                </div> */}
+                                <img src={logo} alt="MaiSushi Logo" className="h-12 w-auto" />
+
                             </div>
                             <p className="text-gray-400 text-sm font-light tracking-wide leading-relaxed max-w-md mb-6">
                                 {t('landing.footerDescription', 'A sanctuary of Japanese culinary artistry in the heart of the city. Where every dish reflects masterful craftsmanship.')}

@@ -61,7 +61,7 @@ export const LandingHero = ({
         <div className="max-w-2xl text-white">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-light mb-3 sm:mb-4 tracking-tight">
             Authentic
-            <span className="block font-medium mt-1 sm:mt-2">Japanese Experience</span>
+            <span className="block font-medium mt-1 sm:mt-2">Sushi Experience</span>
           </h2>
           <p className="text-slate-200 text-sm sm:text-base md:text-lg font-light mb-6 sm:mb-8 max-w-md">
             Masterful sushi craftsmanship meets contemporary elegance
