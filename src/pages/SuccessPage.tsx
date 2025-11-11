@@ -3,9 +3,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useCartStore } from "../stores/cartStore";
 // import { useTranslation } from "react-i18next";
 import { useClientAuth } from "./client_hub/hooks/useClientAuth";
-import { supabase } from "../lib/supabase";
+import { supabase, supabaseAdmin } from "../lib/supabase";
 import { db } from "../firebase/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { PointsService } from "./client_hub/service/PointsService";
 
 interface OrderDetails {
     id: string;
@@ -17,6 +18,12 @@ interface OrderDetails {
     delivery_fee: number;
     final_total: number;
     created_at: string;
+    status?: string;
+    delivery_type?: 'delivery' | 'pickup';
+    delivery_address?: string;
+    customer_name?: string;
+    customer_email?: string;
+    customer_phone?: string;
 }
 
 interface PointsData {
@@ -46,7 +53,8 @@ export default function SuccessPage() {
     const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
     const [pointsData, setPointsData] = useState<PointsData | null>(null);
     const [pointsHistory, setPointsHistory] = useState<PointsHistoryItem[]>([]);
-    const [pointsError, setPointsError] = useState<string | null>(null);
+    const [pointsError, _setPointsError] = useState<string | null>(null);
+    const [supabaseOrderId, setSupabaseOrderId] = useState<string | null>(null);
 
     // ───────────────────────────────
     // MAIN EFFECT
@@ -65,13 +73,45 @@ export default function SuccessPage() {
                 const orderData = await fetchOrderFromFirestore(targetOrderId);
                 setOrderDetails(orderData);
 
+                // If user is registered client, sync to Supabase and process points
                 if (isClient && clientProfile?.id && orderData) {
-                    console.log("👤 Client profile available:", clientProfile);
-                    const result = await addPointsToSupabase(clientProfile.id, orderData);
-                    if (result) {
-                        setPointsData(result);
-                        const history = await fetchUserPointsHistory(clientProfile.id);
-                        setPointsHistory(history);
+                    console.log("👤 Client profile available, syncing to Supabase...");
+
+                    // 1. First sync order to Supabase
+                    const supabaseOrder = await syncOrderToSupabase(clientProfile.id, orderData);
+                    if (supabaseOrder) {
+                        setSupabaseOrderId(supabaseOrder.id);
+                    }
+
+                    // 2. Then process points using PointsService
+                    const pointsEarned = Math.floor(orderData.final_total);
+                    if (pointsEarned > 0) {
+                        console.log("💰 Processing points:", pointsEarned);
+
+                        const result = await PointsService.addTransaction({
+                            userId: clientProfile.id,
+                            orderId: orderData.id,
+                            points: pointsEarned,
+                            type: 'order',
+                            metadata: {
+                                amount: orderData.final_total,
+                                orderNumber: `#${orderData.id.slice(-8)}`
+                            }
+                        });
+
+                        if (result && result.success) {
+                            setPointsData({
+                                pointsEarned: result.pointsEarned,
+                                previousBalance: result.previousBalance,
+                                newBalance: result.newBalance
+                            });
+
+                            // Fetch updated points history
+                            const history = await PointsService.getUserPointsHistory(clientProfile.id);
+                            setPointsHistory(history);
+                        }
+                    } else {
+                        console.log("⚠️ No points to earn for this order");
                     }
                 }
 
@@ -87,7 +127,7 @@ export default function SuccessPage() {
     }, [sessionId, paymentIntent, orderId, clearCart, isClient, clientProfile]);
 
     // ───────────────────────────────
-    // FIRESTORE
+    // FIRESTORE ORDER FETCH
     // ───────────────────────────────
     const fetchOrderFromFirestore = async (orderIdentifier: string): Promise<OrderDetails> => {
         try {
@@ -111,7 +151,7 @@ export default function SuccessPage() {
                 quantity: item.quantity || 1,
             }));
 
-            const orderData = {
+            const orderData: OrderDetails = {
                 id: orderIdentifier,
                 amount: totals.finalTotal || 0,
                 subtotal: totals.subtotal || 0,
@@ -123,6 +163,12 @@ export default function SuccessPage() {
                     ? data.createdAt.toDate().toISOString()
                     : new Date(data.createdAt || Date.now()).toISOString(),
                 items,
+                status: data.paymentStatus === 'paid' ? 'completed' : data.status || 'confirmed',
+                delivery_type: data.deliveryType || 'delivery',
+                delivery_address: data.deliveryAddress,
+                customer_name: data.customerName,
+                customer_email: data.customerEmail,
+                customer_phone: data.customerPhone,
             };
 
             console.log("📦 Processed order details:", orderData);
@@ -146,180 +192,313 @@ export default function SuccessPage() {
             final_total: 34.5,
             created_at: new Date().toISOString(),
             items: [{ id: "item1", name: "Sample Item", price: 30, quantity: 1 }],
+            status: 'completed',
+            delivery_type: 'delivery'
         };
     };
 
     // ───────────────────────────────
-    // SUPABASE POINTS SYSTEM (WITH FOREIGN KEY FIX)
+    // SUPABASE ORDERS SYNC
     // ───────────────────────────────
-    const addPointsToSupabase = async (userId: string, order: OrderDetails) => {
+    const syncOrderToSupabase = async (userId: string, order: OrderDetails) => {
         try {
-            console.log("⭐ Starting points processing for user:", userId);
+            console.log("🔄 Syncing order to Supabase for user:", userId);
 
-            const pointsEarned = Math.floor(order.final_total);
-            if (pointsEarned <= 0) {
-                console.log("⚠️ No points to earn for this order");
-                return null;
+            // Check if order already exists in Supabase - use regular client for read
+            const { data: existingOrder, error: checkError } = await supabase
+                .from("orders")
+                .select("id")
+                .eq("firebase_order_id", order.id)
+                .eq("user_id", userId)
+                .maybeSingle();
+
+            if (checkError && checkError.code !== 'PGRST116') {
+                console.error("❌ Error checking existing order:", checkError);
+                throw new Error(`Failed to check existing order: ${checkError.message}`);
             }
 
-            console.log("💰 Points to earn:", pointsEarned);
+            if (existingOrder) {
+                console.log("✅ Order already exists in Supabase:", existingOrder.id);
+                return existingOrder;
+            }
 
-            // 1. Ensure user points record exists
-            await ensureUserPointsRecord(userId);
+            // Prepare order data for Supabase
+            const supabaseOrderData = {
+                user_id: userId,
+                firebase_order_id: order.id,
+                order_number: `ORD-${order.id.slice(-8).toUpperCase()}`,
+                status: order.status || 'completed',
+                delivery_type: order.delivery_type,
+                delivery_address: order.delivery_address,
+                customer_name: order.customer_name || clientProfile?.full_name,
+                customer_email: order.customer_email || clientProfile?.email,
+                customer_phone: order.customer_phone || clientProfile?.phone,
 
-            // 2. Get current points balance
-            const { data: existing, error: fetchError } = await supabase
-                .from("user_points")
-                .select("points")
-                .eq("user_id", userId)
+                // Financial details
+                subtotal: order.subtotal,
+                gst: order.gst,
+                qst: order.qst,
+                delivery_fee: order.delivery_fee,
+                final_total: order.final_total,
+
+                // Order items (store as JSONB for flexibility)
+                items: order.items,
+
+                // Timestamps
+                order_date: order.created_at,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            console.log("📦 Inserting order into Supabase:", supabaseOrderData);
+
+            // Insert into Supabase orders table - use admin client for write
+            const { data: newOrder, error: insertError } = await supabaseAdmin
+                .from("orders")
+                .insert(supabaseOrderData)
+                .select()
                 .single();
 
-            if (fetchError) {
-                console.error("❌ Error fetching current points:", fetchError);
-                throw new Error(`Failed to fetch points: ${fetchError.message}`);
+            if (insertError) {
+                console.error("❌ Error inserting order into Supabase:", insertError);
+                throw new Error(`Failed to sync order: ${insertError.message}`);
             }
 
-            const previousBalance = existing?.points || 0;
-            const newBalance = previousBalance + pointsEarned;
-
-            console.log("💳 Points calculation:", {
-                previousBalance,
-                pointsEarned,
-                newBalance
-            });
-
-            // 3. Update main points balance
-            const { error: updateError } = await supabase
-                .from("user_points")
-                .update({
-                    points: newBalance,
-                    updated_at: new Date().toISOString()
-                })
-                .eq("user_id", userId);
-
-            if (updateError) {
-                console.error("❌ Error updating user_points:", updateError);
-                throw new Error(`Failed to update points: ${updateError.message}`);
-            }
-
-            // 4. Insert into points_history (FIXED - with all required fields)
-            const { error: historyError } = await supabase
-                .from("points_history")
-                .insert({
-                    user_id: userId,
-                    order_id: order.id,
-                    points: pointsEarned,
-                    description: `Points earned for order #${order.id} ($${order.final_total.toFixed(2)})`,
-                    created_at: new Date().toISOString(),
-                    type: 'earned',  
-                    transaction_type: 'earn'  
-                });
-
-            if (historyError) {
-                console.error("❌ Error adding points history:", historyError);
-                // Don't throw here - we still want to continue
-            } else {
-                console.log("✅ Points history recorded");
-            }
-
-            // 5. Update client_profiles total_points for consistency
-            const { error: profileUpdateError } = await supabase
-                .from("client_profiles")
-                .update({
-                    total_points: newBalance,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq("id", userId);
-
-            if (profileUpdateError) {
-                console.error("❌ Error updating client_profiles:", profileUpdateError);
-                // Don't throw here - we still want to continue
-            } else {
-                console.log("✅ Client profile updated");
-            }
-
-            console.log("✅ Points successfully added to Supabase:", {
-                previousBalance,
-                pointsEarned,
-                newBalance,
-            });
-
-            setPointsError(null);
-            return { pointsEarned, previousBalance, newBalance };
+            console.log("✅ Order successfully synced to Supabase:", newOrder.id);
+            return newOrder;
 
         } catch (error: any) {
-            console.error("💥 Critical error in points processing:", error);
-            setPointsError(error.message || "Failed to add points to your account");
+            console.error("💥 Critical error syncing order to Supabase:", error);
+            // Don't throw here - we want to continue with points processing even if order sync fails
             return null;
         }
     };
 
-    const ensureUserPointsRecord = async (userId: string) => {
-        try {
-            console.log("🔍 Ensuring user_points record exists for:", userId);
 
-            const { data, error: selectError } = await supabase
-                .from("user_points")
-                .select("user_id, points")
-                .eq("user_id", userId)
-                .maybeSingle();
 
-            if (selectError && selectError.code !== 'PGRST116') {
-                console.error("❌ Error checking user_points:", selectError);
-                throw new Error(`Failed to check points record: ${selectError.message}`);
-            }
+    // const addPointsToSupabase = async (userId: string, order: OrderDetails) => {
+    //     try {
+    //         console.log("⭐ Starting points processing for user:", userId);
 
-            if (!data) {
-                console.log("📝 Creating new user_points record...");
+    //         const pointsEarned = Math.floor(order.final_total);
+    //         if (pointsEarned <= 0) {
+    //             console.log("⚠️ No points to earn for this order");
+    //             return null;
+    //         }
 
-                const { error: insertError } = await supabase
-                    .from("user_points")
-                    .insert({
-                        user_id: userId,
-                        points: 0,
-                        earned_at: new Date().toISOString(),
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                    });
+    //         console.log("💰 Points to earn:", pointsEarned);
 
-                if (insertError) {
-                    console.error("❌ Error creating user_points record:", insertError);
-                    throw new Error(`Failed to create points record: ${insertError.message}`);
-                }
+    //         // Ensure user record exists
+    //         await PointsService.ensureUserPointsRecord(userId);
 
-                console.log("✅ Created new user_points record");
-            } else {
-                console.log("✅ User_points record already exists");
-            }
-        } catch (error: any) {
-            console.error("💥 Error ensuring user points record:", error);
-            throw error;
-        }
-    };
+    //         // Get current balance for the response
+    //         const previousBalance = await PointsService.getCurrentBalance(userId);
+    //         const newBalance = previousBalance + pointsEarned;
 
-    const fetchUserPointsHistory = async (userId: string): Promise<PointsHistoryItem[]> => {
-        try {
-            console.log("📚 Fetching points history for user:", userId);
+    //         console.log("💳 Points calculation:", {
+    //             previousBalance,
+    //             pointsEarned,
+    //             newBalance
+    //         });
 
-            const { data, error } = await supabase
-                .from("points_history")
-                .select("id, points, description, type, transaction_type, created_at")
-                .eq("user_id", userId)
-                .order("created_at", { ascending: false })
-                .limit(5);
+    //         // Add the points transaction
+    //         await PointsService.addTransaction({
+    //             userId,
+    //             orderId: order.id,
+    //             points: newBalance, // This updates to the new total balance
+    //             type: 'order',
+    //             metadata: {
+    //                 amount: order.final_total,
+    //                 orderNumber: `#${order.id.slice(-8)}`
+    //             }
+    //         });
 
-            if (error) {
-                console.error("❌ Error fetching points history:", error);
-                return [];
-            }
+    //         console.log("✅ Points successfully added:", {
+    //             previousBalance,
+    //             pointsEarned,
+    //             newBalance,
+    //         });
 
-            console.log("✅ Fetched points history:", data?.length || 0, "items");
-            return data || [];
-        } catch (error) {
-            console.error("💥 Error in fetchUserPointsHistory:", error);
-            return [];
-        }
-    };
+    //         setPointsError(null);
+    //         return { pointsEarned, previousBalance, newBalance };
+
+    //     } catch (error: any) {
+    //         console.error("💥 Critical error in points processing:", error);
+    //         setPointsError(error.message || "Failed to add points to your account");
+    //         return null;
+    //     }
+    // };
+
+    // const addPointsToSupabase = async (userId: string, order: OrderDetails) => {
+    //     try {
+    //         console.log("⭐ Starting points processing for user:", userId);
+
+    //         const pointsEarned = Math.floor(order.final_total);
+    //         if (pointsEarned <= 0) {
+    //             console.log("⚠️ No points to earn for this order");
+    //             return null;
+    //         }
+
+    //         console.log("💰 Points to earn:", pointsEarned);
+
+    //         // 1. Ensure user points record exists
+    //         await ensureUserPointsRecord(userId);
+
+    //         // 2. Get current points balance - use regular client for read
+    //         const { data: existing, error: fetchError } = await supabase
+    //             .from("user_points")
+    //             .select("points")
+    //             .eq("user_id", userId)
+    //             .single();
+
+    //         if (fetchError) {
+    //             console.error("❌ Error fetching current points:", fetchError);
+    //             throw new Error(`Failed to fetch points: ${fetchError.message}`);
+    //         }
+
+    //         const previousBalance = existing?.points || 0;
+    //         const newBalance = previousBalance + pointsEarned;
+
+    //         console.log("💳 Points calculation:", {
+    //             previousBalance,
+    //             pointsEarned,
+    //             newBalance
+    //         });
+
+    //         // 3. Update main points balance - use admin client for write
+    //         const { error: updateError } = await supabaseAdmin
+    //             .from("user_points")
+    //             .update({
+    //                 points: newBalance,
+    //                 updated_at: new Date().toISOString()
+    //             })
+    //             .eq("user_id", userId);
+
+    //         if (updateError) {
+    //             console.error("❌ Error updating user_points:", updateError);
+    //             throw new Error(`Failed to update points: ${updateError.message}`);
+    //         }
+
+    //         // 4. Insert into points_history - use admin client for write
+    //         const { error: historyError } = await supabaseAdmin
+    //             .from("points_history")
+    //             .insert({
+    //                 user_id: userId,
+    //                 order_id: order.id,
+    //                 points: pointsEarned,
+    //                 description: `Points earned for order #${order.id} ($${order.final_total.toFixed(2)})`,
+    //                 created_at: new Date().toISOString(),
+    //                 type: 'earned',
+    //                 transaction_type: 'earn'
+    //             });
+
+    //         if (historyError) {
+    //             console.error("❌ Error adding points history:", historyError);
+    //             // Don't throw here - we still want to continue
+    //         } else {
+    //             console.log("✅ Points history recorded");
+    //         }
+
+    //         // 5. Update client_profiles total_points for consistency - use admin client for write
+    //         const { error: profileUpdateError } = await supabaseAdmin
+    //             .from("client_profiles")
+    //             .update({
+    //                 total_points: newBalance,
+    //                 updated_at: new Date().toISOString(),
+    //             })
+    //             .eq("id", userId);
+
+    //         if (profileUpdateError) {
+    //             console.error("❌ Error updating client_profiles:", profileUpdateError);
+    //             // Don't throw here - we still want to continue
+    //         } else {
+    //             console.log("✅ Client profile updated");
+    //         }
+
+    //         console.log("✅ Points successfully added to Supabase:", {
+    //             previousBalance,
+    //             pointsEarned,
+    //             newBalance,
+    //         });
+
+    //         setPointsError(null);
+    //         return { pointsEarned, previousBalance, newBalance };
+
+    //     } catch (error: any) {
+    //         console.error("💥 Critical error in points processing:", error);
+    //         setPointsError(error.message || "Failed to add points to your account");
+    //         return null;
+    //     }
+    // };
+
+    // const ensureUserPointsRecord = async (userId: string) => {
+    //     try {
+    //         console.log("🔍 Ensuring user_points record exists for:", userId);
+
+    //         // Check if record exists - use regular client for read
+    //         const { data, error: selectError } = await supabase
+    //             .from("user_points")
+    //             .select("user_id, points")
+    //             .eq("user_id", userId)
+    //             .maybeSingle();
+
+    //         if (selectError && selectError.code !== 'PGRST116') {
+    //             console.error("❌ Error checking user_points:", selectError);
+    //             throw new Error(`Failed to check points record: ${selectError.message}`);
+    //         }
+
+    //         if (!data) {
+    //             console.log("📝 Creating new user_points record...");
+
+    //             // Create record - use admin client for write
+    //             const { error: insertError } = await supabaseAdmin
+    //                 .from("user_points")
+    //                 .insert({
+    //                     user_id: userId,
+    //                     points: 0,
+    //                     earned_at: new Date().toISOString(),
+    //                     created_at: new Date().toISOString(),
+    //                     updated_at: new Date().toISOString(),
+    //                 });
+
+    //             if (insertError) {
+    //                 console.error("❌ Error creating user_points record:", insertError);
+    //                 throw new Error(`Failed to create points record: ${insertError.message}`);
+    //             }
+
+    //             console.log("✅ Created new user_points record");
+    //         } else {
+    //             console.log("✅ User_points record already exists");
+    //         }
+    //     } catch (error: any) {
+    //         console.error("💥 Error ensuring user points record:", error);
+    //         throw error;
+    //     }
+    // };
+
+    // const fetchUserPointsHistory = async (userId: string): Promise<PointsHistoryItem[]> => {
+    //     try {
+    //         console.log("📚 Fetching points history for user:", userId);
+
+    //         const { data, error } = await supabase
+    //             .from("points_history")
+    //             .select("id, points, description, type, transaction_type, created_at")
+    //             .eq("user_id", userId)
+    //             .order("created_at", { ascending: false })
+    //             .limit(5);
+
+    //         if (error) {
+    //             console.error("❌ Error fetching points history:", error);
+    //             return [];
+    //         }
+
+    //         console.log("✅ Fetched points history:", data?.length || 0, "items");
+    //         return data || [];
+    //     } catch (error) {
+    //         console.error("💥 Error in fetchUserPointsHistory:", error);
+    //         return [];
+    //     }
+    // };
 
     // ───────────────────────────────
     // ANALYTICS
@@ -370,6 +549,11 @@ export default function SuccessPage() {
                         <p className="text-white/70">Thank you for your purchase!</p>
                         {orderDetails?.id?.startsWith("CASH-") && (
                             <p className="text-blue-400/80 text-sm mt-2">💵 Cash Order</p>
+                        )}
+                        {supabaseOrderId && (
+                            <p className="text-green-400/80 text-sm mt-1">
+                                ✅ Added to your client account
+                            </p>
                         )}
                     </div>
 
@@ -480,7 +664,7 @@ export default function SuccessPage() {
                                 <span className="text-blue-400 text-sm">Create an account to earn points!</span>
                             </div>
                             <p className="text-blue-400/70 text-xs mt-1">
-                                Sign up to start earning rewards on your orders.
+                                Sign up to start earning rewards on your orders and track your order history.
                             </p>
                         </div>
                     )}
@@ -504,6 +688,7 @@ export default function SuccessPage() {
                         {orderDetails?.id && (
                             <p className="text-white/40 text-xs">
                                 Order Reference: {orderDetails.id}
+                                {supabaseOrderId && ` • Client Order: ${supabaseOrderId}`}
                             </p>
                         )}
                     </div>
