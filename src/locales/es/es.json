@@ -105,7 +105,7 @@
     "phonePlaceholder": "(555) 123-4567",
     "addressPlaceholder": "123 Calle Principal, Apt 4B",
     "cityPlaceholder": "Ciudad",
-    "zipCodePlaceholder": "10001",
+"zipCodePlaceholder": "J1H 1A2",
     "instructionsPlaceholder": "Código de puerta, número de edificio, instrucciones especiales..."
   },
   "paymentMethod": {

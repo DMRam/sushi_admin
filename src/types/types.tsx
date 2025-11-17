@@ -396,5 +396,5 @@ export interface ClientProfile {
   updated_at: string
   total_points: number
   current_tier: string
-
+  avatar_url?: string;
 }

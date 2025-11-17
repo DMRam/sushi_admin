@@ -104,7 +104,7 @@
     "phonePlaceholder": "(555) 123-4567",
     "addressPlaceholder": "123 Main Street, Apt 4B",
     "cityPlaceholder": "New York",
-    "zipCodePlaceholder": "10001",
+    "zipCodePlaceholder": "J1H 1A2",
     "instructionsPlaceholder": "Gate code, building number, special instructions..."
   },
   "paymentMethod": {

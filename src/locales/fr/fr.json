@@ -79,10 +79,9 @@
     "checkout": "Commander",
     "totalCreations": "Créations Totales",
     "categories": "Catégories",
-    "exploreCategories": "Explorez Nos Catégories", 
+    "exploreCategories": "Explorez Nos Catégories",
     "culinaryPortfolio": "Parcourez notre portfolio culinaire",
-    
-    
+
     "foundMatches": "Trouvé {{count}} résultats pour \"{{term}}\"",
     "showcasingCreations": "Présentation de {{count}} créations culinaires",
     "categorySelections": "{{count}} sélections {{category}}"
@@ -106,7 +105,7 @@
     "phonePlaceholder": "(555) 123-4567",
     "addressPlaceholder": "123 Rue Principale, App 4B",
     "cityPlaceholder": "Montréal",
-    "zipCodePlaceholder": "H3A 1A1",
+    "zipCodePlaceholder": "J1H 1A2",
     "instructionsPlaceholder": "Code de porte, numéro de bâtiment, instructions spéciales..."
   },
   "paymentMethod": {
@@ -287,7 +286,7 @@
     "client": "Client",
     "orderNow": "Commander Maintenant"
   },
-   "buildYourSushi": {
+  "buildYourSushi": {
     "title": "Créez Votre Sushi",
     "subtitle": "Créez votre rouleau de sushi parfait avec des ingrédients frais",
     "yourCreation": "Votre Création",
@@ -303,7 +302,7 @@
     "categories": {
       "base": "Bases",
       "protein": "Protéines",
-      "vegetables": "Légumes", 
+      "vegetables": "Légumes",
       "toppings": "Garnitures",
       "sauces": "Sauces"
     },

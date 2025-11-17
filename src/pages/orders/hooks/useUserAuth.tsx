@@ -46,6 +46,9 @@ export const useUserAuth = () => {
         const firstName = parts[0] || "";
         const lastName = parts.slice(1).join(" ") || "";
 
+
+        console.log("$$$$$$$ clientProfile: ", clientProfile)
+
         const profile: ClientProfile = {
           id: clientProfile.id,
           email: clientProfile.email,

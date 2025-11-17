@@ -1,8 +1,11 @@
-import type { Dispatch, SetStateAction } from "react";
+// EnhancedHeader.tsx
 import type { ClientProfile } from "../../../types/types";
 import { useNavigate } from "react-router-dom";
 import { signOut } from 'firebase/auth'
 import { auth } from "../../../firebase/firebase";
+import { useState, useRef } from "react";
+import { uploadAvatar } from "../../../utils/avatarUtils";
+import { AvatarCropper } from "./AvatarCropper"; // Import from separate file
 
 interface SpecialOffer {
     id: string
@@ -16,7 +19,8 @@ interface SpecialOffer {
 }
 
 interface EnhancedHeaderProps {
-    clientProfile: ClientProfile | null
+    clientProfile: ClientProfile | null;
+    onProfileUpdate: (updatedProfile: ClientProfile) => void;
     formatCurrency: (amount: number) => string;
     stats: {
         totalSpent: number;
@@ -26,18 +30,30 @@ interface EnhancedHeaderProps {
     }
     loadingData: boolean;
     activeTab: string;
-    setActiveTab: Dispatch<SetStateAction<string>>;
+    setActiveTab: (tab: string) => void
     specialOffers: SpecialOffer[]
     formatDate: (dateString: string) => string;
-
+    isMobile?: boolean;
 }
-export const EnhancedHeader = ({ clientProfile, formatCurrency, formatDate, stats, specialOffers }: EnhancedHeaderProps) => {
 
+export const EnhancedHeader = ({
+    clientProfile,
+    onProfileUpdate,
+    formatCurrency,
+    formatDate,
+    stats,
+    specialOffers,
+    isMobile
+}: EnhancedHeaderProps & { isMobile?: boolean }) => {
+
+    const [selectedImage, setSelectedImage] = useState<File | null>(null);
+    const [showCropper, setShowCropper] = useState(false);
     const navigate = useNavigate()
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const copyPromoCode = (code: string) => {
         navigator.clipboard.writeText(code)
-        // You can add a toast notification here
         alert(`Promo code ${code} copied to clipboard!`)
     }
 
@@ -77,39 +93,219 @@ export const EnhancedHeader = ({ clientProfile, formatCurrency, formatDate, stat
     const getDaysUntilTierUpgrade = () => {
         const points = clientProfile?.total_points || 0
         const pointsNeeded = 1000 - points
-        const averagePointsPerDay = 50 // Adjust based on your business
+        const averagePointsPerDay = 50
         return Math.ceil(pointsNeeded / averagePointsPerDay)
     }
+
+    const handleAvatarClick = () => {
+        console.log('📷 Avatar clicked, opening file picker...');
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        console.log('📁 File selected:', file);
+
+        if (!file || !clientProfile) {
+            console.log('❌ No file or client profile');
+            return;
+        }
+
+        // Validate file type and size
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file (JPEG, PNG, GIF, WebP)');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image size should be less than 5MB');
+            return;
+        }
+
+        console.log('✅ File validated, showing cropper...');
+        // Show cropper for image selection
+        setSelectedImage(file);
+        setShowCropper(true);
+    };
+
+    // Add this function to handle the cropped image
+    const handleCroppedImage = async (croppedImageUrl: string) => {
+        console.log('🔄 Handling cropped image...');
+        if (!clientProfile || !selectedImage) return;
+
+        setIsUploading(true);
+        setShowCropper(false);
+
+        try {
+            console.log('🔄 Converting cropped image for upload...');
+
+            // Convert the cropped image URL back to a File
+            const response = await fetch(croppedImageUrl);
+            const blob = await response.blob();
+            const croppedFile = new File([blob], selectedImage.name, {
+                type: selectedImage.type,
+                lastModified: Date.now(),
+            });
+
+            console.log('📤 Uploading cropped avatar...');
+            const avatarUrl = await uploadAvatar(clientProfile.id, croppedFile);
+
+            if (avatarUrl) {
+                console.log('✅ Cropped avatar upload successful, updating profile...');
+
+                // Update the profile with new avatar URL
+                const updatedProfile = {
+                    ...clientProfile,
+                    avatar_url: avatarUrl
+                };
+                onProfileUpdate(updatedProfile);
+            } else {
+                throw new Error('Upload failed - no URL returned');
+            }
+        } catch (error) {
+            console.error('❌ Error uploading cropped avatar:', error);
+            alert(error instanceof Error ? error.message : 'Failed to upload avatar. Please try again.');
+        } finally {
+            setIsUploading(false);
+            setSelectedImage(null);
+
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+
+            // Clean up the blob URL
+            URL.revokeObjectURL(croppedImageUrl);
+        }
+    };
+
+    // Responsive grid classes
+    const getStatsGridClasses = () => {
+        if (isMobile) {
+            return "grid grid-cols-2 gap-4";
+        }
+        return "grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6";
+    };
+
+    const getMainGridClasses = () => {
+        if (isMobile) {
+            return "grid grid-cols-1 gap-6";
+        }
+        return "grid grid-cols-1 lg:grid-cols-3 gap-6";
+    };
+
+    const getProgressSpanClasses = () => {
+        if (isMobile) {
+            return "lg:col-span-1";
+        }
+        return "lg:col-span-2";
+    };
+
+    const getOffersGridClasses = () => {
+        if (isMobile) {
+            return "grid grid-cols-1 gap-4";
+        }
+        return "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
+    };
+
+    console.log("CLIENT PROFILE: ", clientProfile);
+    console.log("Show cropper:", showCropper);
+    console.log("Selected image:", selectedImage);
+
     return (
         <>
-
             {/* Enhanced Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
-                <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                        {clientProfile?.full_name?.charAt(0).toUpperCase()}
+            <div className={`flex flex-col ${isMobile ? 'gap-4' : 'lg:flex-row lg:items-center gap-6'} justify-between items-start mb-6 md:mb-8`}>
+                <div className="flex items-center gap-3 md:gap-4">
+                    <div className="relative">
+                        <div
+                            onClick={handleAvatarClick}
+                            className={`
+                                ${isMobile ? 'w-12 h-12' : 'w-16 h-16'} 
+                                rounded-full flex items-center justify-center 
+                                text-white font-bold 
+                                ${isMobile ? 'text-xl' : 'text-2xl'}
+                                cursor-pointer hover:opacity-80 transition-opacity 
+                                ${isUploading ? 'opacity-50' : ''}
+                                overflow-hidden
+                                relative
+                            `}
+                        >
+                            {/* Avatar Image with proper centering */}
+                            {clientProfile?.avatar_url ? (
+                                <img
+                                    src={clientProfile.avatar_url}
+                                    alt={`${clientProfile.full_name}'s avatar`}
+                                    className="w-full h-full object-cover"
+                                    style={{
+                                        objectPosition: 'center center'
+                                    }}
+                                    onError={(e) => {
+                                        console.error('❌ Avatar image failed to load');
+                                        e.currentTarget.style.display = 'none';
+                                    }}
+                                />
+                            ) : (
+                                // Fallback gradient with initial
+                                <div className="w-full h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full flex items-center justify-center">
+                                    <span className="select-none">
+                                        {clientProfile?.full_name?.charAt(0).toUpperCase()}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Uploading overlay */}
+                            {isUploading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Edit icon overlay */}
+                        {!isUploading && (
+                            <div className="absolute -bottom-1 -right-1 bg-emerald-500 rounded-full p-1 shadow-lg border-2 border-gray-900">
+                                <svg
+                                    className={isMobile ? "w-2 h-2" : "w-3 h-3"}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </div>
+                        )}
+
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            accept="image/*"
+                            className="hidden"
+                        />
                     </div>
                     <div>
-                        <h1 className="text-4xl font-light text-white mb-2">
+                        <h1 className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-light text-white mb-1 md:mb-2`}>
                             Welcome back, {clientProfile?.full_name?.split(' ')[0]}!
                         </h1>
-                        <p className="text-white/60 font-light flex items-center gap-2">
+                        <p className="text-white/60 font-light flex items-center gap-2 text-sm md:text-base">
                             <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${getTierColor(clientProfile?.current_tier || 'bronze')}`}></span>
                             {clientProfile?.current_tier ? `${clientProfile.current_tier.charAt(0).toUpperCase() + clientProfile.current_tier.slice(1)} Tier Member` : 'Bronze Tier Member'}
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-2 md:gap-3 ${isMobile ? 'w-full justify-stretch' : ''}`}>
                     <button
                         onClick={() => navigate('/menu')}
-                        className="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600 transition-all duration-300 font-light shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+                        className={`${isMobile ? 'flex-1 px-4 py-2 text-sm' : 'px-6 py-2'} bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all duration-300 font-light shadow-lg shadow-emerald-500/20 flex items-center gap-2 justify-center`}
                     >
                         <span>🍽️</span>
                         Order Now
                     </button>
                     <button
                         onClick={handleLogout}
-                        className="border border-white/20 text-white/60 px-6 py-2 rounded-lg hover:bg-white/10 hover:text-white transition-all duration-300 font-light flex items-center gap-2"
+                        className={`${isMobile ? 'flex-1 px-4 py-2 text-sm' : 'px-6 py-2'} border border-white/20 text-white/60 rounded-lg hover:bg-white/10 hover:text-white transition-all duration-300 font-light flex items-center gap-2 justify-center`}
                     >
                         <span>🚪</span>
                         Logout
@@ -118,82 +314,82 @@ export const EnhancedHeader = ({ clientProfile, formatCurrency, formatDate, stat
             </div>
 
             {/* Enhanced Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-emerald-400/10 rounded-lg flex items-center justify-center">
-                            <span className="text-xl">⭐</span>
+            <div className={`${getStatsGridClasses()} mb-6 md:mb-8`}>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 md:p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+                    <div className="flex items-center gap-3 md:gap-4">
+                        <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-emerald-400/10 rounded-lg flex items-center justify-center flex-shrink-0`}>
+                            <span className={isMobile ? 'text-lg' : 'text-xl'}>⭐</span>
                         </div>
-                        <div>
-                            <p className="text-white/60 font-light text-sm">Total Points</p>
-                            <p className="text-2xl font-light text-white">{clientProfile?.total_points || 0}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-purple-400/10 rounded-lg flex items-center justify-center">
-                            <span className="text-xl">💰</span>
-                        </div>
-                        <div>
-                            <p className="text-white/60 font-light text-sm">Total Spent</p>
-                            <p className="text-2xl font-light text-white">{formatCurrency(stats.totalSpent)}</p>
+                        <div className="min-w-0">
+                            <p className="text-white/60 font-light text-xs md:text-sm truncate">Total Points</p>
+                            <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-light text-white truncate`}>{clientProfile?.total_points || 0}</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-400/10 rounded-lg flex items-center justify-center">
-                            <span className="text-xl">📊</span>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 md:p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+                    <div className="flex items-center gap-3 md:gap-4">
+                        <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-purple-400/10 rounded-lg flex items-center justify-center flex-shrink-0`}>
+                            <span className={isMobile ? 'text-lg' : 'text-xl'}>💰</span>
                         </div>
-                        <div>
-                            <p className="text-white/60 font-light text-sm">Monthly Orders</p>
-                            <p className="text-2xl font-light text-white">{stats.monthlyOrders}</p>
+                        <div className="min-w-0">
+                            <p className="text-white/60 font-light text-xs md:text-sm truncate">Total Spent</p>
+                            <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-light text-white truncate`}>{formatCurrency(stats.totalSpent)}</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-orange-400/10 rounded-lg flex items-center justify-center">
-                            <span className="text-xl">❤️</span>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 md:p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+                    <div className="flex items-center gap-3 md:gap-4">
+                        <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-blue-400/10 rounded-lg flex items-center justify-center flex-shrink-0`}>
+                            <span className={isMobile ? 'text-lg' : 'text-xl'}>📊</span>
                         </div>
-                        <div>
-                            <p className="text-white/60 font-light text-sm">Favorite</p>
-                            <p className="text-2xl font-light text-white capitalize">{stats.favoriteCategory || 'None'}</p>
+                        <div className="min-w-0">
+                            <p className="text-white/60 font-light text-xs md:text-sm truncate">Monthly Orders</p>
+                            <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-light text-white truncate`}>{stats.monthlyOrders}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 md:p-6 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">
+                    <div className="flex items-center gap-3 md:gap-4">
+                        <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-orange-400/10 rounded-lg flex items-center justify-center flex-shrink-0`}>
+                            <span className={isMobile ? 'text-lg' : 'text-xl'}>❤️</span>
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-white/60 font-light text-xs md:text-sm truncate">Favorite</p>
+                            <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-light text-white truncate capitalize`}>{stats.favoriteCategory || 'None'}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Progress and Tier Benefits */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm">
-                    <div className="flex justify-between items-center mb-3">
-                        <p className="text-white/60 font-light">Progress to Next Tier</p>
-                        <p className="text-white font-light">{clientProfile?.total_points || 0}/1000 points</p>
+            <div className={`${getMainGridClasses()} mb-6 md:mb-8`}>
+                <div className={`${getProgressSpanClasses()} bg-white/5 border border-white/10 rounded-xl p-4 md:p-6 backdrop-blur-sm`}>
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2 mb-3">
+                        <p className="text-white/60 font-light text-sm md:text-base">Progress to Next Tier</p>
+                        <p className="text-white font-light text-sm md:text-base">{clientProfile?.total_points || 0}/1000 points</p>
                     </div>
-                    <div className="w-full bg-white/10 rounded-full h-3 mb-2">
+                    <div className="w-full bg-white/10 rounded-full h-2 md:h-3 mb-2">
                         <div
-                            className={`h-3 rounded-full bg-gradient-to-r ${getTierColor(clientProfile?.current_tier || 'bronze')} transition-all duration-1000 ease-out`}
+                            className={`h-2 md:h-3 rounded-full bg-gradient-to-r ${getTierColor(clientProfile?.current_tier || 'bronze')} transition-all duration-1000 ease-out`}
                             style={{ width: `${getProgressPercentage()}%` }}
                         ></div>
                     </div>
-                    <p className="text-white/40 text-sm font-light">
+                    <p className="text-white/40 text-xs md:text-sm font-light">
                         {1000 - (clientProfile?.total_points || 0)} points needed •
                         ~{getDaysUntilTierUpgrade()} days until next tier
                     </p>
                 </div>
 
-                <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm">
-                    <h4 className="text-white font-light mb-3">Tier Benefits</h4>
-                    <ul className="space-y-2">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 md:p-6 backdrop-blur-sm">
+                    <h4 className="text-white font-light text-base md:text-lg mb-3">Tier Benefits</h4>
+                    <ul className="space-y-1 md:space-y-2">
                         {getTierBenefits(clientProfile?.current_tier || 'bronze').map((benefit, index) => (
-                            <li key={index} className="text-white/60 text-sm font-light flex items-center gap-2">
-                                <span className="text-emerald-400">✓</span>
-                                {benefit}
+                            <li key={index} className="text-white/60 text-xs md:text-sm font-light flex items-center gap-2">
+                                <span className="text-emerald-400 flex-shrink-0">✓</span>
+                                <span className="break-words">{benefit}</span>
                             </li>
                         ))}
                     </ul>
@@ -202,27 +398,27 @@ export const EnhancedHeader = ({ clientProfile, formatCurrency, formatDate, stat
 
             {/* Special Offers Section */}
             {specialOffers.length > 0 && (
-                <div className="mb-8">
-                    <h3 className="text-2xl font-light text-white mb-4 flex items-center gap-2">
+                <div className="mb-6 md:mb-8">
+                    <h3 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-light text-white mb-4 flex items-center gap-2`}>
                         <span>🎁</span>
                         Special Offers
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {specialOffers.slice(0, 3).map((offer) => (
-                            <div key={offer.id} className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-400/20 rounded-xl p-6 backdrop-blur-sm">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h4 className="text-white font-light text-lg">{offer.title}</h4>
-                                        <p className="text-white/60 text-sm font-light">{offer.description}</p>
+                    <div className={getOffersGridClasses()}>
+                        {specialOffers.slice(0, isMobile ? 2 : 3).map((offer) => (
+                            <div key={offer.id} className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-400/20 rounded-xl p-4 md:p-6 backdrop-blur-sm">
+                                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2 mb-3">
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-white font-light text-base md:text-lg line-clamp-2">{offer.title}</h4>
+                                        <p className="text-white/60 text-xs md:text-sm font-light line-clamp-2 mt-1">{offer.description}</p>
                                     </div>
-                                    <span className="bg-purple-400/20 text-purple-400 px-3 py-1 rounded-full text-sm font-light">
+                                    <span className="bg-purple-400/20 text-purple-400 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-light flex-shrink-0 md:self-start">
                                         {offer.discount_percentage}% OFF
                                     </span>
                                 </div>
-                                <div className="flex justify-between items-center mt-4">
+                                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2 mt-3 md:mt-4">
                                     <button
                                         onClick={() => copyPromoCode(offer.code)}
-                                        className="text-white/60 hover:text-white transition-colors font-light text-sm flex items-center gap-2"
+                                        className="text-white/60 hover:text-white transition-colors font-light text-xs md:text-sm flex items-center gap-1 md:gap-2 justify-start"
                                     >
                                         Code: {offer.code}
                                         <span>📋</span>
@@ -237,6 +433,21 @@ export const EnhancedHeader = ({ clientProfile, formatCurrency, formatDate, stat
                 </div>
             )}
 
+            {/* Avatar Cropper Modal */}
+            {showCropper && selectedImage && (
+                <AvatarCropper
+                    image={selectedImage}
+                    onCropComplete={handleCroppedImage}
+                    onCancel={() => {
+                        console.log('❌ Cropper cancelled');
+                        setShowCropper(false);
+                        setSelectedImage(null);
+                        if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                        }
+                    }}
+                />
+            )}
         </>
     )
 }

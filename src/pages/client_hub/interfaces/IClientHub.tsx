@@ -1,3 +1,6 @@
+import type { Dispatch, SetStateAction } from "react"
+import type { ClientProfile } from "../../../types/types"
+
 export interface PointsHistoryItem {
     id: string
     points: number
@@ -52,4 +55,26 @@ export interface QuickReorderItem {
     image?: string
     lastOrdered: string
     orderCount: number
+}
+
+
+// ======== Rewards ========
+
+export interface ProfileTabProps {
+    clientProfile: ClientProfile | null
+    formatCurrency: (amount: number) => string;
+    stats: {
+        totalSpent: number;
+        averageOrder: number;
+        favoriteCategory: string;
+        monthlyOrders: number;
+    }
+    loadingData: boolean;
+    activeTab: string;
+    setActiveTab: (tab: string) => void
+    recentOrders: OrderDetails[];
+    pointsHistory: PointsHistoryItem[];
+    formatDate: (dateString: string) => string;
+    quickReorderItems: QuickReorderItem[]
+    setClientProfile: Dispatch<SetStateAction<ClientProfile | null>>
 }

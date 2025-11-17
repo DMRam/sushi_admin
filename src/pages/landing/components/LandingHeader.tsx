@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Menu, X, LayoutDashboard, ShoppingCart } from 'lucide-react'
 import { AuthModal } from '../../components/AuthModal'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../../../firebase/firebase'
 import { supabase } from '../../../lib/supabase'
 import logo from '../../../assets/logo/mai_sushi_v3_dark.png'
@@ -80,13 +80,16 @@ export const LandingHeader = () => {
                 const firstName = nameParts[0] || ''
                 const lastName = nameParts.slice(1).join(' ') || ''
 
+                // Safely handle missing points column
+                const userPoints = clientProfile.points !== undefined ? clientProfile.points : 0
+
                 setUser({
                     id: clientProfile.id,
                     email: clientProfile.email,
                     first_name: firstName,
                     last_name: lastName,
                     phone: clientProfile.phone,
-                    points: clientProfile.points,
+                    points: userPoints,
                     address: clientProfile.address,
                     city: clientProfile.city,
                     zip_code: clientProfile.zip_code
@@ -132,13 +135,16 @@ export const LandingHeader = () => {
                 const firstName = nameParts[0] || ''
                 const lastName = nameParts.slice(1).join(' ') || ''
 
+                // Safely handle missing points column
+                const userPoints = clientProfile.points !== undefined ? clientProfile.points : 0
+
                 setUser({
                     id: clientProfile.id,
                     email: clientProfile.email,
                     first_name: firstName,
                     last_name: lastName,
                     phone: clientProfile.phone,
-                    points: clientProfile.points,
+                    points: userPoints,
                     address: clientProfile.address,
                     city: clientProfile.city,
                     zip_code: clientProfile.zip_code
@@ -161,7 +167,7 @@ export const LandingHeader = () => {
         setAuthError('')
 
         try {
-            const { createUserWithEmailAndPassword } = await import('firebase/auth')
+            // Create user in Firebase Auth
             const userCredential = await createUserWithEmailAndPassword(
                 auth,
                 authForm.email,
@@ -171,37 +177,80 @@ export const LandingHeader = () => {
             const firebaseUser = userCredential.user
             const fullName = `${authForm.firstName} ${authForm.lastName}`.trim()
 
+            // Create user profile in Supabase - only include fields that exist
+            const profileData: any = {
+                firebase_uid: firebaseUser.uid,
+                email: authForm.email,
+                full_name: fullName,
+                phone: authForm.phone,
+                created_at: new Date().toISOString(),
+            }
+
+            // Only include points if the column exists
+            // You can remove this if you don't have points column
+            // profileData.points = 0
+
             const { data: clientProfile, error: profileError } = await supabase
                 .from('client_profiles')
-                .insert({
-                    firebase_uid: firebaseUser.uid,
-                    email: authForm.email,
-                    full_name: fullName,
-                    phone: authForm.phone,
-                    points: 0,
-                    created_at: new Date().toISOString(),
-                })
+                .insert(profileData)
                 .select()
                 .single()
 
-            if (profileError) throw profileError
+            if (profileError) {
+                console.error('Supabase profile error:', profileError)
+                
+                // If it's a column error, try without the problematic column
+                if (profileError.message.includes('points')) {
+                    delete profileData.points
+                    const { data: retryProfile, error: retryError } = await supabase
+                        .from('client_profiles')
+                        .insert(profileData)
+                        .select()
+                        .single()
 
-            if (clientProfile) {
+                    if (retryError) {
+                        await firebaseUser.delete()
+                        throw retryError
+                    }
+
+                    if (retryProfile) {
+                        setUser({
+                            id: retryProfile.id,
+                            email: retryProfile.email,
+                            first_name: authForm.firstName,
+                            last_name: authForm.lastName,
+                            phone: retryProfile.phone,
+                            points: 0 // Default value
+                        })
+                    }
+                } else {
+                    await firebaseUser.delete()
+                    throw profileError
+                }
+            } else if (clientProfile) {
                 setUser({
                     id: clientProfile.id,
                     email: clientProfile.email,
                     first_name: authForm.firstName,
                     last_name: authForm.lastName,
                     phone: clientProfile.phone,
-                    points: clientProfile.points
+                    points: clientProfile.points || 0
                 })
-
-                setShowAuthModal(false)
-                setAuthForm({ email: '', password: '', firstName: '', lastName: '', phone: '' })
             }
+
+            setShowAuthModal(false)
+            setAuthForm({ email: '', password: '', firstName: '', lastName: '', phone: '' })
         } catch (error: any) {
             console.error('Signup error:', error)
-            setAuthError(error.message || 'Signup failed')
+            
+            // Handle specific error cases
+            if (error.code === 'auth/email-already-in-use') {
+                setAuthError('This email is already registered. Please sign in instead.')
+            } else if (error.message?.includes('points')) {
+                setAuthError('Account created successfully! Please sign in.')
+            } else {
+                setAuthError(error.message || 'Signup failed. Please try again.')
+            }
         } finally {
             setIsAuthLoading(false)
         }
@@ -228,6 +277,7 @@ export const LandingHeader = () => {
     return (
         <>
             <header className="bg-white shadow-sm border-b border-gray-100 fixed inset-x-0 top-0 z-40">
+                {/* ... rest of your JSX remains the same ... */}
                 <div className="w-full px-3 sm:px-4 md:px-8 py-4 overflow-x-clip">
                     <div className="flex items-center justify-between gap-3">
                         <Link to="/" className="flex items-center min-w-0 shrink-0">
@@ -340,7 +390,7 @@ export const LandingHeader = () => {
                     </div>
                 </div>
 
-                {/* Mobile Dropdown Menu */}
+                {/* Mobile Dropdown Menu - remains the same */}
                 <div
                     className={`md:hidden bg-white shadow-sm border-t border-gray-100 transition-all duration-300 overflow-hidden ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
                         }`}

@@ -134,6 +134,29 @@ export default function CheckoutPage() {
         console.log("📍 Current step:", currentStep);
     }, [currentStep]);
 
+    useEffect(() => {
+        if (!user) return;
+        (async () => {
+            const { data } = await supabase
+                .from("client_profiles")
+                .select("*")
+                .eq("firebase_uid", user.id)
+                .single();
+
+            if (data) {
+                updateFormData({
+                    firstName: data.full_name || formData.firstName,
+                    email: data.email || formData.email,
+                    phone: data.phone || formData.phone,
+                    address: data.address || formData.address,
+                    city: data.city || formData.city,
+                    zipCode: data.zip_code || formData.zipCode,
+                });
+            }
+        })();
+    }, [user]);
+
+
     // OrderSummary props only
     const orderSummaryProps = useMemo(() => ({
         cart: safeCart,

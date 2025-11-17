@@ -154,12 +154,9 @@ export default function OrderPage() {
 
     return (
         <div className="min-h-screen bg-black">
-            {/* Simplified Background */}
-            {/* <div className="fixed inset-0 bg-black z-0"></div> */}
-
-            <header className="bg-black/80 backdrop-blur-lg sticky top-0 z-50 border-b border-white/10">
+            <LandingHeader />
+            <header className="bg-black/80 backdrop-blur-lg sticky top-0 z-40 border-b border-white/10">
                 <div className="w-full px-4 sm:px-6">
-                    <LandingHeader />
 
                     {/* Mobile Search */}
                     <div className="md:hidden pb-4">
@@ -179,7 +176,6 @@ export default function OrderPage() {
 
             {/* Clean Hero Section with Gradient Title */}
             <div className="relative pt-10 sm:pt-16 pb-8 mt-8 sm:mt-14">
-
                 <div className="relative z-10 w-full px-4 sm:px-6">
                     <div className="max-w-4xl mx-auto text-center">
                         {/* Gradient Title */}
@@ -343,7 +339,7 @@ export default function OrderPage() {
 
             {/* Simple Floating Cart */}
             {cart.length > 0 && (
-                <div className="fixed bottom-4 right-4 z-50">
+                <div className="fixed bottom-4 right-4 z-40">
                     <Link
                         to="/checkout"
                         className="bg-[#E62B2B] text-white px-4 py-3 rounded-lg hover:bg-[#ff4444] transition-colors shadow-lg flex items-center space-x-3"
@@ -359,11 +355,15 @@ export default function OrderPage() {
                 </div>
             )}
 
-            {/* Build Your Sushi Modal */}
-            <BuildYourSushi
-                isOpen={showSushiBuilder}
-                onClose={() => setShowSushiBuilder(false)}
-            />
+            {/* Build Your Sushi Modal with proper z-index */}
+            {showSushiBuilder && (
+                <div className="fixed inset-0 z-50">
+                    <BuildYourSushi
+                        isOpen={showSushiBuilder}
+                        onClose={() => setShowSushiBuilder(false)}
+                    />
+                </div>
+            )}
         </div>
     )
 }
