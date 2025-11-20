@@ -207,7 +207,13 @@ export const useClientDashboard = (clientProfile: ClientProfile | null, setClien
                         created_at: order.order_date || order.created_at,
                         status: order.status || 'Completed',
                         type: order.delivery_type as 'delivery' | 'pickup' || 'delivery',
-                        delivery_address: order.delivery_address
+                        delivery_address: order.delivery_address,
+                        amount: 0,
+                        subtotal: 0,
+                        gst: 0,
+                        qst: 0,
+                        delivery_fee: 0,
+                        final_total: 0
                     };
                     processedOrders.push(processedOrder);
                 });
@@ -363,7 +369,13 @@ export const useClientDashboard = (clientProfile: ClientProfile | null, setClien
                     created_at: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
                     status: data.paymentStatus === 'paid' ? 'Completed' : data.status || 'Processing',
                     type: data.deliveryType || 'delivery',
-                    delivery_address: data.deliveryAddress
+                    delivery_address: data.deliveryAddress,
+                    amount: 0,
+                    subtotal: 0,
+                    gst: 0,
+                    qst: 0,
+                    delivery_fee: 0,
+                    final_total: 0
                 };
                 ordersData.push(order);
             });

@@ -1,11 +1,9 @@
-// EnhancedHeader.tsx
 import type { ClientProfile } from "../../../types/types";
 import { useNavigate } from "react-router-dom";
 import { signOut } from 'firebase/auth'
 import { auth } from "../../../firebase/firebase";
 import { useState, useRef } from "react";
 import { uploadAvatar } from "../../../utils/avatarUtils";
-import { AvatarCropper } from "./AvatarCropper"; // Import from separate file
 
 interface SpecialOffer {
     id: string
@@ -46,10 +44,8 @@ export const EnhancedHeader = ({
     isMobile
 }: EnhancedHeaderProps & { isMobile?: boolean }) => {
 
-    const [selectedImage, setSelectedImage] = useState<File | null>(null);
-    const [showCropper, setShowCropper] = useState(false);
-    const navigate = useNavigate()
     const [isUploading, setIsUploading] = useState(false);
+    const navigate = useNavigate()
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const copyPromoCode = (code: string) => {
@@ -122,60 +118,34 @@ export const EnhancedHeader = ({
             return;
         }
 
-        console.log('✅ File validated, showing cropper...');
-        // Show cropper for image selection
-        setSelectedImage(file);
-        setShowCropper(true);
-    };
-
-    // Add this function to handle the cropped image
-    const handleCroppedImage = async (croppedImageUrl: string) => {
-        console.log('🔄 Handling cropped image...');
-        if (!clientProfile || !selectedImage) return;
-
-        setIsUploading(true);
-        setShowCropper(false);
+        console.log('✅ File validated, uploading directly...');
 
         try {
-            console.log('🔄 Converting cropped image for upload...');
+            setIsUploading(true);
 
-            // Convert the cropped image URL back to a File
-            const response = await fetch(croppedImageUrl);
-            const blob = await response.blob();
-            const croppedFile = new File([blob], selectedImage.name, {
-                type: selectedImage.type,
-                lastModified: Date.now(),
-            });
+            // Upload the original file directly
+            console.log('📤 Uploading avatar...');
+            const avatarUrl = await uploadAvatar(clientProfile.id, file);
 
-            console.log('📤 Uploading cropped avatar...');
-            const avatarUrl = await uploadAvatar(clientProfile.id, croppedFile);
+            console.log('✅ Avatar upload successful, updating profile...');
 
-            if (avatarUrl) {
-                console.log('✅ Cropped avatar upload successful, updating profile...');
-
-                // Update the profile with new avatar URL
-                const updatedProfile = {
+            if (clientProfile) {
+                const updatedProfile: ClientProfile = {
                     ...clientProfile,
-                    avatar_url: avatarUrl
+                    avatar_url: avatarUrl ?? undefined
                 };
                 onProfileUpdate(updatedProfile);
-            } else {
-                throw new Error('Upload failed - no URL returned');
             }
+
         } catch (error) {
-            console.error('❌ Error uploading cropped avatar:', error);
-            alert(error instanceof Error ? error.message : 'Failed to upload avatar. Please try again.');
+            console.error('❌ Error uploading avatar:', error);
+            alert('Failed to upload avatar. Please try again.');
         } finally {
             setIsUploading(false);
-            setSelectedImage(null);
-
-            // Reset file input
+            // Clear the file input
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
-
-            // Clean up the blob URL
-            URL.revokeObjectURL(croppedImageUrl);
         }
     };
 
@@ -208,10 +178,6 @@ export const EnhancedHeader = ({
         return "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
     };
 
-    console.log("CLIENT PROFILE: ", clientProfile);
-    console.log("Show cropper:", showCropper);
-    console.log("Selected image:", selectedImage);
-
     return (
         <>
             {/* Enhanced Header */}
@@ -221,17 +187,19 @@ export const EnhancedHeader = ({
                         <div
                             onClick={handleAvatarClick}
                             className={`
-                                ${isMobile ? 'w-12 h-12' : 'w-16 h-16'} 
-                                rounded-full flex items-center justify-center 
-                                text-white font-bold 
-                                ${isMobile ? 'text-xl' : 'text-2xl'}
-                                cursor-pointer hover:opacity-80 transition-opacity 
-                                ${isUploading ? 'opacity-50' : ''}
-                                overflow-hidden
-                                relative
-                            `}
+                            ${isMobile ? 'w-16 h-16' : 'w-20 h-20'}
+                            rounded-full flex items-center justify-center 
+                            text-white font-bold 
+                            ${isMobile ? 'text-xl' : 'text-2xl'}
+                            cursor-pointer hover:opacity-80 transition-opacity 
+                            ${isUploading ? 'opacity-50' : ''}
+                            overflow-hidden
+                            relative
+                            bg-gray-300
+                            border-2 border-white/20
+                        `}
                         >
-                            {/* Avatar Image with proper centering */}
+                            {/* Avatar Image with proper styling */}
                             {clientProfile?.avatar_url ? (
                                 <img
                                     src={clientProfile.avatar_url}
@@ -264,9 +232,9 @@ export const EnhancedHeader = ({
 
                         {/* Edit icon overlay */}
                         {!isUploading && (
-                            <div className="absolute -bottom-1 -right-1 bg-emerald-500 rounded-full p-1 shadow-lg border-2 border-gray-900">
+                            <div className="absolute -bottom-1 -right-1 bg-emerald-500 rounded-full p-1 shadow-lg border-2 border-white">
                                 <svg
-                                    className={isMobile ? "w-2 h-2" : "w-3 h-3"}
+                                    className={isMobile ? "w-3 h-3" : "w-4 h-4"}
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -431,22 +399,6 @@ export const EnhancedHeader = ({
                         ))}
                     </div>
                 </div>
-            )}
-
-            {/* Avatar Cropper Modal */}
-            {showCropper && selectedImage && (
-                <AvatarCropper
-                    image={selectedImage}
-                    onCropComplete={handleCroppedImage}
-                    onCancel={() => {
-                        console.log('❌ Cropper cancelled');
-                        setShowCropper(false);
-                        setSelectedImage(null);
-                        if (fileInputRef.current) {
-                            fileInputRef.current.value = '';
-                        }
-                    }}
-                />
             )}
         </>
     )

@@ -28,7 +28,9 @@
   "cart": {
     "items": "ITEMS",
     "pointsEarned": "pts earned",
-    "checkout": "CHECKOUT"
+    "checkout": "CHECKOUT",
+    "item": "Item",
+    "points": "Points"
   },
   "userManagement": {
     "title": "USER MANAGEMENT",
@@ -83,7 +85,8 @@
     "culinaryPortfolio": "Journey through our culinary portfolio",
     "foundMatches": "Found {{count}} matches for \"{{term}}\"",
     "showcasingCreations": "Showcasing {{count}} culinary creations",
-    "categorySelections": "{{count}} {{category}} selections"
+    "categorySelections": "{{count}} {{category}} selections",
+    "clearFilters": "Clear Filters"
   },
   "orderSummary": {
     "title": "Order Summary",
@@ -153,7 +156,7 @@
     "management": "Management",
     "client": "Client",
     "staff": "Staff Portal",
-    "orders": "View Orders"
+    "orders": "Explore Menu"
   },
   "landing": {
     "philosophy": "We focus on balance, freshness, and honest flavor in every dish.",
@@ -228,7 +231,45 @@
     "loadingExperience": "Loading the MaiSushi experience...",
     "cevicheSushiBar": "Ceviche & Sushi Bar",
     "heroDescription": "Fresh, local, and delicious.",
-    "exploreMenu": "EXPLORE OUR MENU"
+    "exploreMenu": "EXPLORE OUR MENU",
+    "maisushi": "MaiSushi",
+
+    "getInTouch": "Get In Touch",
+    "contactDescription": "Whether you need catering, want promotions, or just have questions - we're here to help.",
+    "quickQuestions": "Quick Questions",
+    "quickQuestion1": "What's the minimum order for catering?",
+    "quickAnswer1": "Minimum order is $200 for parties of 10+ people.",
+    "quickQuestion2": "Do you deliver to my area?",
+    "quickAnswer2": "We deliver within 25km of Sherbrooke. Contact us for specific locations.",
+    "quickQuestion3": "Can you accommodate dietary restrictions?",
+    "quickAnswer3": "Yes! We offer vegetarian, gluten-free, and other custom options.",
+    "quickQuestion4": "How far in advance should I book?",
+    "quickAnswer4": "We recommend booking 2+ weeks in advance for best availability.",
+    "directContact": "Direct Contact",
+    "promotions": "Promotions",
+    "getPromotions": "Get Promotions",
+    "promotionsDescription": "Sign up for exclusive deals and menu updates.",
+    "signUpNow": "Sign Up Now",
+    "generalInquiry": "General Inquiry",
+    "promotionsInterest": "What interests you most? (Optional)",
+    "yourMessage": "Your Message *",
+    "promotionsPlaceholder": "Let us know what type of promotions you're interested in...",
+    "generalPlaceholder": "How can we help you today?",
+    "signUpPromotions": "Sign Up for Promotions",
+    "sendMessage": "Send Message",
+    "thankYouCatering": "Thank you for your catering inquiry! We'll contact you within 24 hours to discuss your event.",
+    "thankYouPromotions": "Thank you for signing up! You'll receive our latest promotions and updates.",
+    "thankYouGeneral": "Thank you for your message! We'll get back to you within 24 hours.",
+    "submissionError": "There was an error submitting your form. Please try again or contact us directly.",
+
+    "phoneNumberDisplay": "+1 (555) 123-SUSHI",
+    "emailAddressDisplay": "contact@maisushi.ca",
+    "addressLine1": "1975 King Ouest,",
+    "addressLine2": "Sherbrooke, QC J1J 2E6",
+    "hoursTuesdayWednesday": "Tue-Wed: 11:00 AM - 8:00 PM",
+    "hoursThursdaySaturday": "Thu-Sat: 11:00 AM - 9:00 PM",
+    "hoursSunday": "Sun: Closed",
+    "hoursMonday": "Mon: Closed"
   },
   "common": {
     "loading": "Loading...",
@@ -286,9 +327,10 @@
     "placeOrder": "Place Order",
     "client": "Client",
     "orderNow": "ORDER NOW",
-    "createAccount": "Create Account"
+    "createAccount": "Create Account",
+    "unnamedProduct": "Unnamed Product",
+    "unknownIngredient": "Unknown Ingredient"
   },
-
   "footer": {
     "staffAdminLogin": "Staff/Admin Login",
     "staffAdminAccess": "STAFF & ADMIN ACCESS",
