@@ -263,7 +263,8 @@
     "hoursTuesdayWednesday": "Mar-Mié: 11:00 AM - 8:00 PM",
     "hoursThursdaySaturday": "Jue-Sáb: 11:00 AM - 9:00 PM",
     "hoursSunday": "Dom: Cerrado",
-    "hoursMonday": "Lun: Cerrado"
+    "hoursMonday": "Lun: Cerrado",
+    "email_placeholder": "tu.email@ejemplo.com"
   },
   "common": {
     "unnamedProduct": "Producto Sin Nombre",

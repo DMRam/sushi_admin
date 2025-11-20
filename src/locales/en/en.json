@@ -269,7 +269,8 @@
     "hoursTuesdayWednesday": "Tue-Wed: 11:00 AM - 8:00 PM",
     "hoursThursdaySaturday": "Thu-Sat: 11:00 AM - 9:00 PM",
     "hoursSunday": "Sun: Closed",
-    "hoursMonday": "Mon: Closed"
+    "hoursMonday": "Mon: Closed",
+    "email_placeholder": "your.email@example.com"
   },
   "common": {
     "loading": "Loading...",

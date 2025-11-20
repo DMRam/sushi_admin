@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Mail, Phone, MapPin, Calendar, Gift, Zap } from 'lucide-react'
+import { useZapierContactForms } from '../hooks/useZapierContactForms'
 
 interface FormData {
     name: string
@@ -25,35 +26,50 @@ export function LandingContact() {
         contactMethod: 'catering'
     })
 
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const { submitContactForm, isSubmitting } = useZapierContactForms()
+
+    // Define success messages once at the component level
+    const successMessages = {
+        catering: t('landing.thankYouCatering', 'Thank you for your catering inquiry! We\'ll contact you within 24 hours to discuss your event.'),
+        promotions: t('landing.thankYouPromotions', 'Thank you for signing up! You\'ll receive our latest promotions and updates.'),
+        general: t('landing.thankYouGeneral', 'Thank you for your message! We\'ll get back to you within 24 hours.')
+    }
+
+    // Email fallback (keep as backup)
+    const sendEmailFallback = async (formData: FormData): Promise<boolean> => {
+        try {
+            const subject = `${activeTab.toUpperCase()} Inquiry from ${formData.name}`;
+            const body = `
+Name: ${formData.name}
+Email: ${formData.email}
+Phone: ${formData.phone}
+Contact Method: ${activeTab}
+${formData.partySize ? `Party Size: ${formData.partySize}` : ''}
+${formData.eventType ? `Event Type: ${formData.eventType}` : ''}
+
+Message:
+${formData.message}
+
+Submitted: ${new Date().toLocaleString()}
+            `.trim();
+
+            window.location.href = `mailto:contact@maisushi.ca?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            return true;
+        } catch (error) {
+            console.error('Email fallback failed:', error);
+            return false;
+        }
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        setIsSubmitting(true)
 
         try {
-            // Send to Zapier Webhook
-            const zapierWebhookUrl = 'https://hooks.zapier.com/hooks/catch/your-account-id/your-zap-id/'
+            // Use the hook for Zapier + EmailJS
+            const submissionSuccess = await submitContactForm(formData, activeTab);
 
-            const payload = {
-                ...formData,
-                contactMethod: activeTab,
-                timestamp: new Date().toISOString(),
-                source: 'maisushi-website'
-            }
-
-            const response = await fetch(zapierWebhookUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload)
-            })
-
-            if (response.ok) {
-                console.log('Form submitted to Zapier:', payload)
-
-                // Reset form
+            if (submissionSuccess) {
+                // Reset form on success
                 setFormData({
                     name: '',
                     email: '',
@@ -64,22 +80,41 @@ export function LandingContact() {
                     contactMethod: activeTab
                 })
 
-                // Show success message based on tab
-                const successMessages = {
-                    catering: t('landing.thankYouCatering', 'Thank you for your catering inquiry! We\'ll contact you within 24 hours to discuss your event.'),
-                    promotions: t('landing.thankYouPromotions', 'Thank you for signing up! You\'ll receive our latest promotions and updates.'),
-                    general: t('landing.thankYouGeneral', 'Thank you for your message! We\'ll get back to you within 24 hours.')
-                }
-
                 alert(successMessages[activeTab])
             } else {
-                throw new Error('Failed to submit form')
+                // If both Zapier and EmailJS failed, try email fallback
+                console.log('All automated methods failed, trying email fallback');
+                const fallbackSuccess = await sendEmailFallback(formData);
+
+                if (fallbackSuccess) {
+                    setFormData({
+                        name: '',
+                        email: '',
+                        phone: '',
+                        partySize: '',
+                        eventType: '',
+                        message: '',
+                        contactMethod: activeTab
+                    })
+
+                    alert(`${successMessages[activeTab]}\n\n(Your message has been prepared in your email client. Please send it to complete your submission.)`)
+                } else {
+                    throw new Error('All submission methods failed')
+                }
             }
+
         } catch (error) {
             console.error('Form submission error:', error)
-            alert(t('landing.submissionError', 'There was an error submitting your form. Please try again or contact us directly.'))
-        } finally {
-            setIsSubmitting(false)
+
+            let userErrorMessage = t('landing.submissionError', 'There was an error submitting your form. Please try again or contact us directly.')
+
+            if (error instanceof Error) {
+                if (error.message.includes('All submission methods failed')) {
+                    userErrorMessage = 'Unable to submit form. Please email us directly at contact@maisushi.ca or call us at +1 (555) 123-SUSHI.'
+                }
+            }
+
+            alert(userErrorMessage)
         }
     }
 
@@ -88,6 +123,45 @@ export function LandingContact() {
             ...prev,
             [e.target.name]: e.target.value
         }))
+    }
+
+    // Simple email-only submission for promotions
+    const handlePromotionsSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        // Only need email for promotions
+        if (!formData.email) {
+            alert('Please enter your email address');
+            return;
+        }
+
+        try {
+            const submissionSuccess = await submitContactForm({
+                ...formData,
+                name: formData.name || 'Promotions Subscriber', // Default name if not provided
+                message: formData.message || 'Interested in promotions' // Default message
+            }, 'promotions');
+
+            if (submissionSuccess) {
+                // Reset form on success
+                setFormData({
+                    name: '',
+                    email: '',
+                    phone: '',
+                    partySize: '',
+                    eventType: '',
+                    message: '',
+                    contactMethod: 'promotions'
+                })
+                alert(successMessages.promotions)
+            } else {
+                throw new Error('Submission failed')
+            }
+
+        } catch (error) {
+            console.error('Promotions submission error:', error)
+            alert('There was an error signing up for promotions. Please try again.')
+        }
     }
 
     const quickQuestions = [
@@ -178,7 +252,7 @@ export function LandingContact() {
                             </div>
                         </div>
 
-                        {/* Promotions Signup Mini */}
+                        {/* Promotions Signup Mini - SIMPLIFIED */}
                         <div className="bg-gradient-to-r from-[#E62B2B] to-[#ff6b6b] p-6 text-white">
                             <h3 className="text-lg font-light mb-3 flex items-center">
                                 <Gift className="w-5 h-5 mr-2" />
@@ -187,12 +261,39 @@ export function LandingContact() {
                             <p className="font-light mb-4 text-white/90 text-sm">
                                 {t('landing.promotionsDescription', 'Sign up for exclusive deals and menu updates.')}
                             </p>
-                            <button
-                                onClick={() => setActiveTab('promotions')}
-                                className="w-full bg-white text-[#E62B2B] py-2 px-4 font-light text-sm hover:bg-gray-100 transition-colors"
-                            >
-                                {t('landing.signUpNow', 'Sign Up Now')}
-                            </button>
+
+                            {/* Simple Email-only Form */}
+                            <form onSubmit={handlePromotionsSubmit} className="space-y-3">
+                                <div>
+                                    <label htmlFor="promo-email" className="sr-only">
+                                        Email Address
+                                    </label>
+                                    <input
+                                        type="email"
+                                        id="promo-email"
+                                        name="email"
+                                        required
+                                        value={formData.email}
+                                        onChange={handleChange}
+                                        className="w-full px-3 py-2.5 text-gray-900 placeholder-gray-600 bg-white rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#E62B2B] focus:border-transparent shadow-sm"
+                                        placeholder={t("landing.email_placeholder")}
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="w-full bg-white text-[#E62B2B] py-2.5 px-4 font-semibold text-sm hover:bg-gray-50 hover:shadow-md active:scale-[0.98] transition-all duration-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed rounded-lg shadow-sm border border-gray-200 hover:border-gray-300"
+                                >
+                                    {isSubmitting ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#E62B2B] border-t-transparent"></div>
+                                            Signing Up...
+                                        </span>
+                                    ) : (
+                                        t('landing.signUpNow', 'Sign Up Now')
+                                    )}
+                                </button>
+                            </form>
                         </div>
                     </div>
 
@@ -210,15 +311,6 @@ export function LandingContact() {
                                 {t('landing.cateringEvents', 'Catering & Events')}
                             </button>
                             <button
-                                onClick={() => setActiveTab('promotions')}
-                                className={`flex-1 py-4 px-6 text-center font-light transition-colors ${activeTab === 'promotions'
-                                    ? 'text-[#E62B2B] border-b-2 border-[#E62B2B]'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                            >
-                                {t('landing.promotions', 'Promotions')}
-                            </button>
-                            <button
                                 onClick={() => setActiveTab('general')}
                                 className={`flex-1 py-4 px-6 text-center font-light transition-colors ${activeTab === 'general'
                                     ? 'text-[#E62B2B] border-b-2 border-[#E62B2B]'
@@ -229,7 +321,7 @@ export function LandingContact() {
                             </button>
                         </div>
 
-                        {/* Dynamic Form Content */}
+                        {/* Dynamic Form Content - Only for Catering & General */}
                         <div className="bg-white p-8 shadow-sm border border-gray-200">
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <input type="hidden" name="contactMethod" value={activeTab} />
@@ -268,7 +360,7 @@ export function LandingContact() {
                                     </div>
                                 </div>
 
-                                {/* Phone - Required for catering, optional for others */}
+                                {/* Phone - Required for catering, optional for general */}
                                 <div>
                                     <label htmlFor="phone" className="block text-sm font-light text-gray-700 mb-2">
                                         {t('landing.phoneNumber', 'Phone Number')}
@@ -333,20 +425,18 @@ export function LandingContact() {
                                     </>
                                 )}
 
-                                {/* Message - Dynamic label and placeholder */}
+                                {/* Message */}
                                 <div>
                                     <label htmlFor="message" className="block text-sm font-light text-gray-700 mb-2">
                                         {activeTab === 'catering'
                                             ? t('landing.eventDetails', 'Event Details *')
-                                            : activeTab === 'promotions'
-                                                ? t('landing.promotionsInterest', 'What interests you most? (Optional)')
-                                                : t('landing.yourMessage', 'Your Message *')
+                                            : t('landing.yourMessage', 'Your Message *')
                                         }
                                     </label>
                                     <textarea
                                         id="message"
                                         name="message"
-                                        required={activeTab !== 'promotions'}
+                                        required
                                         rows={4}
                                         value={formData.message}
                                         onChange={handleChange}
@@ -354,9 +444,7 @@ export function LandingContact() {
                                         placeholder={
                                             activeTab === 'catering'
                                                 ? t('landing.messagePlaceholder', 'Tell us about your event date, dietary restrictions, and any special requests...')
-                                                : activeTab === 'promotions'
-                                                    ? t('landing.promotionsPlaceholder', 'Let us know what type of promotions you\'re interested in...')
-                                                    : t('landing.generalPlaceholder', 'How can we help you today?')
+                                                : t('landing.generalPlaceholder', 'How can we help you today?')
                                         }
                                     />
                                 </div>
@@ -374,9 +462,7 @@ export function LandingContact() {
                                     ) : (
                                         activeTab === 'catering'
                                             ? t('landing.requestQuote', 'Request Catering Quote')
-                                            : activeTab === 'promotions'
-                                                ? t('landing.signUpPromotions', 'Sign Up for Promotions')
-                                                : t('landing.sendMessage', 'Send Message')
+                                            : t('landing.sendMessage', 'Send Message')
                                     )}
                                 </button>
                             </form>
