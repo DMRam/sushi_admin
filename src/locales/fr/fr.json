@@ -349,5 +349,175 @@
       "max": "max",
       "add": "Ajouter"
     }
+  },
+  "catering": {
+    "title": "Traiteur MaiSushi",
+    "subtitle": "Élevez vos événements avec une cuisine japonaise authentique, préparée avec précision et livrée à votre lieu.",
+    "experienceTitle": "L'Art de la Restauration Japonaise",
+    "experienceDescription": "Depuis plus d'une décennie, MaiSushi apporte le goût authentique du Japon aux événements les plus mémorables de Sherbrooke. Des rassemblements intimes aux grandes célébrations, notre service traiteur combine techniques traditionnelles et présentation moderne.",
+    "packagesTitle": "Forfaits Traiteur",
+    "essential": "Forfait Essentiel",
+    "premium": "Expérience Premium",
+    "omakase": "Traiteur Omakase",
+    "startingAt": "À partir de",
+    "customQuote": "Devis Personnalisé",
+    "essentialDescription": "Parfait pour les déjeuners de bureau et les petits rassemblements",
+    "premiumDescription": "Expérience raffinée pour événements d'entreprise et célébrations",
+    "omakaseDescription": "Expérience ultime de luxe avec consultation du chef",
+    "selectPackage": "Choisir le Forfait",
+    "processTitle": "Comment Ça Marche",
+    "step1Title": "Consultation",
+    "step1Desc": "Discutez de vos besoins et préférences de menu",
+    "step2Title": "Personnalisation",
+    "step2Desc": "Adaptez votre menu avec les conseils de notre chef",
+    "step3Title": "Confirmation",
+    "step3Desc": "Finalisez les détails et réservez votre date",
+    "step4Title": "Expérience",
+    "step4Desc": "Profitez d'une cuisine japonaise authentique à votre événement",
+    "contactTitle": "Démarrez Votre Expérience Traiteur",
+    "fullName": "Nom Complet",
+    "email": "Adresse Courriel",
+    "phone": "Numéro de Téléphone",
+    "eventDate": "Date de l'Événement",
+    "guestCount": "Nombre d'Invités",
+    "eventType": "Type d'Événement",
+    "message": "Détails Supplémentaires",
+    "selectGuests": "Sélectionner...",
+    "selectEventType": "Sélectionner...",
+    "corporate": "Événement Corporatif",
+    "wedding": "Mariage",
+    "birthday": "Fête d'Anniversaire",
+    "other": "Autre",
+    "messagePlaceholder": "Parlez-nous de votre événement, restrictions alimentaires ou demandes spéciales...",
+    "submitRequest": "Soumettre la Demande de Traiteur",
+    "features": {
+      "3rollTypes": "3 Types de Rouleaux Signature",
+      "5rollTypes": "5 Types de Rouleaux Premium",
+      "edamame": "Edamame Vapeur",
+      "salad": "Salade Verte",
+      "sauces": "Sauces Assorties",
+      "serves10": "Pour 10-15 personnes",
+      "serves25": "Pour 20-25 personnes",
+      "sashimi": "Sashimi Sélection du Chef",
+      "appetizers": "2 Choix d'Apéritifs",
+      "dessert": "Glace au Mochi",
+      "chefConsultation": "Consultation Personnelle du Chef",
+      "seasonalSelection": "Sélection Saisonnière",
+      "liveStation": "Station Sushi Live",
+      "premiumIngredients": "Ingrédients Premium Importés",
+      "customMenu": "Menu Entièrement Personnalisé"
+    }
+  },
+  "privacy": {
+    "title": "Politique de confidentialité",
+    "lastUpdated": "Dernière mise à jour",
+    "intro": "Chez MaiSushi, exploité par Pacifique Resto Inc. et propulsé par SherDev, nous respectons la Loi 25 du Québec ainsi que la LPRPDE pour protéger vos renseignements personnels.",
+    "section1": {
+      "title": "1. Renseignements que nous recueillons",
+      "name": "Nom et prénom",
+      "email": "Adresse courriel",
+      "phone": "Numéro de téléphone",
+      "orderHistory": "Historique des commandes",
+      "points": "Points de récompense",
+      "ip": "Adresse IP et données techniques de base"
+    },
+    "section2": {
+      "title": "2. Utilisation de vos renseignements",
+      "orders": "Traiter vos commandes",
+      "account": "Gérer votre compte et vos points",
+      "notifications": "Envoyer des mises à jour",
+      "improvement": "Améliorer nos services",
+      "compliance": "Respecter les exigences légales"
+    },
+    "section3": {
+      "title": "3. Où vos renseignements sont stockés"
+    },
+    "section4": {
+      "title": "4. Partage de renseignements",
+      "law": "Autorités légales si requis"
+    },
+    "section5": {
+      "title": "5. Vos droits",
+      "access": "Demander l’accès à vos renseignements",
+      "modify": "Modifier ou mettre à jour vos données",
+      "delete": "Demander la suppression de votre compte",
+      "withdraw": "Retirer votre consentement"
+    },
+    "section6": {
+      "title": "6. Sécurité",
+      "security": "Nous utilisons le chiffrement, le contrôle d’accès et des audits internes pour protéger vos données."
+    },
+    "section7": {
+      "title": "7. Contact",
+      "contact": "Pour toute question relative à la confidentialité :"
+    }
+  },
+  "cookies": {
+    "title": "Politique de cookies",
+    "lastUpdated": "Dernière mise à jour",
+    "intro": "MaiSushi utilise des cookies essentiels pour améliorer votre expérience de navigation.",
+    "essential": "1. Cookies essentiels",
+    "keepSession": "Maintenir votre session active",
+    "saveCart": "Enregistrer les articles de votre panier",
+    "languagePreference": "Mémoriser votre langue",
+    "functional": "2. Cookies fonctionnels",
+    "userPreferences": "Conserver les préférences utilisateur",
+    "ui": "Prise en charge des fonctionnalités UI",
+    "analyticsTitle": "3. Cookies d’analyse",
+    "analyticsDescription": "Les cookies d’analyse s’activent seulement avec votre consentement selon la Loi 25.",
+    "disableTitle": "4. Désactivation des cookies",
+    "disableDescription": "Vous pouvez supprimer ou désactiver les cookies via votre navigateur.",
+    "contactTitle": "5. Contact",
+    "contactDescription": "Pour toute question concernant les cookies :"
+  },
+  "terms": {
+    "title": "Conditions d’utilisation",
+    "lastUpdated": "Dernière mise à jour",
+    "intro": "En utilisant MaiSushi, vous acceptez les conditions suivantes :",
+    "section1": {
+      "title": "1. Utilisation du service",
+      "content": "Vous devez utiliser la plateforme de manière légale et conforme aux lois du Québec."
+    },
+    "section2": {
+      "title": "2. Comptes et sécurité",
+      "trueInfo": "Fournir des renseignements exacts",
+      "security": "Maintenir la sécurité de votre compte",
+      "suspension": "Suspension possible en cas d’abus"
+    },
+    "section3": {
+      "title": "3. Commandes et paiements",
+      "prices": "Tous les prix sont en CAD",
+      "finalOrders": "Les commandes sont finales une fois soumises",
+      "refunds": "Remboursements analysés au cas par cas"
+    },
+    "section4": {
+      "title": "4. Propriété intellectuelle",
+      "content": "Tout le contenu appartient à Pacifique Resto Inc. et SherDev."
+    },
+    "section5": {
+      "title": "5. Responsabilité",
+      "content": "MaiSushi n’est pas responsable des interruptions ou pertes de données."
+    },
+    "section6": {
+      "title": "6. Contact",
+      "contact": "Pour toute question légale :"
+    }
+  },
+  "footer": {
+    "staffAdminLogin": "Connexion Employé/Admin",
+    "staffAdminAccess": "ACCÈS EMPLOYÉS & ADMIN",
+    "staffAdminDescription": "Accédez à votre tableau de gestion avec des identifiants autorisés.",
+    "adminLogin": "Connexion Admin",
+    "staffLogin": "Connexion Employé",
+    "loyaltyDescription": "Gagnez des points à chaque commande. Échangez-les contre des récompenses et des rabais exclusifs.",
+    "joinNow": "Rejoindre maintenant",
+    "quickLinks": "LIENS RAPIDES",
+    "adminMode": "Mode Admin",
+    "staffMode": "Mode Employé",
+    "version": "Version 1.0.0",
+    "privacy": "Politique de confidentialité",
+    "cookies": "Politique de cookies",
+    "terms": "Termes et conditions",
+    "poweredBy": "Propulsé par"
   }
 }

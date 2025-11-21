@@ -8,9 +8,10 @@ import LandingPage from './pages/landing/LandingPage'
 import SuccessPage from './pages/SuccessPage'
 import ProtectedRoute from './components/web/ProtectedRoute'
 import { lazy, Suspense } from 'react'
-import ThemePreviewPage from './pages/ThemePreviewPage'
 import OrderPage from './pages/orders/OrderPage'
 import CheckoutPage from './pages/orders/CheckoutPage'
+import CookieBanner from './components/web/CookieBanner'
+import { CateringPage } from './pages/catering/CateringPage'
 
 // Lazy load all admin components (assuming default exports)
 const SalesTrackingPage = lazy(() => import('./pages/admin/SalesTrackingPage'))
@@ -79,7 +80,8 @@ function PublicRoutes() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/success" element={<SuccessPage />} />
-      <Route path="/theme-preview" element={<ThemePreviewPage />} />
+      <Route path="/catering" element={<CateringPage />} />
+
 
 
       {/* Client Auth Routes */}
@@ -114,12 +116,13 @@ function PublicRoutes() {
 
 export default function App() {
   return (
-      <AuthProvider>
-        <InvitationProvider>
-          <UserProfileProvider>
-            <PublicRoutes />
-          </UserProfileProvider>
-        </InvitationProvider>
-      </AuthProvider>
+    <AuthProvider>
+      <InvitationProvider>
+        <UserProfileProvider>
+          <PublicRoutes />
+          <CookieBanner />
+        </UserProfileProvider>
+      </InvitationProvider>
+    </AuthProvider>
   );
 }

@@ -1,23 +1,21 @@
 import { useState, useEffect } from 'react'
-import { usePurchases } from '../../../../context/PurchasesContext'
 import { useIngredients } from '../../../../context/IngredientsContext'
 import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore'
 import type { Unit } from '../../../../types/types'
 import { db } from '../../../../firebase/firebase'
 
 export default function PurchaseForm() {
-    const { addPurchase } = usePurchases()
     const { ingredients, updateIngredient, addIngredient } = useIngredients()
 
     const [formData, setFormData] = useState({
         purchaseType: 'ingredient' as 'ingredient' | 'supply', // New field
         ingredientId: '',
-        supplyName: '', // New field for supply items
+        supplyName: '',
         supplyCategory: 'packaging' as 'packaging' | 'cleaning' | 'delivery' | 'office' | 'other', // New field
         quantity: '',
-        unit: 'unit' as Unit, // Default to 'unit' for supplies
+        unit: 'unit' as Unit,
         pricePerKg: '',
-        totalCost: '', // New field for direct total cost input
+        totalCost: '',
         supplier: '',
         purchaseDate: new Date().toISOString().split('T')[0],
         deliveryDate: '',
@@ -119,12 +117,6 @@ export default function PurchaseForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        // Common validation for both types
-        if (!formData.supplier || !formData.purchaseDate) {
-            alert('Please fill in Supplier and Purchase Date')
-            return
-        }
-
         // Type-specific validation
         if (formData.purchaseType === 'ingredient') {
             if (!formData.ingredientId || !formData.quantity || !formData.pricePerKg) {
@@ -150,7 +142,7 @@ export default function PurchaseForm() {
 
         try {
             const totalCost = getTotalCost()
-            const quantity = parseFloat(formData.quantity) || 1 // Default to 1 for supplies if not specified
+            const quantity = parseFloat(formData.quantity) || 1
 
             // Calculate quantity in grams for ingredients
             let quantityGrams = quantity
@@ -178,7 +170,6 @@ export default function PurchaseForm() {
                         break
                 }
             } else {
-                // For supplies, use simple quantity
                 quantityGrams = quantity
                 quantityInKg = quantity
             }
@@ -214,13 +205,11 @@ export default function PurchaseForm() {
                     stockGrams: newStockGrams
                 })
             } else {
-                // For supplies, use supply name as ingredient name
-                ingredientName = formData.supplyName
-                ingredientId = `supply_${Date.now()}` // Generate a temporary ID for supplies
+                 ingredientName = formData.supplyName
+                ingredientId = `supply_${Date.now()}`  
             }
 
-            // Create purchase record in Firebase
-            const purchaseData = {
+             const purchaseData = {
                 purchaseType: formData.purchaseType,
                 ingredientId: ingredientId,
                 ingredientName: ingredientName,
@@ -243,27 +232,8 @@ export default function PurchaseForm() {
             const purchaseRef = await addDoc(collection(db, 'purchases'), purchaseData)
             console.log('Purchase recorded with ID: ', purchaseRef.id)
 
-            await addPurchase({
-                purchaseType: formData.purchaseType,
-                ingredientId: ingredientId,
-                ingredientName: ingredientName,
-                supplyName: formData.purchaseType === 'supply' ? formData.supplyName : undefined,
-                supplyCategory: formData.purchaseType === 'supply' ? formData.supplyCategory : undefined,
-                quantity: quantity,
-                unit: formData.unit,
-                totalCost: totalCost,
-                pricePerKg: formData.purchaseType === 'ingredient' ? parseFloat(formData.pricePerKg) : 0,
-                supplier: formData.supplier.trim(),
-                purchaseDate: formData.purchaseDate,
-                deliveryDate: formData.deliveryDate || '',
-                invoiceNumber: formData.invoiceNumber?.trim() || '',
-                notes: formData.notes?.trim() || '',
-                quantityGrams: quantityGrams
-            })
-
-            // Reset form but keep supplier for quick entry
-            setFormData({
-                purchaseType: formData.purchaseType, // Keep the same type
+             setFormData({
+                purchaseType: formData.purchaseType,  
                 ingredientId: '',
                 supplyName: '',
                 supplyCategory: 'packaging',
@@ -271,7 +241,7 @@ export default function PurchaseForm() {
                 unit: formData.purchaseType === 'ingredient' ? 'kg' : 'unit',
                 pricePerKg: '',
                 totalCost: '',
-                supplier: formData.supplier, // Keep supplier for quick entry
+                supplier: formData.supplier,  
                 purchaseDate: new Date().toISOString().split('T')[0],
                 deliveryDate: '',
                 invoiceNumber: '',
@@ -292,7 +262,6 @@ export default function PurchaseForm() {
 
     return (
         <div className="space-y-6">
-            {/* Quick Mode Toggle */}
             <div className="bg-white border border-gray-200 rounded-sm p-4">
                 <div className="flex items-center justify-between">
                     <div>
@@ -328,8 +297,8 @@ export default function PurchaseForm() {
                                 totalCost: ''
                             })}
                             className={`p-4 border-2 rounded-sm text-left transition-all ${formData.purchaseType === 'ingredient'
-                                    ? 'border-gray-900 bg-gray-50'
-                                    : 'border-gray-200 hover:border-gray-300'
+                                ? 'border-gray-900 bg-gray-50'
+                                : 'border-gray-200 hover:border-gray-300'
                                 }`}
                         >
                             <div className="font-light text-gray-900 tracking-wide">🍣 FOOD INGREDIENT</div>
@@ -349,8 +318,8 @@ export default function PurchaseForm() {
                                 quantity: '1'
                             })}
                             className={`p-4 border-2 rounded-sm text-left transition-all ${formData.purchaseType === 'supply'
-                                    ? 'border-gray-900 bg-gray-50'
-                                    : 'border-gray-200 hover:border-gray-300'
+                                ? 'border-gray-900 bg-gray-50'
+                                : 'border-gray-200 hover:border-gray-300'
                                 }`}
                         >
                             <div className="font-light text-gray-900 tracking-wide">📦 SUPPLIES & EQUIPMENT</div>
