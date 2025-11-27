@@ -1,6 +1,31 @@
 import type { ProductDetailsProps } from "../../../../../../types/form_types"
 
-export const ProductDetails = ({ formData, setFormData, }: ProductDetailsProps) => {
+export const ProductDetails = ({ formData, setFormData }: ProductDetailsProps) => {
+    // Initialize description as multilingual object if it's a string
+    const initializeDescription = () => {
+        if (typeof formData.description === 'string') {
+            return {
+                en: formData.description,
+                es: '',
+                fr: ''
+            }
+        }
+        return formData.description || { en: '', es: '', fr: '' }
+    }
+
+    const handleDescriptionChange = (language: 'en' | 'es' | 'fr', value: string) => {
+        const currentDescription = initializeDescription()
+        setFormData({
+            ...formData,
+            description: {
+                ...currentDescription,
+                [language]: value
+            }
+        })
+    }
+
+    const currentDescription = initializeDescription()
+
     return (
         <>
             {/* Product Details */}
@@ -56,15 +81,45 @@ export const ProductDetails = ({ formData, setFormData, }: ProductDetailsProps) 
                     </div>
                 </div>
 
+                {/* Multilingual Description Section */}
                 <div className="mt-4">
                     <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">DESCRIPTION</label>
-                    <textarea
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light"
-                        rows={2}
-                        placeholder="Product description for website..."
-                    />
+
+                    {/* English Description */}
+                    <div className="mb-4">
+                        <label className="block text-xs font-medium text-gray-600 mb-1 tracking-wide">English</label>
+                        <textarea
+                            value={currentDescription.en}
+                            onChange={(e) => handleDescriptionChange('en', e.target.value)}
+                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light"
+                            rows={2}
+                            placeholder="Product description in English..."
+                        />
+                    </div>
+
+                    {/* Spanish Description */}
+                    <div className="mb-4">
+                        <label className="block text-xs font-medium text-gray-600 mb-1 tracking-wide">Spanish</label>
+                        <textarea
+                            value={currentDescription.es}
+                            onChange={(e) => handleDescriptionChange('es', e.target.value)}
+                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light"
+                            rows={2}
+                            placeholder="Descripción del producto en español..."
+                        />
+                    </div>
+
+                    {/* French Description */}
+                    <div className="mb-4">
+                        <label className="block text-xs font-medium text-gray-600 mb-1 tracking-wide">French</label>
+                        <textarea
+                            value={currentDescription.fr}
+                            onChange={(e) => handleDescriptionChange('fr', e.target.value)}
+                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light"
+                            rows={2}
+                            placeholder="Description du produit en français..."
+                        />
+                    </div>
                 </div>
 
                 <div className="mt-4">

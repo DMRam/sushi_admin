@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { Clock, MapPin, Phone, Mail, User, ChefHat, Sparkles } from 'lucide-react';
 
 import PaymentMethodSelector from "./PaymentMethodSelector";
 import type { CustomerFormData } from "../orders/CustomerInformation";
@@ -15,14 +16,11 @@ import { LandingCTAFooter } from "../landing/components/LandingCTAFooter";
 import { useCheckoutForm } from "./hooks/useCheckoutForm";
 import { useCheckoutTotals, useCheckoutValidation, useDeliveryInfo } from "./hooks/useCheckoutCalculations";
 import { useUserAuth } from "./hooks/useUserAuth";
-import type { CartItemCheckOut } from "./interfaces/IPaymentSteps";
-
-
 
 // ---------- Component ----------
 export default function CheckoutPage() {
     const cart = useCartStore((s) => s.cart);
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const navigate = useNavigate();
 
     console.log("🔄 CheckoutPage rendered");
@@ -62,6 +60,24 @@ export default function CheckoutPage() {
 
     const { errors, validate } = useCheckoutValidation();
 
+    // Function to get localized description
+    const getLocalizedDescription = useCallback((description: { es: string; fr: string; en: string } | string) => {
+        if (typeof description === 'string') {
+            return description;
+        }
+
+        const currentLanguage = i18n.language;
+        switch (currentLanguage) {
+            case 'es':
+                return description.es;
+            case 'fr':
+                return description.fr;
+            case 'en':
+            default:
+                return description.en;
+        }
+    }, [i18n.language]);
+
     // Cart calculations
     const { safeCart, itemCount, subtotal } = useMemo(() => {
         const safeCart: CartItemCheckOut[] = Array.isArray(cart)
@@ -85,6 +101,15 @@ export default function CheckoutPage() {
     // Loyalty points
     const pointsEarned = Math.floor(subtotal);
 
+    // Estimated preparation time based on items
+    const estimatedPrepTime = useMemo(() => {
+        const baseTime = 15; // Base preparation time
+        const itemTime = safeCart.reduce((time, item) => {
+            return time + ((item.preparationTime || 0) * (item.quantity || 1));
+        }, 0);
+        return Math.min(baseTime + itemTime, 45); // Cap at 45 minutes
+    }, [safeCart]);
+
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }, []);
@@ -105,22 +130,27 @@ export default function CheckoutPage() {
         } else {
             updateFormData({ [name]: value });
         }
-    }, [updateFormData]);
+    }, [updateFormData, formData.deliveryMethod]);
 
-    // Step handlers - SIMPLIFIED
+    // Step handlers
     const handleContinueToReview = useCallback((e: React.FormEvent) => {
         e.preventDefault();
         console.log("➡️ Continue to Review clicked");
 
-        // Simple validation - you can make this more robust
-        const isValid = formData.firstName && formData.email && formData.phone;
+        // Enhanced validation
+        const isValid = formData.firstName?.trim() &&
+            formData.email?.trim() &&
+            formData.phone?.trim() &&
+            (formData.deliveryMethod === "pickup" ||
+                (formData.deliveryMethod === "delivery" && formData.address?.trim() && formData.city?.trim()));
 
         if (isValid) {
             console.log("✅ Validation passed - moving to review");
             setCurrentStep("review");
         } else {
             console.log("❌ Validation failed - please fill required fields");
-            // You can set errors here if needed
+            // Scroll to first error
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     }, [formData]);
 
@@ -155,7 +185,6 @@ export default function CheckoutPage() {
             }
         })();
     }, [user]);
-
 
     // OrderSummary props only
     const orderSummaryProps = useMemo(() => ({
@@ -225,12 +254,16 @@ export default function CheckoutPage() {
                     throw new Error(`Item "${it.name}" has an invalid quantity`);
                 }
                 const imgs = collectValidImageUrls(it);
+
+                // Get the localized description for the API
+                const descriptionText = getLocalizedDescription(it.description);
+
                 const base: any = {
                     productId: it.id || `item-${idx}-${Date.now()}`,
                     name: it.name.trim(),
                     price: Number(it.price),
                     quantity: it.quantity || 1,
-                    ...(it.description && { description: it.description.substring(0, 495) }),
+                    ...(descriptionText && { description: descriptionText.substring(0, 495) }),
                     ...(it.category && { category: it.category }),
                 };
                 if (imgs.length) {
@@ -268,6 +301,7 @@ export default function CheckoutPage() {
                 totals: { subtotal, gst, qst, deliveryFee: deliveryInfo.fee, finalTotal },
                 userId: user?.id || `guest-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
                 clientUrl: window.location.origin,
+                estimatedPrepTime,
             };
             if (user) {
                 body.pointsInfo = { userId: user.id, pointsEarned, currentBalance: user.points };
@@ -303,6 +337,7 @@ export default function CheckoutPage() {
                             orderId: result.orderId || `order-${Date.now()}`,
                             pointsEarned,
                             cartTotal: subtotal,
+                            estimatedPrepTime,
                         })
                     );
                 }
@@ -313,6 +348,7 @@ export default function CheckoutPage() {
                         customerInfo,
                         totals: { subtotal, gst, qst, deliveryFee: deliveryInfo.fee, finalTotal },
                         timestamp: Date.now(),
+                        estimatedPrepTime,
                     })
                 );
                 window.location.href = result.url;
@@ -483,6 +519,27 @@ export default function CheckoutPage() {
                         {banner}
                     </header>
 
+                    {/* Progress Steps */}
+                    <div className="flex items-center justify-center mb-8">
+                        <div className="flex items-center">
+                            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === "info" ? "bg-[#E62B2B] text-white" : "bg-white/10 text-white/60"}`}>
+                                1
+                            </div>
+                            <div className={`ml-2 text-sm ${currentStep === "info" ? "text-white" : "text-white/60"}`}>
+                                {t("checkoutPage.information", "Information")}
+                            </div>
+                        </div>
+                        <div className="w-12 h-0.5 bg-white/20 mx-4"></div>
+                        <div className="flex items-center">
+                            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === "review" ? "bg-[#E62B2B] text-white" : "bg-white/10 text-white/60"}`}>
+                                2
+                            </div>
+                            <div className={`ml-2 text-sm ${currentStep === "review" ? "text-white" : "text-white/60"}`}>
+                                {t("checkoutPage.review", "Review & Pay")}
+                            </div>
+                        </div>
+                    </div>
+
                     {/* SIMPLIFIED FORM - NO MEMOIZED PROPS */}
                     <form onSubmit={handleContinueToReview}>
                         {/* Mobile */}
@@ -509,38 +566,102 @@ export default function CheckoutPage() {
                             ) : (
                                 <>
                                     <OrderSummary {...orderSummaryProps} />
-                                    <div className="bg-white/5 border border-white/10 rounded-sm p-6">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h3 className="text-lg font-light text-white tracking-wide">
-                                                {t("checkoutPage.deliveryInfo", "Delivery Information")}
-                                            </h3>
-                                            <button
-                                                type="button"
-                                                onClick={handleBackToInfo}
-                                                className="text-white/60 hover:text-white text-sm"
-                                            >
-                                                {t("checkoutPage.edit", "Edit")}
-                                            </button>
+
+                                    {/* Enhanced Order Details Section */}
+                                    <div className="space-y-4">
+                                        {/* Customer Information Card */}
+                                        <div className="bg-white/5 border border-white/10 rounded-sm p-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="text-lg font-light text-white tracking-wide flex items-center gap-2">
+                                                    <User className="w-5 h-5 text-[#E62B2B]" />
+                                                    {t("checkoutPage.customerInfo", "Customer Information")}
+                                                </h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleBackToInfo}
+                                                    className="text-white/60 hover:text-white text-sm flex items-center gap-1"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                    {t("checkoutPage.edit", "Edit")}
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-4 text-sm">
+                                                <div className="flex items-center gap-3 text-white/80">
+                                                    <User className="w-4 h-4 text-white/40" />
+                                                    <span>{formData.firstName}</span>
+                                                </div>
+                                                <div className="flex items-center gap-3 text-white/80">
+                                                    <Mail className="w-4 h-4 text-white/40" />
+                                                    <span>{formData.email}</span>
+                                                </div>
+                                                <div className="flex items-center gap-3 text-white/80">
+                                                    <Phone className="w-4 h-4 text-white/40" />
+                                                    <span>{formData.phone}</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="text-white/80 font-light text-sm space-y-2">
-                                            <p>{formData.firstName}</p>
-                                            <p>{formData.email}</p>
-                                            <p>{formData.phone}</p>
-                                            {formData.deliveryMethod === "pickup" ? (
-                                                <p>Pickup — Sherbrooke, QC</p>
-                                            ) : (
-                                                <>
-                                                    <p>
-                                                        {formData.address}
-                                                        {formData.city ? `, ${formData.city}` : ""}{formData.area ? ` (${formData.area})` : ""}, QC {formData.zipCode}
-                                                    </p>
-                                                    {formData.deliveryInstructions && (
-                                                        <p className="text-white/60">
-                                                            {t("checkoutPage.instructions", "Instructions")}: {formData.deliveryInstructions}
-                                                        </p>
+
+                                        {/* Delivery/Pickup Information Card */}
+                                        <div className="bg-white/5 border border-white/10 rounded-sm p-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="text-lg font-light text-white tracking-wide flex items-center gap-2">
+                                                    {formData.deliveryMethod === "delivery" ? (
+                                                        <MapPin className="w-5 h-5 text-[#E62B2B]" />
+                                                    ) : (
+                                                        <Clock className="w-5 h-5 text-[#E62B2B]" />
                                                     )}
-                                                </>
-                                            )}
+                                                    {formData.deliveryMethod === "delivery"
+                                                        ? t("checkoutPage.deliveryAddress", "Delivery Address")
+                                                        : t("checkoutPage.pickupInfo", "Pickup Information")}
+                                                </h3>
+                                            </div>
+                                            <div className="space-y-3 text-sm">
+                                                {formData.deliveryMethod === "pickup" ? (
+                                                    <div className="text-white/80">
+                                                        <p className="font-medium">Mai Sushi Restaurant</p>
+                                                        <p className="text-white/60">123 Main Street, Sherbrooke, QC</p>
+                                                        <p className="text-white/60">Open: 11:00 AM - 10:00 PM</p>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="flex items-center gap-3 text-white/80">
+                                                            <MapPin className="w-4 h-4 text-white/40" />
+                                                            <div>
+                                                                <p>{formData.address}</p>
+                                                                <p className="text-white/60">
+                                                                    {formData.city}{formData.area ? ` (${formData.area})` : ""}, QC {formData.zipCode}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        {formData.deliveryInstructions && (
+                                                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-sm p-3">
+                                                                <p className="text-blue-400 text-sm font-medium flex items-center gap-2">
+                                                                    <Sparkles className="w-4 h-4" />
+                                                                    {t("checkoutPage.specialInstructions", "Special Instructions")}
+                                                                </p>
+                                                                <p className="text-blue-300 text-sm mt-1">{formData.deliveryInstructions}</p>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Preparation Time Estimate */}
+                                        <div className="bg-gradient-to-r from-[#E62B2B]/10 to-[#ff6b6b]/10 border border-[#E62B2B]/20 rounded-sm p-4">
+                                            <div className="flex items-center gap-3">
+                                                <ChefHat className="w-5 h-5 text-[#E62B2B]" />
+                                                <div>
+                                                    <p className="text-white font-medium text-sm">
+                                                        {t("checkoutPage.estimatedTime", "Estimated Preparation Time")}
+                                                    </p>
+                                                    <p className="text-white/60 text-sm">
+                                                        {t("checkoutPage.readyIn", "Ready in approximately")} <strong>{estimatedPrepTime} minutes</strong>
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -558,7 +679,6 @@ export default function CheckoutPage() {
                                             }}
                                             onBack={handleBackToInfo}
                                         />
-
                                     </div>
                                 </>
                             )}
@@ -579,7 +699,7 @@ export default function CheckoutPage() {
                                         <div className="flex justify-end pt-2">
                                             <button
                                                 type="submit"
-                                                className="bg-white text-gray-900 px-8 py-3 rounded-sm hover:bg-white/90 transition-all text-sm"
+                                                className="bg-white text-gray-900 px-8 py-3 rounded-sm hover:bg-white/90 transition-all text-sm font-medium"
                                             >
                                                 {t("checkoutPage.continueReview", "Continue to Review")}
                                             </button>
@@ -587,38 +707,101 @@ export default function CheckoutPage() {
                                     </>
                                 ) : (
                                     <>
-                                        <div className="bg-white/5 border border-white/10 rounded-sm p-6">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h3 className="text-lg font-light text-white tracking-wide">
-                                                    {t("checkoutPage.deliveryInfo", "Delivery Information")}
-                                                </h3>
-                                                <button
-                                                    type="button"
-                                                    onClick={handleBackToInfo}
-                                                    className="text-white/60 hover:text-white text-sm"
-                                                >
-                                                    {t("checkoutPage.edit", "Edit")}
-                                                </button>
+                                        {/* Enhanced Review Section */}
+                                        <div className="space-y-6">
+                                            {/* Customer Information */}
+                                            <div className="bg-white/5 border border-white/10 rounded-sm p-6">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h3 className="text-lg font-light text-white tracking-wide flex items-center gap-2">
+                                                        <User className="w-5 h-5 text-[#E62B2B]" />
+                                                        {t("checkoutPage.customerInfo", "Customer Information")}
+                                                    </h3>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleBackToInfo}
+                                                        className="text-white/60 hover:text-white text-sm flex items-center gap-1"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                        {t("checkoutPage.edit", "Edit")}
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                                    <div className="flex items-center gap-3 text-white/80">
+                                                        <User className="w-4 h-4 text-white/40" />
+                                                        <span>{formData.firstName}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 text-white/80">
+                                                        <Mail className="w-4 h-4 text-white/40" />
+                                                        <span>{formData.email}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 text-white/80">
+                                                        <Phone className="w-4 h-4 text-white/40" />
+                                                        <span>{formData.phone}</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="text-white/80 font-light text-sm space-y-2">
-                                                <p>{formData.firstName}</p>
-                                                <p>{formData.email}</p>
-                                                <p>{formData.phone}</p>
-                                                {formData.deliveryMethod === "pickup" ? (
-                                                    <p>Pickup — Sherbrooke, QC</p>
-                                                ) : (
-                                                    <>
-                                                        <p>
-                                                            {formData.address}
-                                                            {formData.city ? `, ${formData.city}` : ""}{formData.area ? ` (${formData.area})` : ""}, QC {formData.zipCode}
-                                                        </p>
-                                                        {formData.deliveryInstructions && (
-                                                            <p className="text-white/60">
-                                                                {t("checkoutPage.instructions", "Instructions")}: {formData.deliveryInstructions}
-                                                            </p>
+
+                                            {/* Delivery/Pickup Information */}
+                                            <div className="bg-white/5 border border-white/10 rounded-sm p-6">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h3 className="text-lg font-light text-white tracking-wide flex items-center gap-2">
+                                                        {formData.deliveryMethod === "delivery" ? (
+                                                            <MapPin className="w-5 h-5 text-[#E62B2B]" />
+                                                        ) : (
+                                                            <Clock className="w-5 h-5 text-[#E62B2B]" />
                                                         )}
-                                                    </>
-                                                )}
+                                                        {formData.deliveryMethod === "delivery"
+                                                            ? t("checkoutPage.deliveryAddress", "Delivery Address")
+                                                            : t("checkoutPage.pickupInfo", "Pickup Information")}
+                                                    </h3>
+                                                </div>
+                                                <div className="space-y-3 text-sm">
+                                                    {formData.deliveryMethod === "pickup" ? (
+                                                        <div className="text-white/80">
+                                                            <p className="font-medium">Mai Sushi Restaurant</p>
+                                                            <p className="text-white/60">123 Main Street, Sherbrooke, QC</p>
+                                                            <p className="text-white/60">Open: 11:00 AM - 10:00 PM</p>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex items-center gap-3 text-white/80">
+                                                                <MapPin className="w-4 h-4 text-white/40" />
+                                                                <div>
+                                                                    <p>{formData.address}</p>
+                                                                    <p className="text-white/60">
+                                                                        {formData.city}{formData.area ? ` (${formData.area})` : ""}, QC {formData.zipCode}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            {formData.deliveryInstructions && (
+                                                                <div className="bg-blue-500/10 border border-blue-500/20 rounded-sm p-3">
+                                                                    <p className="text-blue-400 text-sm font-medium flex items-center gap-2">
+                                                                        <Sparkles className="w-4 h-4" />
+                                                                        {t("checkoutPage.specialInstructions", "Special Instructions")}
+                                                                    </p>
+                                                                    <p className="text-blue-300 text-sm mt-1">{formData.deliveryInstructions}</p>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Preparation Time Estimate */}
+                                            <div className="bg-gradient-to-r from-[#E62B2B]/10 to-[#ff6b6b]/10 border border-[#E62B2B]/20 rounded-sm p-4">
+                                                <div className="flex items-center gap-3">
+                                                    <ChefHat className="w-5 h-5 text-[#E62B2B]" />
+                                                    <div>
+                                                        <p className="text-white font-medium text-sm">
+                                                            {t("checkoutPage.estimatedTime", "Estimated Preparation Time")}
+                                                        </p>
+                                                        <p className="text-white/60 text-sm">
+                                                            {t("checkoutPage.readyIn", "Ready in approximately")} <strong>{estimatedPrepTime} minutes</strong>
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -634,8 +817,6 @@ export default function CheckoutPage() {
                                             }}
                                             onBack={handleBackToInfo}
                                         />
-
-
                                     </>
                                 )}
                             </div>
@@ -654,3 +835,26 @@ export default function CheckoutPage() {
         </div>
     );
 }
+
+export interface CartItemCheckOut {
+    id?: string;
+    name: string;
+    price: number;
+    quantity?: number;
+    description: {
+        es: string;
+        fr: string;
+        en: string;
+    };
+    category?: string;
+    image?: string;
+    imageUrl?: string;
+    thumbnail?: string;
+    mainImage?: string;
+    photo?: string;
+    img?: string;
+    picture?: string;
+    images?: string[];
+    imageUrls?: string[];
+    preparationTime?: number;
+};

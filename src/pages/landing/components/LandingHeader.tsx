@@ -6,7 +6,7 @@ import { AuthModal } from '../../components/AuthModal'
 import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../../../firebase/firebase'
 import { supabase } from '../../../lib/supabase'
-import logo from '../../../assets/logo/mai_sushi_v3_dark.png'
+import logo from '../../../assets/logo/logo_maisushi_illustrator_final.svg'
 import { useCartStore } from '../../../stores/cartStore'
 
 interface UserProfile {
@@ -186,10 +186,6 @@ export const LandingHeader = () => {
                 created_at: new Date().toISOString(),
             }
 
-            // Only include points if the column exists
-            // You can remove this if you don't have points column
-            // profileData.points = 0
-
             const { data: clientProfile, error: profileError } = await supabase
                 .from('client_profiles')
                 .insert(profileData)
@@ -198,7 +194,7 @@ export const LandingHeader = () => {
 
             if (profileError) {
                 console.error('Supabase profile error:', profileError)
-                
+
                 // If it's a column error, try without the problematic column
                 if (profileError.message.includes('points')) {
                     delete profileData.points
@@ -242,7 +238,7 @@ export const LandingHeader = () => {
             setAuthForm({ email: '', password: '', firstName: '', lastName: '', phone: '' })
         } catch (error: any) {
             console.error('Signup error:', error)
-            
+
             // Handle specific error cases
             if (error.code === 'auth/email-already-in-use') {
                 setAuthError('This email is already registered. Please sign in instead.')
@@ -279,11 +275,12 @@ export const LandingHeader = () => {
             <header className="bg-white shadow-sm border-b border-gray-100 fixed inset-x-0 top-0 z-40">
                 <div className="w-full px-3 sm:px-4 md:px-8 py-3 overflow-x-clip">
                     <div className="flex items-center justify-between gap-3">
-                        <Link to="/" className="flex items-center min-w-0 shrink-0">
+                        {/* Enhanced Logo - Better spacing and width */}
+                        <Link to="/" className="flex items-center min-w-0 shrink-0 ml-2 sm:ml-4">
                             <img
                                 src={logo}
                                 alt="MaiSushi Logo"
-                                className="block h-12 sm:h-16 w-auto max-w-[200px] object-contain"
+                                className="h-12 sm:h-14 lg:h-16 w-auto max-w-[180px] sm:max-w-[220px] lg:max-w-[260px] object-contain transition-all duration-300 hover:scale-105"
                                 loading="eager"
                                 decoding="async"
                             />
@@ -389,7 +386,7 @@ export const LandingHeader = () => {
                     </div>
                 </div>
 
-                {/* Mobile Dropdown Menu - remains the same */}
+                {/* Mobile Dropdown Menu */}
                 <div
                     className={`md:hidden bg-white shadow-sm border-t border-gray-100 transition-all duration-300 overflow-hidden ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
                         }`}

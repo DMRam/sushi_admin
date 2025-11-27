@@ -3,7 +3,11 @@ export interface CartItemCheckOut {
     name: string;
     price: number;
     quantity?: number;
-    description?: string;
+    description: {
+        es: string;
+        fr: string;
+        en: string;
+    };
     category?: string;
     image?: string;
     imageUrl?: string;

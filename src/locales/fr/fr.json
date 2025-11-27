@@ -139,7 +139,8 @@
     "instructions": "Instructions",
     "requiredFields": "Veuillez remplir les champs obligatoires suivants :",
     "validEmail": "Veuillez entrer une adresse email valide",
-    "validPhone": "Veuillez entrer un numéro de téléphone valide"
+    "validPhone": "Veuillez entrer un numéro de téléphone valide",
+    "backToInfo": "Rentre"
   },
   "nav": {
     "salesTracking": "Suivi des Ventes",
@@ -256,7 +257,7 @@
     "thankYouPromotions": "Merci de vous être inscrit ! Vous recevrez nos dernières promotions et mises à jour.",
     "thankYouGeneral": "Merci pour votre message ! Nous vous répondrons dans les 24 heures.",
     "submissionError": "Une erreur s'est produite lors de l'envoi de votre formulaire. Veuillez réessayer ou nous contacter directement.",
-    "phoneNumberDisplay": "+1 (555) 123-SUSHI",
+    "phoneNumberDisplay": "+1 (819) 861-3889",
     "emailAddressDisplay": "contact@maisushi.ca",
     "addressLine1": "1975 King Ouest,",
     "addressLine2": "Sherbrooke, QC J1J 2E6",
@@ -323,7 +324,19 @@
     "minutes": "minutes",
     "placeOrder": "Passer la Commande",
     "client": "Client",
-    "orderNow": "Commander Maintenant"
+    "orderNow": "Commander Maintenant",
+     "watchVideo": "Regarder la Vidéo",
+    "viewDetails": "Voir les Détails",
+    "popular": "Populaire",
+    "min": "min",
+    "ingredients": "Ingrédients",
+    "more": "plus",
+    "contains": "Contient",
+    "allergens": "Allergènes",
+    "addToCart": "Ajouter au Panier",
+    "added": "Ajouté !",
+    "showImage": "Afficher l'image",
+    "watchPreparation": "Voir la préparation"
   },
   "buildYourSushi": {
     "title": "Créez Votre Sushi",
@@ -519,5 +532,22 @@
     "cookies": "Politique de cookies",
     "terms": "Termes et conditions",
     "poweredBy": "Propulsé par"
+  },
+  "cookieBanner": {
+    "title": "Préférences de témoins",
+    "subtitle": "Votre confidentialité nous importe",
+    "description": "Nous utilisons des témoins pour améliorer votre expérience de navigation, analyser le trafic du site et personnaliser le contenu. Vous pouvez choisir les types de témoins à autoriser.",
+    "essential": "Témoins essentiels",
+    "essentialDesc": "Nécessaires au fonctionnement de base du site",
+    "functional": "Témoins fonctionnels",
+    "functionalDesc": "Mémorisent vos préférences et paramètres",
+    "analytics": "Témoins d'analyse",
+    "analyticsDesc": "Nous aident à améliorer notre site web",
+    "privacyPolicy": "Politique de confidentialité",
+    "cookiePolicy": "Politique de témoins",
+    "savePreferences": "Enregistrer les préférences",
+    "rejectAll": "Tout refuser",
+    "customize": "Personnaliser",
+    "acceptAll": "Tout accepter"
   }
 }

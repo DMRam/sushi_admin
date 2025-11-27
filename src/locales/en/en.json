@@ -141,7 +141,8 @@
     "instructions": "Instructions",
     "requiredFields": "Please fill in the following required fields:",
     "validEmail": "Please enter a valid email address",
-    "validPhone": "Please enter a valid phone number"
+    "validPhone": "Please enter a valid phone number",
+    "backToInfo": "Back"
   },
   "nav": {
     "salesTracking": "Sales Tracking",
@@ -262,7 +263,7 @@
     "thankYouGeneral": "Thank you for your message! We'll get back to you within 24 hours.",
     "submissionError": "There was an error submitting your form. Please try again or contact us directly.",
 
-    "phoneNumberDisplay": "+1 (555) 123-SUSHI",
+    "phoneNumberDisplay": "+1 (819) 861-3889",
     "emailAddressDisplay": "contact@maisushi.ca",
     "addressLine1": "1975 King Ouest,",
     "addressLine2": "Sherbrooke, QC J1J 2E6",
@@ -388,7 +389,19 @@
     "orderNow": "ORDER NOW",
     "createAccount": "Create Account",
     "unnamedProduct": "Unnamed Product",
-    "unknownIngredient": "Unknown Ingredient"
+    "unknownIngredient": "Unknown Ingredient",
+    "watchVideo": "Watch Video",
+    "viewDetails": "View Details",
+    "popular": "Popular",
+    "min": "min",
+    "ingredients": "Ingredients",
+    "more": "more",
+    "contains": "Contains",
+    "allergens": "Allergens",
+    "addToCart": "Add to Cart",
+    "added": "Added!",
+    "showImage": "Show image",
+    "watchPreparation": "Watch preparation"
   },
   "footer": {
     "staffAdminLogin": "Staff/Admin Login",
@@ -527,5 +540,22 @@
       "title": "6. Contact",
       "contact": "For legal inquiries:"
     }
+  },
+  "cookieBanner": {
+    "title": "Cookie Preferences",
+    "subtitle": "We care about your privacy",
+    "description": "We use cookies to enhance your browsing experience, analyze site traffic, and personalize content. You can choose which types of cookies to allow.",
+    "essential": "Essential Cookies",
+    "essentialDesc": "Required for basic site functionality",
+    "functional": "Functional Cookies",
+    "functionalDesc": "Remember your preferences and settings",
+    "analytics": "Analytics Cookies",
+    "analyticsDesc": "Help us improve our website",
+    "privacyPolicy": "Privacy Policy",
+    "cookiePolicy": "Cookie Policy",
+    "savePreferences": "Save Preferences",
+    "rejectAll": "Reject All",
+    "customize": "Customize",
+    "acceptAll": "Accept All"
   }
 }

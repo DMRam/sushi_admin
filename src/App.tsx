@@ -12,6 +12,9 @@ import OrderPage from './pages/orders/OrderPage'
 import CheckoutPage from './pages/orders/CheckoutPage'
 import CookieBanner from './components/web/CookieBanner'
 import { CateringPage } from './pages/catering/CateringPage'
+import { TermsConditions } from './pages/legal/TermsConditions'
+import { PrivacyPolicy } from './pages/legal/PrivacyPolicy'
+import { CookiesPolicy } from './pages/legal/CookiesPolicy'
 
 // Lazy load all admin components (assuming default exports)
 const SalesTrackingPage = lazy(() => import('./pages/admin/SalesTrackingPage'))
@@ -82,7 +85,13 @@ function PublicRoutes() {
       <Route path="/success" element={<SuccessPage />} />
       <Route path="/catering" element={<CateringPage />} />
 
-
+      {/* Legal Pages */}
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/cookies" element={<CookiesPolicy />} />
+      <Route path="/cookies-policy" element={<CookiesPolicy />} />
+      <Route path="/terms" element={<TermsConditions />} />
+      <Route path="/terms-conditions" element={<TermsConditions />} />
 
       {/* Client Auth Routes */}
       <Route path="/client-login" element={
@@ -110,6 +119,9 @@ function PublicRoutes() {
           </Suspense>
         </ProtectedRoute>
       } />
+
+      {/* Catch all route - redirect to home */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

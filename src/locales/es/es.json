@@ -139,7 +139,8 @@
     "instructions": "Instrucciones",
     "requiredFields": "Por favor complete los siguientes campos obligatorios:",
     "validEmail": "Por favor ingrese una dirección de email válida",
-    "validPhone": "Por favor ingrese un número de teléfono válido"
+    "validPhone": "Por favor ingrese un número de teléfono válido",
+    "backToInfo":"Volver"
   },
   "nav": {
     "salesTracking": "Seguimiento de Ventas",
@@ -256,7 +257,7 @@
     "thankYouPromotions": "¡Gracias por suscribirte! Recibirás nuestras últimas promociones y actualizaciones.",
     "thankYouGeneral": "¡Gracias por tu mensaje! Te responderemos dentro de 24 horas.",
     "submissionError": "Hubo un error al enviar tu formulario. Por favor, inténtalo de nuevo o contáctanos directamente.",
-    "phoneNumberDisplay": "+1 (555) 123-SUSHI",
+    "phoneNumberDisplay": "+1 (819) 861-3889",
     "emailAddressDisplay": "contact@maisushi.ca",
     "addressLine1": "1975 King Ouest,",
     "addressLine2": "Sherbrooke, QC J1J 2E6",
@@ -381,7 +382,19 @@
     "minutes": "minutos",
     "placeOrder": "Realizar Pedido",
     "client": "Cliente",
-    "orderNow": "Ordenar Ahora"
+    "orderNow": "Ordenar Ahora",
+    "watchVideo": "Ver Video",
+    "viewDetails": "Ver Detalles",
+    "popular": "Popular",
+    "min": "min",
+    "ingredients": "Ingredientes",
+    "more": "más",
+    "contains": "Contiene",
+    "allergens": "Alérgenos",
+    "addToCart": "Añadir al Carrito",
+    "added": "¡Añadido!",
+    "showImage": "Mostrar imagen",
+    "watchPreparation": "Ver preparación"
   },
   "buildYourSushi": {
     "title": "Construye Tu Sushi",
@@ -520,5 +533,22 @@
     "cookies": "Politica de Cookies",
     "terms": "Terminos & Condiciones",
     "poweredBy": "Desarrollado por"
+  },
+  "cookieBanner": {
+    "title": "Preferencias de cookies",
+    "subtitle": "Nos importa tu privacidad",
+    "description": "Utilizamos cookies para mejorar tu experiencia de navegación, analizar el tráfico del sitio y personalizar el contenido. Puedes elegir qué tipos de cookies permitir.",
+    "essential": "Cookies esenciales",
+    "essentialDesc": "Necesarias para el funcionamiento básico del sitio",
+    "functional": "Cookies funcionales",
+    "functionalDesc": "Recuerdan tus preferencias y configuraciones",
+    "analytics": "Cookies analíticas",
+    "analyticsDesc": "Nos ayudan a mejorar nuestro sitio web",
+    "privacyPolicy": "Política de privacidad",
+    "cookiePolicy": "Política de cookies",
+    "savePreferences": "Guardar preferencias",
+    "rejectAll": "Rechazar todas",
+    "customize": "Personalizar",
+    "acceptAll": "Aceptar todas"
   }
 }

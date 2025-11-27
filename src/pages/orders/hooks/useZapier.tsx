@@ -31,11 +31,19 @@ export const useZapier = () => {
                 clientProfile?.email ||
                 "unknown@email.com";
 
+            const customerPhone =
+                order.customer_phone ||
+                order.customerInfo?.phone ||
+                clientProfile?.phone ||
+                "unknown@email.com";
+
             // Build Zapier Payload
             const payload: ZapierPayload = {
                 order_id: order.id,
                 customer_name: customerName,
                 customer_email: customerEmail,
+                customer_phone: customerPhone,
+                delivery_address: order.delivery_address || '',
                 total: order.final_total,
                 created_at: order.created_at,
                 status: order.status || "completed",

@@ -514,7 +514,7 @@ export default function WebManagementPage() {
                         <button
                             onClick={() => setEditingProduct({
                                 name: '',
-                                description: '',
+                                description: { en: '', es: '', fr: '' },
                                 price: 0,
                                 imageUrl: '',
                                 category: 'general',
@@ -567,8 +567,7 @@ export default function WebManagementPage() {
     )
 }
 
-// Product Form Component
-// Product Form Component
+// Product Form Component with Multi-language Support
 function ProductForm({ product, onChange, onSave, onCancel, loading }: {
     product: WebProduct
     onChange: (product: WebProduct) => void
@@ -576,6 +575,52 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
     onCancel: () => void
     loading: boolean
 }) {
+
+    // Helper to ensure description object has all required languages
+    const getDescriptionObject = (): { en: string; fr: string; es: string } => {
+        if (typeof product.description === 'string') {
+            // Convert string to multi-language object
+            return {
+                en: product.description,
+                fr: '',
+                es: ''
+            };
+        }
+
+        // Ensure all languages are present
+        return {
+            en: product.description?.en || '',
+            fr: product.description?.fr || '',
+            es: product.description?.es || ''
+        };
+    };
+
+    const description = getDescriptionObject();
+
+    const handleDescriptionChange = (lang: 'en' | 'fr' | 'es', value: string) => {
+        const updatedDescription = {
+            ...description,
+            [lang]: value
+        };
+        onChange({
+            ...product,
+            description: updatedDescription
+        });
+    };
+
+    const handleSingleDescriptionChange = (value: string) => {
+        // Set all languages to the same value
+        const updatedDescription = {
+            en: value,
+            fr: value,
+            es: value
+        };
+        onChange({
+            ...product,
+            description: updatedDescription
+        });
+    };
+
     return (
         <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
             <h3 className="text-lg font-light text-gray-900 tracking-wide mb-4">
@@ -630,17 +675,68 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-light"
                     />
                 </div>
+
+                {/* Multi-language Description */}
                 <div className="md:col-span-2">
                     <label className="block text-sm font-light text-gray-700 mb-2">
-                        Description
+                        Description (Multi-language)
                     </label>
-                    <textarea
-                        value={product.description}
-                        onChange={(e) => onChange({ ...product, description: e.target.value })}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-light"
-                    />
+
+                    {/* Quick Fill - Set all languages to same value */}
+                    <div className="mb-3">
+                        <label className="block text-xs text-gray-500 mb-1">
+                            Quick Fill (sets all languages to same value):
+                        </label>
+                        <textarea
+                            value={description.en}
+                            onChange={(e) => handleSingleDescriptionChange(e.target.value)}
+                            rows={2}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-light text-sm"
+                            placeholder="Enter description to set for all languages"
+                        />
+                    </div>
+
+                    {/* Individual Language Inputs */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">
+                                English Description
+                            </label>
+                            <textarea
+                                value={description.en}
+                                onChange={(e) => handleDescriptionChange('en', e.target.value)}
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-light text-sm"
+                                placeholder="English description"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">
+                                French Description
+                            </label>
+                            <textarea
+                                value={description.fr}
+                                onChange={(e) => handleDescriptionChange('fr', e.target.value)}
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-light text-sm"
+                                placeholder="Description française"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">
+                                Spanish Description
+                            </label>
+                            <textarea
+                                value={description.es}
+                                onChange={(e) => handleDescriptionChange('es', e.target.value)}
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-light text-sm"
+                                placeholder="Descripción en español"
+                            />
+                        </div>
+                    </div>
                 </div>
+
                 <div className="md:col-span-2">
                     <label className="block text-sm font-light text-gray-700 mb-2">
                         Image URL
@@ -751,14 +847,62 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
     )
 }
 
-// Product List Component
-// Product List Component
+// Product List Component with Multi-language Support
 function ProductList({ products, onEdit, onDelete, formatPrice }: {
     products: WebProduct[]
     onEdit: (product: WebProduct) => void
     onDelete: (id: string) => void
     formatPrice: (price: number | undefined) => string
 }) {
+
+    const truncateText = (text: string | undefined, maxLength = 80): string => {
+        if (!text || !text.trim()) return 'No description'
+
+        const clean = text.trim()
+
+        if (clean.length <= maxLength) return clean
+
+        return clean.slice(0, maxLength - 1).trimEnd() + '…'
+    }
+
+    // Helper function to get the best available description
+    const getDescription = (product: WebProduct, preferredLanguage: string = 'en'): string => {
+        const desc = product.description;
+
+        // Return preferred language if available
+        if (desc[preferredLanguage as keyof typeof desc]?.trim()) {
+            return desc[preferredLanguage as keyof typeof desc];
+        }
+
+        // Fallback to English
+        if (desc.en?.trim()) {
+            return desc.en;
+        }
+
+        // Fallback to any available language
+        const availableLang = ['en', 'fr', 'es'].find(lang => desc[lang as keyof typeof desc]?.trim());
+        if (availableLang) {
+            return desc[availableLang as keyof typeof desc];
+        }
+
+        return 'No description';
+    }
+
+    // Helper function to get description for title/tooltip (all languages)
+    const getDescriptionForTitle = (product: WebProduct): string => {
+        const desc = product.description;
+        const descriptions: string[] = [];
+
+        ['en', 'fr', 'es'].forEach(lang => {
+            const langDesc = desc[lang as keyof typeof desc];
+            if (langDesc?.trim()) {
+                descriptions.push(`${lang.toUpperCase()}: ${langDesc}`);
+            }
+        });
+
+        return descriptions.join('\n') || 'No description';
+    }
+
     return (
         <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
             {/* Mobile Card View */}
@@ -766,15 +910,15 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                 {products.map((product) => (
                     <div key={product.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <div className="flex justify-between items-start mb-3">
-                            <div>
-                                <div className="font-light text-gray-900 text-sm mb-1">
+                            <div className="min-w-0 flex-1">
+                                <div className="font-light text-gray-900 text-sm mb-1 truncate">
                                     {product.name || 'Unnamed Product'}
                                 </div>
-                                <div className="text-xs text-gray-500 font-light">
+                                <div className="text-xs text-gray-500 font-light truncate">
                                     {product.category || 'No category'}
                                 </div>
                             </div>
-                            <div className="flex flex-col items-end space-y-1">
+                            <div className="flex flex-col items-end space-y-1 flex-shrink-0 ml-2">
                                 <span className={`inline-flex px-2 py-1 text-xs font-light rounded-full ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                     {product.isActive ? 'Active' : 'Inactive'}
                                 </span>
@@ -785,8 +929,11 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                                 )}
                             </div>
                         </div>
-                        <div className="text-xs text-gray-600 mb-2 font-light line-clamp-2">
-                            {product.description || 'No description'}
+                        <div
+                            className="text-xs text-gray-600 mb-2 font-light line-clamp-2"
+                            title={getDescriptionForTitle(product)}
+                        >
+                            {truncateText(getDescription(product), 80)}
                         </div>
                         <div className="flex justify-between items-center mb-3">
                             <div className="text-sm font-light text-green-600">
@@ -797,7 +944,7 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                             </div>
                         </div>
                         {product.portionSize && (
-                            <div className="text-xs text-gray-500 mb-2 font-light">
+                            <div className="text-xs text-gray-500 mb-2 font-light truncate">
                                 Portion: {product.portionSize}
                             </div>
                         )}
@@ -819,30 +966,24 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                 ))}
             </div>
 
-            {/* Desktop Table View */}
+            {/* Desktop Table View with Truncation */}
             <div className="hidden sm:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full divide-y divide-gray-200 table-fixed">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider w-2/5">
                                 Product
                             </th>
-                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider w-1/6">
                                 Category
                             </th>
-                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider w-1/6">
                                 Price
                             </th>
-                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider">
-                                Cost
-                            </th>
-                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider w-1/6">
                                 Status
                             </th>
-                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider">
-                                Featured
-                            </th>
-                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider w-1/6">
                                 Actions
                             </th>
                         </tr>
@@ -850,49 +991,73 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                     <tbody className="bg-white divide-y divide-gray-200">
                         {products.map((product) => (
                             <tr key={product.id} className="hover:bg-gray-50">
-                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm font-light text-gray-900">{product.name || 'Unnamed Product'}</div>
-                                    <div className="text-xs text-gray-500 font-light line-clamp-1">
-                                        {product.description || 'No description'}
-                                    </div>
-                                    {product.portionSize && (
-                                        <div className="text-xs text-gray-400 font-light">
-                                            {product.portionSize}
+                                <td className="px-4 py-4 w-2/5 min-w-0 overflow-hidden">
+                                    <div className="flex flex-col min-w-0 overflow-hidden">
+                                        <div
+                                            className="text-sm font-light text-gray-900 truncate"
+                                            title={product.name}
+                                        >
+                                            {product.name || "Unnamed Product"}
                                         </div>
-                                    )}
+
+                                        <div
+                                            className="text-xs text-gray-500 font-light mt-1"
+                                            title={getDescriptionForTitle(product)}
+                                        >
+                                            {truncateText(getDescription(product), 80)}
+                                        </div>
+
+                                        {product.portionSize && (
+                                            <div
+                                                className="text-xs text-gray-400 font-light truncate mt-1"
+                                                title={product.portionSize}
+                                            >
+                                                {product.portionSize}
+                                            </div>
+                                        )}
+                                    </div>
                                 </td>
-                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-light">
-                                    {product.category || 'No category'}
+
+                                <td className="px-4 py-4 w-1/6">
+                                    <div className="text-sm text-gray-600 font-light truncate" title={product.category}>
+                                        {product.category || 'No category'}
+                                    </div>
                                 </td>
-                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-light text-green-600">
-                                    {formatPrice(product.price)}
+                                <td className="px-4 py-4 w-1/6">
+                                    <div className="text-sm font-light text-green-600">
+                                        {formatPrice(product.price)}
+                                    </div>
+                                    <div className="text-xs text-gray-500 font-light">
+                                        Cost: {formatPrice(product.costPrice)}
+                                    </div>
                                 </td>
-                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-light text-gray-600">
-                                    {formatPrice(product.costPrice)}
+                                <td className="px-4 py-4 w-1/6">
+                                    <div className="flex flex-col space-y-1">
+                                        <span className={`inline-flex px-2 py-1 text-xs font-light rounded-full ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {product.isActive ? 'Active' : 'Inactive'}
+                                        </span>
+                                        {product.featured && (
+                                            <span className="inline-flex px-2 py-1 text-xs font-light rounded-full bg-yellow-100 text-yellow-800">
+                                                Featured
+                                            </span>
+                                        )}
+                                    </div>
                                 </td>
-                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                                    <span className={`inline-flex px-3 py-1 text-xs font-light rounded-full ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {product.isActive ? 'Active' : 'Inactive'}
-                                    </span>
-                                </td>
-                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                                    <span className={`inline-flex px-3 py-1 text-xs font-light rounded-full ${product.featured ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
-                                        {product.featured ? 'Yes' : 'No'}
-                                    </span>
-                                </td>
-                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                                    <button
-                                        onClick={() => onEdit(product)}
-                                        className="text-blue-600 hover:text-blue-900 font-light"
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={() => product.id && onDelete(product.id)}
-                                        className="text-red-600 hover:text-red-900 font-light"
-                                    >
-                                        Delete
-                                    </button>
+                                <td className="px-4 py-4 w-1/6">
+                                    <div className="flex space-x-2">
+                                        <button
+                                            onClick={() => onEdit(product)}
+                                            className="text-blue-600 hover:text-blue-900 font-light text-sm px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={() => product.id && onDelete(product.id)}
+                                            className="text-red-600 hover:text-red-900 font-light text-sm px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}

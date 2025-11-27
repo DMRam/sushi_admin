@@ -35,7 +35,7 @@ const categoryMapping: Record<string, SushiIngredient['category']> = {
 };
 
 export default function BuildYourSushi({ isOpen, onClose }: BuildYourSushiProps) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const addToCart = useCartStore((state) => state.addToCart);
     const [ingredients, setIngredients] = useState<SushiIngredient[]>([]);
     const [loading, setLoading] = useState(true);
@@ -44,6 +44,30 @@ export default function BuildYourSushi({ isOpen, onClose }: BuildYourSushiProps)
     const ingredientsScrollRef = useRef<HTMLDivElement>(null);
     const previewScrollRef = useRef<HTMLDivElement>(null);
     const categories: SushiIngredient['category'][] = ['base', 'protein', 'vegetables', 'toppings', 'sauces'];
+
+    // Function to get localized description
+    const getLocalizedDescription = (ingredientsList: (SushiIngredient & { quantity: number })[]) => {
+        const baseText = {
+            en: 'Custom roll: ',
+            es: 'Roll personalizado: ',
+            fr: 'Rouleau personnalisé: '
+        };
+
+        const ingredientsText = ingredientsList
+            .map(i => `${i.quantity}x ${i.name}`)
+            .join(', ');
+
+        const currentLanguage = i18n.language;
+        switch (currentLanguage) {
+            case 'es':
+                return baseText.es + ingredientsText;
+            case 'fr':
+                return baseText.fr + ingredientsText;
+            case 'en':
+            default:
+                return baseText.en + ingredientsText;
+        }
+    }
 
     // ===== Scroll lock for background =====
     useEffect(() => {
@@ -139,12 +163,16 @@ export default function BuildYourSushi({ isOpen, onClose }: BuildYourSushiProps)
     };
 
     const handleAddToCart = () => {
+        const description = getLocalizedDescription(selectedIngredientsDetails);
+
         const customSushi: MenuItem = {
             id: `custom-sushi-${Date.now()}`,
             name: 'Custom Sushi Creation',
-            description: `Custom roll: ${selectedIngredientsDetails
-                .map((i) => `${i.quantity}x ${i.name}`)
-                .join(', ')}`,
+            description: {
+                en: description,
+                es: description,
+                fr: description
+            },
             price: totalPrice,
             image: '/images/custom-sushi.jpg',
             category: 'custom',
@@ -198,11 +226,10 @@ export default function BuildYourSushi({ isOpen, onClose }: BuildYourSushiProps)
                                 <button
                                     key={cat}
                                     onClick={() => setActiveCategory(cat)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all mx-1 first:ml-0 last:mr-0 ${
-                                        activeCategory === cat
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all mx-1 first:ml-0 last:mr-0 ${activeCategory === cat
                                             ? 'bg-[#E62B2B] text-white shadow-md'
                                             : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-                                    }`}
+                                        }`}
                                 >
                                     {t(`buildYourSushi.categories.${cat}`)}
                                 </button>
@@ -210,7 +237,7 @@ export default function BuildYourSushi({ isOpen, onClose }: BuildYourSushiProps)
                         </div>
 
                         {/* Ingredients Grid - Scrollable */}
-                        <div 
+                        <div
                             ref={ingredientsScrollRef}
                             className="flex-1 overflow-y-auto p-4"
                         >
@@ -229,9 +256,9 @@ export default function BuildYourSushi({ isOpen, onClose }: BuildYourSushiProps)
                                             >
                                                 <div className="aspect-square rounded-lg overflow-hidden bg-white/5 mb-2">
                                                     {ing.image ? (
-                                                        <img 
-                                                            src={ing.image} 
-                                                            alt={ing.name} 
+                                                        <img
+                                                            src={ing.image}
+                                                            alt={ing.name}
                                                             className="w-full h-full object-cover"
                                                         />
                                                     ) : (
@@ -266,7 +293,7 @@ export default function BuildYourSushi({ isOpen, onClose }: BuildYourSushiProps)
                     {/* Right Panel - Preview */}
                     <div className="w-full sm:w-80 xl:w-96 bg-black/60 flex flex-col min-h-0 border-t sm:border-t-0 border-white/10">
                         {/* Selected Ingredients - Scrollable */}
-                        <div 
+                        <div
                             ref={previewScrollRef}
                             className="flex-1 overflow-y-auto p-4"
                         >
@@ -274,8 +301,8 @@ export default function BuildYourSushi({ isOpen, onClose }: BuildYourSushiProps)
                             {selectedIngredientsDetails.length > 0 ? (
                                 <div className="space-y-2">
                                     {selectedIngredientsDetails.map((i) => (
-                                        <div 
-                                            key={i.id} 
+                                        <div
+                                            key={i.id}
                                             className="flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/10"
                                         >
                                             <div className="flex-1 min-w-0">
@@ -286,14 +313,14 @@ export default function BuildYourSushi({ isOpen, onClose }: BuildYourSushiProps)
                                                     ${(i.price * i.quantity).toFixed(2)}
                                                 </p>
                                                 <div className="flex items-center space-x-1">
-                                                    <button 
-                                                        onClick={() => handleRemove(i.id)} 
+                                                    <button
+                                                        onClick={() => handleRemove(i.id)}
                                                         className="p-1 hover:bg-white/10 rounded transition-colors"
                                                     >
                                                         <Minus className="w-3 h-3 text-white/60" />
                                                     </button>
                                                     <span className="text-white text-sm w-4 text-center">{i.quantity}</span>
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleAdd(i.id)}
                                                         disabled={i.quantity >= i.maxQuantity}
                                                         className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-30"
@@ -324,7 +351,7 @@ export default function BuildYourSushi({ isOpen, onClose }: BuildYourSushiProps)
                                     disabled={!selectedIngredientsDetails.length}
                                     className="flex items-center justify-center bg-white/5 border border-white/10 text-white/70 py-2 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm"
                                 >
-                                    <RotateCcw className="w-4 h-4 mr-1" /> 
+                                    <RotateCcw className="w-4 h-4 mr-1" />
                                     {t('buildYourSushi.reset')}
                                 </button>
                                 <button

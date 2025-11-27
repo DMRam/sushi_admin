@@ -4,6 +4,12 @@ import { useIngredients } from '../../../../context/IngredientsContext'
 import { useUserProfile, UserRole } from '../../../../context/UserProfileContext'
 import { productCost, calculateProfitMargin } from '../../../../utils/costCalculations'
 
+// Define the multilingual description type
+interface MultilingualDescription {
+    en: string;
+    es: string;
+    fr: string;
+}
 
 export const ProductList = () => {
     const { products, removeProduct } = useProducts()
@@ -18,6 +24,30 @@ export const ProductList = () => {
     const getIngredientName = (ingredientId: string) => {
         const ingredient = ingredients.find(ing => ing.id === ingredientId)
         return ingredient ? ingredient.name : 'Unknown Ingredient'
+    }
+
+    // Function to get description text for display with proper type checking
+    const getDescriptionText = (description: string | MultilingualDescription | undefined): string => {
+        if (!description) return ''
+
+        if (typeof description === 'string') {
+            return description
+        }
+
+        // For multilingual objects, show English as default
+        return description.en || description.es || description.fr || ''
+    }
+
+    // Function to safely split text by newlines
+    const splitTextIntoParagraphs = (text: string): string[] => {
+        if (!text) return []
+        return text.split('\n').filter(paragraph => paragraph.trim() !== '')
+    }
+
+    // Function to check if description is multilingual object
+    const isMultilingualDescription = (description: any): description is MultilingualDescription => {
+        return description && typeof description === 'object' &&
+            ('en' in description || 'es' in description || 'fr' in description)
     }
 
     // Recalculate everything to ensure accuracy
@@ -43,6 +73,7 @@ export const ProductList = () => {
                     const cost = product.costPrice || 0
                     const profitMargin = product.profitMargin || 0
                     const profit = product.sellingPrice ? product.sellingPrice - cost : 0
+                    const descriptionText = getDescriptionText(product.description)
 
                     return (
                         <div key={product.id} className="border border-gray-200 rounded-lg bg-white shadow-sm">
@@ -51,8 +82,29 @@ export const ProductList = () => {
                                     <div className="flex-1 min-w-0">
                                         <h3 className="font-semibold text-base sm:text-lg text-gray-900 truncate">{product.name}</h3>
 
-                                        {product.description && (
-                                            <p className="text-gray-600 text-sm mt-1 line-clamp-2">{product.description}</p>
+                                        {descriptionText && (
+                                            <p className="text-gray-600 text-sm mt-1 line-clamp-2">{descriptionText}</p>
+                                        )}
+
+                                        {/* Language Badges for Description */}
+                                        {isMultilingualDescription(product.description) && (
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                {product.description.en && (
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                                        EN
+                                                    </span>
+                                                )}
+                                                {product.description.es && (
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                                        ES
+                                                    </span>
+                                                )}
+                                                {product.description.fr && (
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                                                        FR
+                                                    </span>
+                                                )}
+                                            </div>
                                         )}
 
                                         <div className="flex flex-wrap gap-2 sm:gap-3 mt-2 text-xs sm:text-sm">
@@ -116,7 +168,7 @@ export const ProductList = () => {
                                             onClick={() => toggleExpand(product.id)}
                                             className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 border border-blue-200 rounded hover:bg-blue-50 transition-colors text-center"
                                         >
-                                            {expandedProduct === product.id ? 'Hide' : 'Show'} Ingredients
+                                            {expandedProduct === product.id ? 'Hide' : 'Show'} Details
                                         </button>
                                         <button
                                             onClick={() => {
@@ -131,9 +183,93 @@ export const ProductList = () => {
                                     </div>
                                 </div>
 
-                                {/* Expanded Ingredients Section */}
+                                {/* Expanded Details Section */}
                                 {expandedProduct === product.id && (
                                     <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
+                                        {/* Multilingual Description Section */}
+                                        {product.description && (
+                                            <div className="mb-6">
+                                                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                                                    <h4 className="font-medium text-gray-900 text-sm sm:text-base flex items-center gap-2">
+                                                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+                                                        </svg>
+                                                        DESCRIPTION
+                                                    </h4>
+                                                </div>
+
+                                                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                                    {typeof product.description === 'string' ? (
+                                                        // Single language description
+                                                        <div className="prose prose-sm max-w-none text-gray-700">
+                                                            {splitTextIntoParagraphs(product.description).map((paragraph, index) => (
+                                                                <p key={index} className="mb-3 last:mb-0">
+                                                                    {paragraph}
+                                                                </p>
+                                                            ))}
+                                                        </div>
+                                                    ) : isMultilingualDescription(product.description) ? (
+                                                        // Multilingual descriptions
+                                                        <div className="space-y-4">
+                                                            {product.description.en && (
+                                                                <div>
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                                                            English
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="prose prose-sm max-w-none text-gray-700 bg-blue-50 p-3 rounded">
+                                                                        {splitTextIntoParagraphs(product.description.en).map((paragraph, index) => (
+                                                                            <p key={index} className="mb-2 last:mb-0">
+                                                                                {paragraph}
+                                                                            </p>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {product.description.es && (
+                                                                <div>
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                                                            Spanish
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="prose prose-sm max-w-none text-gray-700 bg-green-50 p-3 rounded">
+                                                                        {splitTextIntoParagraphs(product.description.es).map((paragraph, index) => (
+                                                                            <p key={index} className="mb-2 last:mb-0">
+                                                                                {paragraph}
+                                                                            </p>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {product.description.fr && (
+                                                                <div>
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                                                                            French
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="prose prose-sm max-w-none text-gray-700 bg-purple-50 p-3 rounded">
+                                                                        {splitTextIntoParagraphs(product.description.fr).map((paragraph, index) => (
+                                                                            <p key={index} className="mb-2 last:mb-0">
+                                                                                {paragraph}
+                                                                            </p>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        // Fallback for unexpected types
+                                                        <div className="text-center py-4 text-gray-500 text-sm">
+                                                            No description available
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Ingredients Section */}
                                         <div className="mb-6">
                                             <div className="flex items-center justify-between mb-3 sm:mb-4">
@@ -186,8 +322,8 @@ export const ProductList = () => {
                                                                         </span>
                                                                         {(isLowStock || isOutOfStock) && (
                                                                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${isOutOfStock
-                                                                                    ? 'bg-red-100 text-red-800 border border-red-200'
-                                                                                    : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                                                                                ? 'bg-red-100 text-red-800 border border-red-200'
+                                                                                : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
                                                                                 }`}>
                                                                                 {isOutOfStock ? 'OUT OF STOCK' : 'LOW STOCK'}
                                                                             </span>
@@ -270,43 +406,6 @@ export const ProductList = () => {
                                                     </div>
                                                 </div>
                                             )}
-                                        </div>
-
-                                        {/* Preparation Section */}
-                                        <div className="mb-6">
-                                            <div className="flex items-center justify-between mb-3 sm:mb-4">
-                                                <h4 className="font-medium text-gray-900 text-sm sm:text-base flex items-center gap-2">
-                                                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                                    </svg>
-                                                    PREPARATION
-                                                </h4>
-                                                {/* Safely handle undefined preparationTime */}
-                                                {product.preparationTime && product.preparationTime > 0 && (
-                                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded flex items-center gap-1">
-                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                        </svg>
-                                                        {product.preparationTime} min
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <div className="bg-white border border-gray-200 rounded-lg p-4">
-                                                {product.description ? (
-                                                    <div className="prose prose-sm max-w-none text-gray-700">
-                                                        {product.description.split('\n').map((paragraph, index) => (
-                                                            <p key={index} className="mb-3 last:mb-0">
-                                                                {paragraph}
-                                                            </p>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-center py-4 text-gray-500 text-sm">
-                                                        No preparation instructions added
-                                                    </div>
-                                                )}
-                                            </div>
                                         </div>
 
                                         {/* Additional Information */}

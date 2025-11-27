@@ -7,8 +7,9 @@ import { useState, useEffect } from 'react'
 import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../../../firebase/firebase'
 import { supabase } from '../../../lib/supabase'
-import logo from '../../../assets/logo/mai_sushi_v3_white.png'
+import logo from '../../../assets/logo/logo_maisushi_illustratorX_white.svg'
 import { AuthModal } from '../../../pages/components/AuthModal'
+import { X, FileText } from 'lucide-react'
 
 interface UserProfile {
     id: string;
@@ -34,7 +35,7 @@ export const LandingCTAFooter = ({ displaySimple, user: propUser, isAdmin, isSta
 
     // User state
     const [user, setUser] = useState<UserProfile | null>(null)
-    const [isLoadingUser, setIsLoadingUser] = useState(true)
+    const [_isLoadingUser, setIsLoadingUser] = useState(true)
 
     // Auth modal state
     const [showAuthModal, setShowAuthModal] = useState(false)
@@ -49,6 +50,10 @@ export const LandingCTAFooter = ({ displaySimple, user: propUser, isAdmin, isSta
     })
     const [isAuthLoading, setIsAuthLoading] = useState(false)
     const [authError, setAuthError] = useState('')
+
+    // Policy modal state
+    const [showPolicyModal, setShowPolicyModal] = useState(false)
+    const [currentPolicy, setCurrentPolicy] = useState<'privacy' | 'cookies' | 'terms' | null>(null)
 
     // Check user authentication state
     useEffect(() => {
@@ -289,6 +294,155 @@ export const LandingCTAFooter = ({ displaySimple, user: propUser, isAdmin, isSta
         setShowAdminLogin(!showAdminLogin)
     }
 
+    const openPolicyModal = (policy: 'privacy' | 'cookies' | 'terms') => {
+        setCurrentPolicy(policy)
+        setShowPolicyModal(true)
+    }
+
+    const closePolicyModal = () => {
+        setShowPolicyModal(false)
+        setCurrentPolicy(null)
+    }
+
+    const getPolicyContent = () => {
+        switch (currentPolicy) {
+            case 'privacy':
+                return {
+                    title: t('footer.privacy', 'Privacy Policy'),
+                    content: (
+                        <div className="prose prose-sm max-w-none">
+                            <h3 className="text-lg font-medium mb-4">Privacy Policy Summary</h3>
+                            <p className="text-gray-600 mb-4">
+                                We respect your privacy and are committed to protecting your personal data.
+                                This summary outlines how we handle your information.
+                            </p>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="font-medium text-gray-900 mb-2">Information We Collect</h4>
+                                    <ul className="text-gray-600 space-y-1 text-sm">
+                                        <li>• Contact details (name, email, phone)</li>
+                                        <li>• Order history and preferences</li>
+                                        <li>• Device and usage information</li>
+                                        <li>• Location data for delivery</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-medium text-gray-900 mb-2">How We Use Your Data</h4>
+                                    <ul className="text-gray-600 space-y-1 text-sm">
+                                        <li>• Process and deliver your orders</li>
+                                        <li>• Manage your account and loyalty program</li>
+                                        <li>• Improve our services</li>
+                                        <li>• Send relevant promotions (with consent)</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-medium text-gray-900 mb-2">Your Rights</h4>
+                                    <ul className="text-gray-600 space-y-1 text-sm">
+                                        <li>• Access and update your information</li>
+                                        <li>• Delete your account and data</li>
+                                        <li>• Opt-out of marketing communications</li>
+                                        <li>• Request data portability</li>
+                                    </ul>
+                                </div>
+
+                                <p className="text-sm text-gray-500 mt-4">
+                                    For the complete Privacy Policy, visit our dedicated page.
+                                </p>
+                            </div>
+                        </div>
+                    )
+                }
+            case 'cookies':
+                return {
+                    title: t('footer.cookies', 'Cookies Policy'),
+                    content: (
+                        <div className="prose prose-sm max-w-none">
+                            <h3 className="text-lg font-medium mb-4">Cookie Policy Summary</h3>
+                            <p className="text-gray-600 mb-4">
+                                Cookies help us provide you with a better experience on our website.
+                                Here's how we use different types of cookies.
+                            </p>
+
+                            <div className="space-y-4">
+                                <div className="bg-green-50 p-4 rounded-lg">
+                                    <h4 className="font-medium text-green-900 mb-2">Essential Cookies</h4>
+                                    <p className="text-green-800 text-sm">
+                                        Required for the website to function. They enable basic features like page navigation and access to secure areas.
+                                    </p>
+                                </div>
+
+                                <div className="bg-blue-50 p-4 rounded-lg">
+                                    <h4 className="font-medium text-blue-900 mb-2">Functional Cookies</h4>
+                                    <p className="text-blue-800 text-sm">
+                                        Remember your preferences and settings to enhance your experience, such as language selection and cart items.
+                                    </p>
+                                </div>
+
+                                <div className="bg-purple-50 p-4 rounded-lg">
+                                    <h4 className="font-medium text-purple-900 mb-2">Analytics Cookies</h4>
+                                    <p className="text-purple-800 text-sm">
+                                        Help us understand how visitors interact with our website, allowing us to improve our services and user experience.
+                                    </p>
+                                </div>
+
+                                <p className="text-sm text-gray-500 mt-4">
+                                    You can manage your cookie preferences at any time through our cookie banner.
+                                </p>
+                            </div>
+                        </div>
+                    )
+                }
+            case 'terms':
+                return {
+                    title: t('footer.terms', 'Terms & Conditions'),
+                    content: (
+                        <div className="prose prose-sm max-w-none">
+                            <h3 className="text-lg font-medium mb-4">Terms & Conditions Summary</h3>
+                            <p className="text-gray-600 mb-4">
+                                By using our services, you agree to our terms and conditions. Here's a summary of key points.
+                            </p>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="font-medium text-gray-900 mb-2">Account Registration</h4>
+                                    <p className="text-gray-600 text-sm">
+                                        You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-medium text-gray-900 mb-2">Orders & Payments</h4>
+                                    <ul className="text-gray-600 space-y-1 text-sm">
+                                        <li>• All prices are in CAD and subject to change</li>
+                                        <li>• Orders are final once payment is processed</li>
+                                        <li>• Refunds are processed according to our policy</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-medium text-gray-900 mb-2">Loyalty Program</h4>
+                                    <p className="text-gray-600 text-sm">
+                                        Points are non-transferable and have no cash value. We reserve the right to modify or terminate the program.
+                                    </p>
+                                </div>
+
+                                <p className="text-sm text-gray-500 mt-4">
+                                    For the complete Terms & Conditions, visit our dedicated page.
+                                </p>
+                            </div>
+                        </div>
+                    )
+                }
+            default:
+                return { title: '', content: null }
+        }
+    }
+
+    const policyContent = getPolicyContent()
+
     return (
         <>
             {
@@ -313,6 +467,56 @@ export const LandingCTAFooter = ({ displaySimple, user: propUser, isAdmin, isSta
                     setAuthError={setAuthError}
                     setShowAuthModal={setShowAuthModal}
                 />
+            )}
+
+            {/* Policy Modal */}
+            {showPolicyModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000000] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                            <div className="flex items-center space-x-3">
+                                <FileText className="w-6 h-6 text-red-600" />
+                                <h2 className="text-xl font-light text-gray-900">
+                                    {policyContent.title}
+                                </h2>
+                            </div>
+                            <button
+                                onClick={closePolicyModal}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <X className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6 overflow-y-auto max-h-[60vh]">
+                            {policyContent.content}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-4 border-t border-gray-200 bg-gray-50">
+                            <div className="flex justify-between items-center">
+                                <Link
+                                    to={
+                                        currentPolicy === 'privacy' ? '/privacy' :
+                                            currentPolicy === 'cookies' ? '/cookies-policy' :
+                                                '/terms'
+                                    }
+                                    className="text-red-600 hover:text-red-700 text-sm font-light underline transition-colors"
+                                >
+                                    View Full Policy
+                                </Link>
+                                <button
+                                    onClick={closePolicyModal}
+                                    className="bg-red-600 text-white px-6 py-2 text-sm font-light rounded-lg hover:bg-red-700 transition-colors"
+                                >
+                                    {t('common.close', 'Close')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Enhanced Footer */}
@@ -523,7 +727,7 @@ export const LandingCTAFooter = ({ displaySimple, user: propUser, isAdmin, isSta
                                 <li>{t('landing.hoursThursdaySaturday', 'Thu-Sat: 11:00 AM - 9:00 PM')}</li>
                                 <li>{t('landing.hoursSunday', 'Sun: Closed')}</li>
                                 <li>{t('landing.hoursMonday', 'Mon: Closed')}</li>
-                                <li className="pt-2">{t('landing.phoneNumberDisplay', '+1 (555) 123-SUSHI')}</li>
+                                <li className="pt-2">{t('landing.phoneNumberDisplay', "+1 (819) 861-3889")}</li>
                                 <li>{t('landing.emailAddressDisplay', 'contact@maisushi.ca')}</li>
                             </ul>
 
@@ -568,21 +772,30 @@ export const LandingCTAFooter = ({ displaySimple, user: propUser, isAdmin, isSta
                         </p>
 
                         <div className="flex justify-center items-center space-x-4 text-gray-500 text-xs font-light">
-                            <Link to="/privacy" className="hover:text-white transition-colors duration-200">
+                            <button
+                                onClick={() => openPolicyModal('privacy')}
+                                className="hover:text-white transition-colors duration-200"
+                            >
                                 {t('footer.privacy', 'Privacy Policy')}
-                            </Link>
+                            </button>
 
                             <span className="text-gray-600">•</span>
 
-                            <Link to="/cookies-policy" className="hover:text-white transition-colors duration-200">
+                            <button
+                                onClick={() => openPolicyModal('cookies')}
+                                className="hover:text-white transition-colors duration-200"
+                            >
                                 {t('footer.cookies', 'Cookies Policy')}
-                            </Link>
+                            </button>
 
                             <span className="text-gray-600">•</span>
 
-                            <Link to="/terms" className="hover:text-white transition-colors duration-200">
+                            <button
+                                onClick={() => openPolicyModal('terms')}
+                                className="hover:text-white transition-colors duration-200"
+                            >
                                 {t('footer.terms', 'Terms & Conditions')}
-                            </Link>
+                            </button>
                         </div>
 
                         <p className="text-gray-600 text-xs font-light">

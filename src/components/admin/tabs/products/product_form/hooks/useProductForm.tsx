@@ -21,7 +21,11 @@ export const useProductForm = () => {
 
     const [formData, setFormData] = useState({
         name: '',
-        description: '',
+        description: {
+            es: '',
+            fr: '',
+            en: ''
+        },
         category: '',
         portionSize: '',
         sellingPrice: '',
@@ -57,7 +61,11 @@ export const useProductForm = () => {
         setProductType(hasIngredients ? 'ingredientBased' : 'directCost')
         setFormData({
             name: product.name,
-            description: product.description || '',
+            description: {
+                es: product.description?.es || '',
+                fr: product.description?.fr || '',
+                en: product.description?.en || ''
+            },
             category: product.category,
             portionSize: product.portionSize,
             sellingPrice: product.sellingPrice?.toString() || '',
@@ -88,7 +96,11 @@ export const useProductForm = () => {
     const resetForm = () => {
         setFormData({
             name: '',
-            description: '',
+            description: {
+                es: '',
+                fr: '',
+                en: ''
+            },
             category: '',
             portionSize: '',
             sellingPrice: '',
@@ -103,6 +115,7 @@ export const useProductForm = () => {
         setExistingMedia({ imageUrls: [] })
         setUploadProgress(0)
     }
+
 
     const getIngredientName = (id: string) => ingredients.find(i => i.id === id)?.name || 'Unknown Ingredient'
     const getIngredientCost = (ingredient: ProductIngredient) => {

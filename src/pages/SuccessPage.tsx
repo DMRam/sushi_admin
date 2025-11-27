@@ -53,7 +53,6 @@ export default function SuccessPage() {
         const processSuccess = async () => {
             const targetOrderId = orderId || sessionId || paymentIntent;
 
-            // ⭐ ADD DUPLICATE PREVENTION HERE ⭐
             if (!targetOrderId) {
                 console.error("No order ID/session/payment found");
                 setLoading(false);
@@ -171,8 +170,8 @@ export default function SuccessPage() {
                     : new Date(data.createdAt || Date.now()).toISOString(),
                 items,
                 status: data.paymentStatus === 'paid' ? 'completed' : data.status || 'confirmed',
-                delivery_type: data.deliveryType || 'delivery',
-                delivery_address: data.deliveryAddress,
+                delivery_type: data.deliveryType || 'pickup',
+                delivery_address: `${data.shippingAddress.address.line1}, ${data.shippingAddress.address.postal_code}, ${data.shippingAddress.address.city}` || '',
                 customer_name: data.customerInfo.name,
                 customer_email: data.customerEmail,
                 customer_phone: data.customerInfo.phone,
@@ -183,7 +182,7 @@ export default function SuccessPage() {
                     deliveryFee: 0,
                     finalTotal: 0
                 },
-                type: "delivery"
+                type: "pickup"
             };
 
             console.log("📦 Processed order details:", orderData);

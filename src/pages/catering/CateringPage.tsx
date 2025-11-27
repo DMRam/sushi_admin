@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import emailjs from '@emailjs/browser'
 import { useZapierContactForms } from '../landing/hooks/useZapierContactForms'
 import { LandingHeader } from '../landing/components/LandingHeader'
@@ -50,6 +50,10 @@ export const CateringPage = () => {
         promotions: t('landing.promotionsSuccess', "You're all set! You'll receive exclusive offers and updates."),
         general: t('landing.generalSuccess', 'Thank you for your message! We will get back to you soon.')
     }
+
+    useEffect(() => {
+        window.scrollTo(0, 0)
+    }, [])
 
     const sendEmailFallback = async (formData: CateringFormData): Promise<boolean> => {
         try {
@@ -161,7 +165,7 @@ Additional Details: ${formData.message}
 
             if (error instanceof Error) {
                 if (error.message.includes('All submission methods failed')) {
-                    userErrorMessage = 'Unable to submit catering form. Please email us directly at catering@maisushi.ca or call us at +1 (555) 123-SUSHI.'
+                    userErrorMessage = 'Unable to submit catering form. Please email us directly at catering@maisushi.ca or call us at +1 (819) 861-3889.'
                 }
             }
 
@@ -292,8 +296,8 @@ Additional Details: ${formData.message}
                             <div
                                 key={index}
                                 className={`bg-white rounded-lg shadow-lg overflow-hidden border-2 transition-all duration-300 flex flex-col h-full ${selectedPackage === pkg.id
-                                        ? 'border-red-500 shadow-xl'
-                                        : 'border-gray-200 hover:border-gray-300'
+                                    ? 'border-red-500 shadow-xl'
+                                    : 'border-gray-200 hover:border-gray-300'
                                     }`}
                             >
                                 <div className="p-8 flex-1 flex flex-col">
@@ -318,8 +322,8 @@ Additional Details: ${formData.message}
                                             <button
                                                 onClick={() => handlePackageSelect(pkg.id)}
                                                 className={`px-8 py-3 font-light transition-colors duration-300 w-full max-w-xs ${selectedPackage === pkg.id
-                                                        ? 'bg-red-600 text-white hover:bg-red-700'
-                                                        : 'bg-gray-900 text-white hover:bg-gray-800'
+                                                    ? 'bg-red-600 text-white hover:bg-red-700'
+                                                    : 'bg-gray-900 text-white hover:bg-gray-800'
                                                     }`}
                                             >
                                                 {selectedPackage === pkg.id

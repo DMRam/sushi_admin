@@ -23,7 +23,11 @@ export interface IngredientsSectionAndCostProps {
     handleRemoveIngredient: (index: number) => void;
     formData: {
         name: string;
-        description: string;
+        description: {
+            es: string;
+            fr: string;
+            en: string;
+        };
         category: string;
         portionSize: string;
         sellingPrice: string;
@@ -33,7 +37,11 @@ export interface IngredientsSectionAndCostProps {
     };
     setFormData: React.Dispatch<React.SetStateAction<{
         name: string;
-        description: string;
+        description: {
+            es: string;
+            fr: string;
+            en: string;
+        };
         category: string;
         portionSize: string;
         sellingPrice: string;
@@ -68,7 +76,11 @@ export interface MediaUploadProps {
 export interface ProductDetailsProps {
     formData: {
         name: string;
-        description: string;
+        description: {
+            es: string;
+            fr: string;
+            en: string;
+        };
         category: string;
         portionSize: string;
         sellingPrice: string;
@@ -78,7 +90,11 @@ export interface ProductDetailsProps {
     };
     setFormData: React.Dispatch<React.SetStateAction<{
         name: string;
-        description: string;
+        description: {
+            es: string;
+            fr: string;
+            en: string;
+        };
         category: string;
         portionSize: string;
         sellingPrice: string;
@@ -86,6 +102,4 @@ export interface ProductDetailsProps {
         tags: string;
         directCostPrice: string;
     }>>;
-
-
 }

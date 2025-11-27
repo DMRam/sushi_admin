@@ -2,6 +2,8 @@ export interface ZapierPayload {
     order_id: string;
     customer_name: string;
     customer_email: string;
+    customer_phone: string
+    delivery_address:string
 
     customer_info_name?: string;
     shipping_name?: string;

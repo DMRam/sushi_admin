@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, onSnapshot } from 'firebase/firestore'
 import { useTranslation } from 'react-i18next'
-import { Search, ChevronRight, Clock, Star, Sparkles, ChefHat, X, Filter } from 'lucide-react'
+import { Search, ChevronRight, Clock, Star, Sparkles, ChefHat, X, Filter, Plus } from 'lucide-react'
 import { useCartStore } from '../../stores/cartStore'
 import type { MenuItem, Product, ProductIngredient } from '../../types/types'
 import { db } from '../../firebase/firebase'
@@ -31,15 +31,242 @@ const getDietaryFromTags = (tags: string[] = []) => {
     }
 }
 
+// Clean version without the hint
+const ImageModal = ({
+    item,
+    isOpen,
+    onClose,
+    onAddToCart
+}: {
+    item: MenuItem
+    isOpen: boolean
+    onClose: () => void
+    onAddToCart: (item: MenuItem) => void
+}) => {
+    const { t, i18n } = useTranslation()
+    const [isAddingToCart, setIsAddingToCart] = useState(false)
+
+    // Handle scroll locking and unlocking
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden'
+        } else {
+            document.body.style.overflow = 'unset'
+        }
+
+        return () => {
+            document.body.style.overflow = 'unset'
+        }
+    }, [isOpen])
+
+    // Enhanced escape key handling
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isOpen) {
+                onClose()
+            }
+        }
+
+        if (isOpen) {
+            document.addEventListener('keydown', handleEscape)
+            return () => {
+                document.removeEventListener('keydown', handleEscape)
+            }
+        }
+    }, [isOpen, onClose])
+
+    // Enhanced add to cart with beautiful animation
+    const handleAddToCart = () => {
+        setIsAddingToCart(true)
+        onAddToCart(item)
+
+        // Close modal after animation completes
+        setTimeout(() => {
+            onClose()
+            setIsAddingToCart(false)
+        }, 800)
+    }
+
+    if (!isOpen) return null
+
+    const getCurrentLanguageDescription = (description: { es: string; fr: string; en: string }) => {
+        const currentLanguage = i18n.language
+        switch (currentLanguage) {
+            case 'es':
+                return description.es
+            case 'fr':
+                return description.fr
+            case 'en':
+            default:
+                return description.en
+        }
+    }
+
+    const descriptionText = getCurrentLanguageDescription(item.description)
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-lg">
+            <div
+                className="relative bg-white/10 border border-white/20 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden backdrop-blur-xl"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Close Button */}
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 z-20 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white transition-all duration-300 backdrop-blur-sm border border-white/10 hover:border-white/20 hover:scale-110"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+
+                <div className="flex flex-col lg:flex-row h-full">
+                    {/* Image Section - Enhanced with beautiful + button */}
+                    <div className="lg:w-1/2 relative overflow-hidden">
+                        <div className="aspect-square w-full relative">
+                            <img
+                                src={item.image}
+                                alt={item.name}
+                                className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                            />
+                            {/* Gradient Overlay */}
+                            <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
+
+                            {/* Beautiful Floating + Button */}
+                            <button
+                                onClick={handleAddToCart}
+                                className={`absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center text-white transition-all duration-500 group ${isAddingToCart
+                                        ? 'bg-green-500 scale-110 shadow-2xl shadow-green-500/50'
+                                        : 'bg-[#E62B2B] hover:bg-[#ff4444] shadow-2xl shadow-[#E62B2B]/40 hover:shadow-2xl hover:shadow-[#ff4444]/50'
+                                    }`}
+                            >
+                                {/* Success Checkmark Animation */}
+                                {isAddingToCart ? (
+                                    <>
+                                        <div className="absolute inset-0 bg-green-500 rounded-full animate-ping"></div>
+                                        <svg
+                                            className="w-7 h-7 text-white animate-bounce-in"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={3}
+                                                d="M5 13l4 4L19 7"
+                                            />
+                                        </svg>
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Pulse ring on hover */}
+                                        <div className="absolute inset-0 border-2 border-white/30 rounded-full animate-pulse group-hover:animate-none group-hover:scale-125 group-hover:border-white/50 transition-all duration-300"></div>
+
+                                        {/* Plus icon with rotation */}
+                                        <Plus className="w-6 h-6 transition-all duration-500 group-hover:rotate-90 group-hover:scale-110" />
+
+                                        {/* Glow effect */}
+                                        <div className="absolute inset-0 bg-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
+                                    </>
+                                )}
+
+                                {/* Enhanced Tooltip */}
+                                <div className="absolute -top-12 right-0 bg-black/90 text-white px-3 py-2 rounded-lg text-xs font-medium opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap transform group-hover:translate-y-0 translate-y-1 border border-white/20 backdrop-blur-sm">
+                                    {t('common.addToCart')} - ${item.price}
+                                    <div className="absolute -bottom-1 right-5 w-2 h-2 bg-black/90 transform rotate-45 border-r border-b border-white/20"></div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Content Section - Smaller font throughout */}
+                    <div className="lg:w-1/2 flex flex-col h-full">
+                        {/* Scrollable Content Area */}
+                        <div className="flex-1 overflow-y-auto p-5">
+                            {/* Header - Smaller font */}
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="flex-1">
+                                    <h2 className="text-xl font-bold text-white mb-2 leading-tight">{item.name}</h2>
+                                    {item.popular && (
+                                        <div className="inline-flex items-center space-x-1 bg-[#E62B2B] text-white px-2 py-1 rounded-full text-xs font-medium">
+                                            <Star className="w-3 h-3" />
+                                            <span>{t('landing.signature')}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="text-right pl-3">
+                                    <div className="text-xl font-bold text-[#E62B2B]">${item.price}</div>
+                                    <div className="flex items-center space-x-1 text-white/60 text-xs mt-1">
+                                        <Clock className="w-3 h-3" />
+                                        <span>{item.preparationTime}{t('common.min')}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Description - Smaller font */}
+                            <div className="mb-5">
+                                <p className="text-white/70 leading-relaxed text-sm">
+                                    {descriptionText}
+                                </p>
+                            </div>
+
+                            {/* Ingredients - Smaller font */}
+                            {item.ingredients && item.ingredients.length > 0 && (
+                                <div className="mb-5">
+                                    <h4 className="font-medium mb-2 text-xs uppercase tracking-wider text-white/60">
+                                        {t('common.ingredients')}
+                                    </h4>
+                                    <div className="flex flex-wrap gap-1">
+                                        {item.ingredients.map((ingredient, index) => (
+                                            <span
+                                                key={index}
+                                                className="px-2 py-1 bg-white/5 rounded text-white/80 text-xs border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors"
+                                            >
+                                                {ingredient}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Allergens - Smaller font */}
+                            {item.allergens && item.allergens.length > 0 && (
+                                <div className="mb-5">
+                                    <h4 className="font-medium mb-2 text-xs uppercase tracking-wider text-white/60">
+                                        {t('common.allergens')}
+                                    </h4>
+                                    <div className="flex flex-wrap gap-1">
+                                        {item.allergens.map((allergen, index) => (
+                                            <span
+                                                key={index}
+                                                className="px-2 py-1 bg-red-500/10 rounded text-red-300 text-xs border border-red-500/20"
+                                            >
+                                                {allergen}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Simple visual separator (optional) */}
+                        <div className="shrink-0 border-t border-white/10"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 export default function OrderPage() {
     const addToCart = useCartStore((state) => state.addToCart);
     const cart = useCartStore((state) => state.cart)
     const [products, setProducts] = useState<Product[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const { t } = useTranslation()
+    const { t, i18n } = useTranslation()
     const [showSushiBuilder, setShowSushiBuilder] = useState(false);
     const [showFilters, setShowFilters] = useState(false)
+    const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
 
     const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
@@ -47,6 +274,7 @@ export default function OrderPage() {
     const [activeCategory, setActiveCategory] = useState('all')
     const [searchTerm, setSearchTerm] = useState('')
     const [searchInput, setSearchInput] = useState('')
+    const [isModalOpenOP, setIsModalOpenOP] = useState<boolean>(false)
 
     // Enhanced filter state
     const [filters, setFilters] = useState<FilterState>({
@@ -58,6 +286,33 @@ export default function OrderPage() {
         spicyLevel: 0,
         maxPrice: 100
     })
+
+    // Function to get localized description
+    const getLocalizedDescription = useCallback((description: { es: string; fr: string; en: string } | string) => {
+        if (typeof description === 'string') {
+            // Convert string to multilingual object format
+            return {
+                en: description,
+                es: description,
+                fr: description
+            }
+        }
+        return description
+    }, [])
+
+    // Function to get current language description for display
+    const getCurrentLanguageDescription = useCallback((description: { es: string; fr: string; en: string }) => {
+        const currentLanguage = i18n.language
+        switch (currentLanguage) {
+            case 'es':
+                return description.es
+            case 'fr':
+                return description.fr
+            case 'en':
+            default:
+                return description.en
+        }
+    }, [i18n.language])
 
     // Debounce search implementation
     useEffect(() => {
@@ -137,10 +392,13 @@ export default function OrderPage() {
                 ing?.name || 'Unknown Ingredient'
             )
 
+            // Convert description to multilingual object format
+            const multilingualDescription = getLocalizedDescription(product.description || '')
+
             const menuItem: MenuItem = {
                 id: product.id,
                 name: product.name || 'Unnamed Product',
-                description: product.description || '',
+                description: multilingualDescription, // This now matches the MenuItem interface
                 preparation: product.preparation || '',
                 price: product.sellingPrice || 0,
                 image: product.imageUrls?.[0] || '/images/placeholder-food.jpg',
@@ -155,7 +413,7 @@ export default function OrderPage() {
             }
             return menuItem
         })
-    }, [products])
+    }, [products, getLocalizedDescription])
 
     // Enhanced categories with counts
     const categories = useMemo(() => {
@@ -188,8 +446,11 @@ export default function OrderPage() {
         return menuItems.filter(item => {
             const matchesCategory = activeCategory === 'all' || item.category === activeCategory
 
+            // Use localized description for search
+            const descriptionText = getCurrentLanguageDescription(item.description)
+
             const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                descriptionText.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 item.ingredients.some(ing => ing.toLowerCase().includes(searchTerm.toLowerCase()))
 
             // Get dietary info from product tags for filtering
@@ -208,7 +469,7 @@ export default function OrderPage() {
 
             return matchesCategory && matchesSearch && matchesDietary && matchesSpicyLevel && matchesPrice
         })
-    }, [activeCategory, searchTerm, menuItems, filters, products])
+    }, [activeCategory, searchTerm, menuItems, filters, products, getCurrentLanguageDescription])
 
     // Reset filters when category changes
     useEffect(() => {
@@ -227,6 +488,16 @@ export default function OrderPage() {
         console.log('Adding to cart:', item.name)
         addToCart(item)
     }, [addToCart])
+
+    const handleItemSelect = useCallback((item: MenuItem) => {
+        setSelectedItem(item)
+        setIsModalOpenOP(true)
+    }, [])
+
+    const handleCloseModal = useCallback(() => {
+        setSelectedItem(null)
+        setIsModalOpenOP(false)
+    }, [])
 
     const clearAllFilters = useCallback(() => {
         setFilters({
@@ -282,162 +553,181 @@ export default function OrderPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black">
-            <LandingHeader />
-            <div className="h-22"></div>
+        <div className="min-h-screen bg-black relative">
+            {/* Image Modal */}
+            {selectedItem && (
+                <ImageModal
+                    item={selectedItem}
+                    isOpen={isModalOpenOP}
+                    onClose={handleCloseModal}
+                    onAddToCart={handleAddToCart}
+                />
+            )}
 
-            {/* Unified Sticky Header with Search and Filters */}
-            <div className="sticky top-0 z-40 bg-black/95 backdrop-blur-xl border-b border-white/10 shadow-lg">
-                <div className="w-full px-4 sm:px-6">
-                    <div className="max-w-7xl mx-auto">
-                        {/* Search and Filter Bar */}
-                        <div className="flex flex-col md:flex-row gap-4 py-6">
-                            {/* Enhanced Search */}
-                            <div className="flex-1 relative">
-                                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
-                                <input
-                                    type="text"
-                                    placeholder={t('orderPage.searchPlaceholder')}
-                                    value={searchInput}
-                                    onChange={(e) => setSearchInput(e.target.value)}
-                                    className="w-full pl-12 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300 text-sm backdrop-blur-sm"
-                                />
-                                {searchInput && (
-                                    <button
-                                        onClick={() => setSearchInput('')}
-                                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white/40 hover:text-white transition-colors"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Filter Controls */}
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => setShowFilters(!showFilters)}
-                                    className={`px-5 py-3 rounded-xl border transition-all duration-300 flex items-center space-x-2 ${showFilters || activeFiltersCount > 0
-                                            ? 'bg-[#E62B2B] border-[#E62B2B] text-white shadow-lg shadow-[#E62B2B]/25'
-                                            : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20'
-                                        }`}
-                                >
-                                    <Filter className="w-4 h-4" />
-                                    <span className="text-sm font-medium">Filters</span>
-                                    {activeFiltersCount > 0 && (
-                                        <span className="bg-white text-[#E62B2B] text-xs rounded-full w-6 h-6 flex items-center justify-center font-medium">
-                                            {activeFiltersCount}
-                                        </span>
-                                    )}
-                                </button>
-
-                                <button
-                                    onClick={() => setShowSushiBuilder(true)}
-                                    className="bg-[#E62B2B] text-white px-5 py-3 rounded-xl hover:bg-[#ff4444] transition-all duration-300 flex items-center space-x-2 shadow-lg shadow-[#E62B2B]/25 hover:shadow-[#E62B2B]/40"
-                                >
-                                    <ChefHat className="w-4 h-4" />
-                                    <span className="text-sm font-medium">{t('buildYourSushi.title')}</span>
-                                </button>
-                            </div>
+            {
+                !isModalOpenOP && (
+                    <>
+                        <div className="relative z-40">
+                            <LandingHeader />
                         </div>
 
-                        {/* Enhanced Filters Panel */}
-                        {showFilters && (
-                            <div className="pb-6">
-                                <div className="bg-white/5 rounded-2xl p-6 border border-white/10 backdrop-blur-sm">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-white font-medium">Filters</h3>
+                        <div className="h-22"></div>
+
+                        {/* Unified Sticky Header with Search and Filters - Increased z-index */}
+                        <div className="sticky top-0 z-30 bg-black/95 backdrop-blur-xl border-b border-white/10 shadow-lg">
+                            <div className="w-full px-4 sm:px-6">
+                                <div className="max-w-7xl mx-auto">
+                                    {/* Search and Filter Bar */}
+                                    <div className="flex flex-col md:flex-row gap-4 py-6">
+                                        {/* Enhanced Search */}
+                                        <div className="flex-1 relative">
+                                            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
+                                            <input
+                                                type="text"
+                                                placeholder={t('orderPage.searchPlaceholder')}
+                                                value={searchInput}
+                                                onChange={(e) => setSearchInput(e.target.value)}
+                                                className="w-full pl-12 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300 text-sm backdrop-blur-sm"
+                                            />
+                                            {searchInput && (
+                                                <button
+                                                    onClick={() => setSearchInput('')}
+                                                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Filter Controls */}
                                         <div className="flex items-center gap-3">
                                             <button
-                                                onClick={clearAllFilters}
-                                                className="text-white/60 hover:text-white text-sm transition-colors font-medium"
+                                                onClick={() => setShowFilters(!showFilters)}
+                                                className={`px-5 py-3 rounded-xl border transition-all duration-300 flex items-center space-x-2 ${showFilters || activeFiltersCount > 0
+                                                    ? 'bg-[#E62B2B] border-[#E62B2B] text-white shadow-lg shadow-[#E62B2B]/25'
+                                                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20'
+                                                    }`}
                                             >
-                                                Clear all
+                                                <Filter className="w-4 h-4" />
+                                                <span className="text-sm font-medium">Filters</span>
+                                                {activeFiltersCount > 0 && (
+                                                    <span className="bg-white text-[#E62B2B] text-xs rounded-full w-6 h-6 flex items-center justify-center font-medium">
+                                                        {activeFiltersCount}
+                                                    </span>
+                                                )}
                                             </button>
+
                                             <button
-                                                onClick={() => setShowFilters(false)}
-                                                className="text-white/60 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5"
+                                                onClick={() => setShowSushiBuilder(true)}
+                                                className="bg-[#E62B2B] text-white px-5 py-3 rounded-xl hover:bg-[#ff4444] transition-all duration-300 flex items-center space-x-2 shadow-lg shadow-[#E62B2B]/25 hover:shadow-[#E62B2B]/40"
                                             >
-                                                <X className="w-5 h-5" />
+                                                <ChefHat className="w-4 h-4" />
+                                                <span className="text-sm font-medium">{t('buildYourSushi.title')}</span>
                                             </button>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        {/* Dietary Filters */}
-                                        <div>
-                                            <label className="text-white/80 text-sm font-medium mb-4 block">Dietary</label>
-                                            <div className="space-y-3">
-                                                {[
-                                                    { key: 'vegetarian', label: 'Vegetarian' },
-                                                    { key: 'vegan', label: 'Vegan' },
-                                                    { key: 'glutenFree', label: 'Gluten Free' }
-                                                ].map(({ key, label }) => (
-                                                    <label key={key} className="flex items-center space-x-3 text-white/60 hover:text-white cursor-pointer transition-colors group">
+                                    {/* Enhanced Filters Panel */}
+                                    {showFilters && (
+                                        <div className="pb-6">
+                                            <div className="bg-white/5 rounded-2xl p-6 border border-white/10 backdrop-blur-sm">
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <h3 className="text-white font-medium">Filters</h3>
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={clearAllFilters}
+                                                            className="text-white/60 hover:text-white text-sm transition-colors font-medium"
+                                                        >
+                                                            Clear all
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setShowFilters(false)}
+                                                            className="text-white/60 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5"
+                                                        >
+                                                            <X className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                    {/* Dietary Filters */}
+                                                    <div>
+                                                        <label className="text-white/80 text-sm font-medium mb-4 block">Dietary</label>
+                                                        <div className="space-y-3">
+                                                            {[
+                                                                { key: 'vegetarian', label: 'Vegetarian' },
+                                                                { key: 'vegan', label: 'Vegan' },
+                                                                { key: 'glutenFree', label: 'Gluten Free' }
+                                                            ].map(({ key, label }) => (
+                                                                <label key={key} className="flex items-center space-x-3 text-white/60 hover:text-white cursor-pointer transition-colors group">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={filters.dietary[key as keyof typeof filters.dietary]}
+                                                                        onChange={(e) => setFilters(prev => ({
+                                                                            ...prev,
+                                                                            dietary: { ...prev.dietary, [key]: e.target.checked }
+                                                                        }))}
+                                                                        className="rounded border-white/20 bg-white/5 text-[#E62B2B] focus:ring-[#E62B2B] focus:ring-2 focus:ring-offset-2 focus:ring-offset-black transition-colors group-hover:border-white/40"
+                                                                    />
+                                                                    <span className="text-sm font-medium">{label}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Spicy Level */}
+                                                    <div>
+                                                        <label className="text-white/80 text-sm font-medium mb-4 block">Spicy Level</label>
+                                                        <div className="space-y-3">
+                                                            {[0, 1, 2].map(level => (
+                                                                <label key={level} className="flex items-center space-x-3 text-white/60 hover:text-white cursor-pointer transition-colors group">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="spicyLevel"
+                                                                        checked={filters.spicyLevel === level}
+                                                                        onChange={() => setFilters(prev => ({ ...prev, spicyLevel: level }))}
+                                                                        className="border-white/20 bg-white/5 text-[#E62B2B] focus:ring-[#E62B2B] focus:ring-2 focus:ring-offset-2 focus:ring-offset-black transition-colors group-hover:border-white/40"
+                                                                    />
+                                                                    <span className="text-sm font-medium">
+                                                                        {level === 0 ? 'Mild' : level === 1 ? 'Medium' : 'Spicy'}
+                                                                    </span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Price Range */}
+                                                    <div>
+                                                        <label className="text-white/80 text-sm font-medium mb-4 block">
+                                                            Max Price: <span className="text-[#E62B2B]">${filters.maxPrice}</span>
+                                                        </label>
                                                         <input
-                                                            type="checkbox"
-                                                            checked={filters.dietary[key as keyof typeof filters.dietary]}
+                                                            type="range"
+                                                            min="0"
+                                                            max="100"
+                                                            step="5"
+                                                            value={filters.maxPrice}
                                                             onChange={(e) => setFilters(prev => ({
                                                                 ...prev,
-                                                                dietary: { ...prev.dietary, [key]: e.target.checked }
+                                                                maxPrice: parseInt(e.target.value)
                                                             }))}
-                                                            className="rounded border-white/20 bg-white/5 text-[#E62B2B] focus:ring-[#E62B2B] focus:ring-2 focus:ring-offset-2 focus:ring-offset-black transition-colors group-hover:border-white/40"
+                                                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#E62B2B] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg hover:[&::-webkit-slider-thumb]:scale-110 transition-transform"
                                                         />
-                                                        <span className="text-sm font-medium">{label}</span>
-                                                    </label>
-                                                ))}
+                                                        <div className="flex justify-between text-xs text-white/40 mt-2">
+                                                            <span>$0</span>
+                                                            <span>$100</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-
-                                        {/* Spicy Level */}
-                                        <div>
-                                            <label className="text-white/80 text-sm font-medium mb-4 block">Spicy Level</label>
-                                            <div className="space-y-3">
-                                                {[0, 1, 2].map(level => (
-                                                    <label key={level} className="flex items-center space-x-3 text-white/60 hover:text-white cursor-pointer transition-colors group">
-                                                        <input
-                                                            type="radio"
-                                                            name="spicyLevel"
-                                                            checked={filters.spicyLevel === level}
-                                                            onChange={() => setFilters(prev => ({ ...prev, spicyLevel: level }))}
-                                                            className="border-white/20 bg-white/5 text-[#E62B2B] focus:ring-[#E62B2B] focus:ring-2 focus:ring-offset-2 focus:ring-offset-black transition-colors group-hover:border-white/40"
-                                                        />
-                                                        <span className="text-sm font-medium">
-                                                            {level === 0 ? 'Mild' : level === 1 ? 'Medium' : 'Spicy'}
-                                                        </span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Price Range */}
-                                        <div>
-                                            <label className="text-white/80 text-sm font-medium mb-4 block">
-                                                Max Price: <span className="text-[#E62B2B]">${filters.maxPrice}</span>
-                                            </label>
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="100"
-                                                step="5"
-                                                value={filters.maxPrice}
-                                                onChange={(e) => setFilters(prev => ({
-                                                    ...prev,
-                                                    maxPrice: parseInt(e.target.value)
-                                                }))}
-                                                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#E62B2B] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg hover:[&::-webkit-slider-thumb]:scale-110 transition-transform"
-                                            />
-                                            <div className="flex justify-between text-xs text-white/40 mt-2">
-                                                <span>$0</span>
-                                                <span>$100</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
-                        )}
-                    </div>
-                </div>
-            </div>
+                        </div>
+                    </>
+                )
+            }
 
             {/* Enhanced Hero Section with Better Spacing */}
             <div className="relative pt-16 pb-12">
@@ -446,38 +736,19 @@ export default function OrderPage() {
                         {/* Gradient Title */}
                         <div className="mb-8">
                             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-light text-white mb-8 tracking-tight leading-none">
-                                <span className="bg-gradient-to-r from-white via-white to-[#E62B2B] bg-clip-text text-transparent">
+                                <span className="bg-linear-to-r from-white via-white to-[#E62B2B] bg-clip-text text-transparent">
                                     MAI
                                 </span>
                                 <span className="text-[#E62B2B] mx-3">|</span>
                                 <span className="text-white">MENU</span>
                             </h1>
-                            <div className="w-32 h-1 bg-gradient-to-r from-transparent via-[#E62B2B] to-transparent mx-auto rounded-full shadow-lg shadow-[#E62B2B]/30"></div>
+                            <div className="w-32 h-1 bg-linear-to-r from-transparent via-[#E62B2B] to-transparent mx-auto rounded-full shadow-lg shadow-[#E62B2B]/30"></div>
                         </div>
 
                         {/* Minimal Description */}
                         <p className="text-white/60 mb-8 max-w-xl mx-auto text-lg leading-relaxed">
                             {t('landing.philosophy')}
                         </p>
-
-                        {/* Enhanced CTA Buttons */}
-                        {/* <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-                            <button
-                                onClick={() => setShowSushiBuilder(true)}
-                                className="bg-[#E62B2B] text-white px-8 py-4 rounded-xl hover:bg-[#ff4444] transition-all duration-300 flex items-center space-x-3 shadow-lg shadow-[#E62B2B]/25 hover:shadow-[#E62B2B]/40 hover:scale-105"
-                            >
-                                <ChefHat className="w-5 h-5" />
-                                <span className="font-medium">{t('buildYourSushi.title')}</span>
-                            </button>
-
-                            <Link
-                                to="#menu"
-                                className="border border-white/20 text-white px-8 py-4 rounded-xl hover:bg-white/5 transition-all duration-300 flex items-center space-x-3 hover:scale-105"
-                            >
-                                <Star className="w-5 h-5" />
-                                <span className="font-medium">{t('featured.signatureCreations')}</span>
-                            </Link>
-                        </div> */}
 
                         {/* Enhanced Metrics */}
                         <div className="flex flex-wrap justify-center gap-6 text-sm">
@@ -508,14 +779,14 @@ export default function OrderPage() {
                                 key={category.id}
                                 onClick={() => setActiveCategory(category.id)}
                                 className={`px-6 py-3 capitalize transition-all duration-300 rounded-xl border text-sm font-medium flex items-center space-x-2 group ${activeCategory === category.id
-                                        ? 'bg-[#E62B2B] text-white border-[#E62B2B] shadow-lg shadow-[#E62B2B]/25'
-                                        : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white hover:border-white/20'
+                                    ? 'bg-[#E62B2B] text-white border-[#E62B2B] shadow-lg shadow-[#E62B2B]/25'
+                                    : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white hover:border-white/20'
                                     }`}
                             >
                                 <span>{category.id === 'all' ? t('orderPage.allItems') : category.name}</span>
                                 <span className={`text-xs px-2 py-1 rounded-full ${activeCategory === category.id
-                                        ? 'bg-white/20 text-white'
-                                        : 'bg-white/10 text-white/40'
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-white/10 text-white/40'
                                     }`}>
                                     {category.count}
                                 </span>
@@ -583,6 +854,9 @@ export default function OrderPage() {
                                     <MenuItemCard
                                         item={item}
                                         onAddToCart={handleAddToCart}
+                                        isModalOpenOP={isModalOpenOP}
+                                        setIsModalOpenOP={setIsModalOpenOP}
+                                        onItemSelect={handleItemSelect}
                                     />
                                 </div>
                             ))}
@@ -630,7 +904,7 @@ export default function OrderPage() {
 
             {/* Enhanced Floating Cart */}
             {cart.length > 0 && (
-                <div className="fixed bottom-6 right-6 z-50">
+                <div className="fixed bottom-6 right-6 z-40">
                     <Link
                         to="/checkout"
                         className="bg-[#E62B2B] text-white px-6 py-4 rounded-xl hover:bg-[#ff4444] transition-all duration-300 shadow-2xl shadow-[#E62B2B]/25 hover:shadow-[#E62B2B]/40 hover:scale-105 flex items-center space-x-4"

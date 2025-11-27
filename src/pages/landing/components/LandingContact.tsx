@@ -110,7 +110,7 @@ Submitted: ${new Date().toLocaleString()}
 
             if (error instanceof Error) {
                 if (error.message.includes('All submission methods failed')) {
-                    userErrorMessage = 'Unable to submit form. Please email us directly at contact@maisushi.ca or call us at +1 (555) 123-SUSHI.'
+                    userErrorMessage = 'Unable to submit form. Please email us directly at contact@maisushi.ca or call us at +1 (819) 861-3889.'
                 }
             }
 
@@ -227,7 +227,7 @@ Submitted: ${new Date().toLocaleString()}
                             <div className="space-y-4">
                                 <div className="flex items-center text-gray-600">
                                     <Phone className="w-4 h-4 mr-3 text-[#E62B2B]" />
-                                    <span className="font-light">{t('landing.phoneNumberDisplay', '+1 (555) 123-SUSHI')}</span>
+                                    <span className="font-light">{t('landing.phoneNumberDisplay', '+1 (819) 861-3889')}</span>
                                 </div>
                                 <div className="flex items-center text-gray-600">
                                     <Mail className="w-4 h-4 mr-3 text-[#E62B2B]" />

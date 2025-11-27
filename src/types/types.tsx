@@ -24,7 +24,11 @@ export type Product = {
   allergens: never[]
   id: string
   name: string
-  description: string
+  description: {
+    es: string
+    fr: string
+    en: string
+  }
   preparation: string
   ingredients: ProductIngredient[]
   costPrice?: number
@@ -346,7 +350,11 @@ export type FinancialReport = {
 export interface MenuItem {
   id: string
   name: string
-  description: string
+  description: {
+    es: string;
+    fr: string;
+    en: string;
+  };
   preparation: string
   price: number
   image: string
@@ -363,7 +371,11 @@ export interface MenuItem {
 export interface WebProduct {
   id?: string
   name: string
-  description: string
+  description: {
+    es: string;
+    fr: string;
+    en: string;
+  };
   price: number
   imageUrl: string
   category: string
