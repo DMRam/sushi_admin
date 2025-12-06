@@ -31,7 +31,11 @@ interface TaxSettings {
   enabled: boolean
 }
 
-export default function SalesEntryForm() {
+interface SalesEntryFormProps {
+  isMobile?: boolean
+}
+
+export default function SalesEntryForm({ isMobile = false }: SalesEntryFormProps) {
   const { addSale, fixPendingOrders } = useSales()
   const { products } = useProducts()
   const { ingredients, updateIngredient } = useIngredients()
@@ -69,6 +73,7 @@ export default function SalesEntryForm() {
 
   const [processing, setProcessing] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [showQuickProducts, setShowQuickProducts] = useState(!isMobile) // Hide on mobile by default
 
   // Quebec Tax Rates (2024)
   const [taxSettings] = useState<TaxSettings>({
@@ -174,6 +179,11 @@ export default function SalesEntryForm() {
       quantity: 1,
       salePrice: ''
     })
+    
+    // Auto-hide quick products on mobile after adding
+    if (isMobile) {
+      setShowQuickProducts(false)
+    }
   }
 
   const removeFromCart = (index: number) => {
@@ -440,7 +450,6 @@ export default function SalesEntryForm() {
     }
   }
 
-
   const handleFixOrders = async () => {
     try {
       const result = await fixPendingOrders();
@@ -464,21 +473,21 @@ export default function SalesEntryForm() {
   const profitTotal = taxableAmount - costTotal
 
   return (
-    <div className="space-y-6">
-      {/* Price Approval Modal */}
+    <div className="space-y-4 sm:space-y-6">
+      {/* Price Approval Modal - Responsive */}
       {showPriceApprovalModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-yellow-800 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className={`bg-white rounded-lg w-full max-w-md mx-auto ${isMobile ? 'p-4' : 'p-6'}`}>
+            <h3 className={`font-semibold text-yellow-800 mb-3 ${isMobile ? 'text-base' : 'text-lg'}`}>
               ⚠️ Price Reduction Requires Approval
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className={`text-gray-600 mb-4 ${isMobile ? 'text-sm' : ''}`}>
               You are reducing the price below the original selling price.
               This action requires administrator approval.
             </p>
             {pendingPriceChange && (
               <div className="bg-yellow-50 p-3 rounded mb-4">
-                <p className="text-sm">
+                <p className={`${isMobile ? 'text-xs' : 'text-sm'}`}>
                   Original Price: ${pendingPriceChange.index === -1
                     ? selectedProduct?.sellingPrice
                     : cart[pendingPriceChange.index]?.originalPrice
@@ -487,23 +496,23 @@ export default function SalesEntryForm() {
                 </p>
               </div>
             )}
-            <div className="flex gap-3">
+            <div className={`flex gap-2 sm:gap-3 ${isMobile ? 'flex-col' : ''}`}>
               <button
                 onClick={() => setShowPriceApprovalModal(false)}
-                className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400"
+                className={`${isMobile ? 'w-full' : 'flex-1'} bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400 ${isMobile ? 'text-sm' : ''}`}
               >
                 Cancel
               </button>
               <button
                 onClick={approvePriceChange}
-                className="flex-1 bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600"
+                className={`${isMobile ? 'w-full' : 'flex-1'} bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600 ${isMobile ? 'text-sm' : ''}`}
               >
                 Request Approval
               </button>
               {isAdmin && (
                 <button
                   onClick={approvePriceChange}
-                  className="flex-1 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600"
+                  className={`${isMobile ? 'w-full' : 'flex-1'} bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 ${isMobile ? 'text-sm' : ''}`}
                 >
                   Approve as Admin
                 </button>
@@ -513,11 +522,11 @@ export default function SalesEntryForm() {
         </div>
       )}
 
-      {/* Discount Modal */}
+      {/* Discount Modal - Responsive */}
       {showDiscountModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className={`bg-white rounded-lg w-full max-w-md mx-auto ${isMobile ? 'p-4' : 'p-6'}`}>
+            <h3 className={`font-semibold text-gray-900 mb-4 ${isMobile ? 'text-base' : 'text-lg'}`}>
               Apply Discount
             </h3>
             <DiscountForm
@@ -525,44 +534,45 @@ export default function SalesEntryForm() {
               onCancel={() => setShowDiscountModal(false)}
               isAdmin={isAdmin}
               subtotal={subtotal}
+              isMobile={isMobile}
             />
           </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Date and Time */}
-        <div className="grid grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+        {/* Date and Time - Responsive */}
+        <div className={`grid gap-3 sm:gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
               Sale Date *
             </label>
             <input
               type="date"
               value={saleData.saleDate}
               onChange={(e) => setSaleData({ ...saleData, saleDate: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
               Sale Time *
             </label>
             <input
               type="time"
               value={saleData.saleTime}
               onChange={(e) => setSaleData({ ...saleData, saleTime: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
               required
             />
           </div>
         </div>
 
-        {/* Customer Information */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Customer Information - Responsive */}
+        <div className={`grid gap-3 sm:gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
               Customer Name
             </label>
             <input
@@ -570,11 +580,11 @@ export default function SalesEntryForm() {
               value={saleData.customerName}
               onChange={(e) => setSaleData({ ...saleData, customerName: e.target.value })}
               placeholder="Walk-in Customer"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
               Customer Email
             </label>
             <input
@@ -582,21 +592,21 @@ export default function SalesEntryForm() {
               value={saleData.customerEmail}
               onChange={(e) => setSaleData({ ...saleData, customerEmail: e.target.value })}
               placeholder="customer@example.com"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
             />
           </div>
         </div>
 
-        {/* Sale Type and Payment Status */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Sale Type and Payment Status - Responsive */}
+        <div className={`grid gap-3 sm:gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
               Sale Type *
             </label>
             <select
               value={saleData.saleType}
               onChange={(e) => setSaleData({ ...saleData, saleType: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
               required
             >
               <option value="walk_in">Walk-in</option>
@@ -607,13 +617,13 @@ export default function SalesEntryForm() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
               Payment Status *
             </label>
             <select
               value={saleData.paymentStatus}
               onChange={(e) => setSaleData({ ...saleData, paymentStatus: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
               required
             >
               <option value="completed">Completed</option>
@@ -624,26 +634,28 @@ export default function SalesEntryForm() {
           </div>
         </div>
 
-        {/* Add Product to Cart Section */}
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Add Products</h3>
+        {/* Add Product to Cart Section - Responsive */}
+        <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 sm:p-4">
+          <h3 className={`font-semibold text-gray-900 mb-3 ${isMobile ? 'text-base' : 'text-lg'}`}>
+            Add Products
+          </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+          <div className={`grid gap-3 mb-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                 Product *
               </label>
               <select
                 value={currentProduct.productId}
                 onChange={(e) => setCurrentProduct({ ...currentProduct, productId: e.target.value })}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
               >
                 <option value="">Select a product</option>
                 {products
                   .filter(product => product.sellingPrice && product.isActive !== false)
                   .map(product => (
                     <option key={product.id} value={product.id}>
-                      {product.name} - ${product.sellingPrice}
+                      {isMobile ? product.name : `${product.name} - $${product.sellingPrice}`}
                     </option>
                   ))
                 }
@@ -651,7 +663,7 @@ export default function SalesEntryForm() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                 Quantity *
               </label>
               <input
@@ -659,12 +671,12 @@ export default function SalesEntryForm() {
                 min="1"
                 value={currentProduct.quantity}
                 onChange={(e) => setCurrentProduct({ ...currentProduct, quantity: parseInt(e.target.value) || 1 })}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                 Price *
               </label>
               <input
@@ -673,7 +685,7 @@ export default function SalesEntryForm() {
                 min="0"
                 value={currentProduct.salePrice}
                 onChange={(e) => setCurrentProduct({ ...currentProduct, salePrice: e.target.value })}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
                 placeholder="0.00"
               />
             </div>
@@ -682,23 +694,23 @@ export default function SalesEntryForm() {
           <button
             type="button"
             onClick={addToCart}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+            className={`w-full bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium ${isMobile ? 'py-2 px-3 text-sm' : 'py-2 px-4'}`}
           >
             + Add to Cart
           </button>
         </div>
 
-        {/* Shopping Cart */}
+        {/* Shopping Cart - Responsive */}
         {cart.length > 0 && (
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+            <div className={`flex justify-between items-center mb-3 ${isMobile ? 'flex-col sm:flex-row gap-2' : ''}`}>
+              <h3 className={`font-semibold text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>
                 Cart ({cart.length} {cart.length === 1 ? 'item' : 'items'})
               </h3>
               <button
                 type="button"
                 onClick={() => setShowDiscountModal(true)}
-                className="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 text-sm font-medium"
+                className={`bg-purple-600 text-white rounded-md hover:bg-purple-700 font-medium ${isMobile ? 'py-1.5 px-3 text-xs' : 'py-2 px-4 text-sm'}`}
               >
                 Apply Discount
               </button>
@@ -706,83 +718,97 @@ export default function SalesEntryForm() {
 
             <div className="space-y-3">
               {cart.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded border">
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900">{item.productName}</div>
-                    <div className="text-sm text-gray-600">{item.portionSize}</div>
-                    {item.salePrice < item.originalPrice && (
-                      <div className="text-xs text-green-600">
-                        Discounted from ${item.originalPrice.toFixed(2)}
+                <div key={index} className={`bg-gray-50 rounded border ${isMobile ? 'p-2' : 'p-3'}`}>
+                  <div className={`flex ${isMobile ? 'flex-col sm:flex-row sm:items-center sm:justify-between gap-2' : 'items-center justify-between'}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className={`font-medium text-gray-900 truncate ${isMobile ? 'text-sm' : ''}`}>
+                        {item.productName}
                       </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => updateCartItem(index, 'quantity', Math.max(1, item.quantity - 1))}
-                        className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
-                      >
-                        -
-                      </button>
-                      <span className="w-12 text-center font-medium">{item.quantity}</span>
-                      <button
-                        type="button"
-                        onClick={() => updateCartItem(index, 'quantity', item.quantity + 1)}
-                        className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
-                      >
-                        +
-                      </button>
+                      <div className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                        {item.portionSize}
+                      </div>
+                      {item.salePrice < item.originalPrice && (
+                        <div className={`text-green-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                          Discounted from ${item.originalPrice.toFixed(2)}
+                        </div>
+                      )}
                     </div>
 
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={item.salePrice}
-                      onChange={(e) => updateCartItem(index, 'salePrice', parseFloat(e.target.value) || 0)}
-                      className="w-20 border border-gray-300 rounded px-2 py-1 text-right"
-                    />
+                    <div className={`flex items-center gap-2 sm:gap-4 ${isMobile ? 'justify-between mt-2 sm:mt-0' : ''}`}>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => updateCartItem(index, 'quantity', Math.max(1, item.quantity - 1))}
+                          className={`flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'}`}
+                        >
+                          -
+                        </button>
+                        <span className={`font-medium ${isMobile ? 'w-8 text-center text-sm' : 'w-12 text-center'}`}>
+                          {item.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateCartItem(index, 'quantity', item.quantity + 1)} 
+                          className={`flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'}`}
+                        >
+                          +
+                        </button>
+                      </div>
 
-                    <div className="w-20 text-right font-medium">
-                      ${(item.quantity * item.salePrice).toFixed(2)}
+                      <div className="flex items-center gap-2">
+                        <span className={`text-gray-600 ${isMobile ? 'hidden sm:inline text-xs' : 'text-sm'}`}>
+                          @
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.salePrice}
+                          onChange={(e) => updateCartItem(index, 'salePrice', parseFloat(e.target.value) || 0)}
+                          className={`border border-gray-300 rounded text-right ${isMobile ? 'w-16 px-1.5 py-1 text-sm' : 'w-20 px-2 py-1'}`}
+                        />
+                      </div>
+
+                      <div className={`font-medium text-right ${isMobile ? 'w-16 text-sm' : 'w-20'}`}>
+                        ${(item.quantity * item.salePrice).toFixed(2)}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeFromCart(index)}
+                        className={`text-red-600 hover:text-red-800 ${isMobile ? 'p-1 text-lg' : 'p-1'}`}
+                        title="Remove item"
+                      >
+                        🗑️
+                      </button>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => removeFromCart(index)}
-                      className="text-red-600 hover:text-red-800 p-1"
-                    >
-                      🗑️
-                    </button>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Cart Summary */}
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            {/* Cart Summary - Responsive */}
+            <div className="mt-4 bg-blue-50 rounded-lg border border-blue-200 p-3 sm:p-4">
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-blue-900">Subtotal:</span>
-                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+                  <span className={`text-blue-900 ${isMobile ? 'text-sm' : ''}`}>Subtotal:</span>
+                  <span className={`font-medium ${isMobile ? 'text-sm' : ''}`}>${subtotal.toFixed(2)}</span>
                 </div>
 
                 {discount && (
                   <div className="flex justify-between text-green-600">
-                    <span>Discount:</span>
-                    <span>-${discountAmount.toFixed(2)}</span>
+                    <span className={isMobile ? 'text-sm' : ''}>Discount:</span>
+                    <span className={`font-medium ${isMobile ? 'text-sm' : ''}`}>-${discountAmount.toFixed(2)}</span>
                   </div>
                 )}
 
                 {taxSettings.enabled && (
                   <>
-                    <div className="flex justify-between text-gray-600 text-sm">
+                    <div className={`flex justify-between text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                       <span>GST ({taxSettings.gst}%):</span>
                       <span>${taxes.gst.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-gray-600 text-sm">
+                    <div className={`flex justify-between text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                       <span>QST ({taxSettings.qst}%):</span>
                       <span>${taxes.qst.toFixed(2)}</span>
                     </div>
@@ -790,20 +816,19 @@ export default function SalesEntryForm() {
                 )}
 
                 <div className="flex justify-between items-center border-t border-blue-200 pt-2">
-                  <span className="font-medium text-blue-900">Total:</span>
-                  <span className="text-xl font-bold text-blue-700">
+                  <span className={`font-medium text-blue-900 ${isMobile ? 'text-base' : ''}`}>Total:</span>
+                  <span className={`font-bold text-blue-700 ${isMobile ? 'text-lg' : 'text-xl'}`}>
                     ${taxes.total.toFixed(2)}
                   </span>
                 </div>
 
                 {(costTotal > 0 && userProfile?.role === 'admin') && (
-                  <div className="text-sm text-blue-600 border-t border-blue-200 pt-2">
-
+                  <div className={`text-blue-600 border-t border-blue-200 pt-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                     Cost: ${costTotal.toFixed(2)} • Profit: ${profitTotal.toFixed(2)}
                   </div>
                 )}
 
-                <div className="text-xs text-blue-500 mt-1">
+                <div className={`text-blue-500 mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}>
                   ⚠️ This will decrease ingredient stock levels for ingredient-based products
                 </div>
               </div>
@@ -811,11 +836,13 @@ export default function SalesEntryForm() {
 
             {/* Discount Display */}
             {discount && (
-              <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
+              <div className="mt-3 bg-green-50 rounded border border-green-200 p-3">
                 <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-medium text-green-800">Discount Applied</span>
-                    <div className="text-sm text-green-600">
+                  <div className="min-w-0">
+                    <div className={`font-medium text-green-800 ${isMobile ? 'text-sm' : ''}`}>
+                      Discount Applied
+                    </div>
+                    <div className={`text-green-600 truncate ${isMobile ? 'text-xs' : 'text-sm'}`}>
                       {discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value}`}
                       {discount.reason && ` - ${discount.reason}`}
                     </div>
@@ -823,7 +850,7 @@ export default function SalesEntryForm() {
                   <button
                     type="button"
                     onClick={removeDiscount}
-                    className="text-red-600 hover:text-red-800 text-sm"
+                    className={`text-red-600 hover:text-red-800 ${isMobile ? 'text-xs' : 'text-sm'}`}
                   >
                     Remove
                   </button>
@@ -838,15 +865,16 @@ export default function SalesEntryForm() {
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center text-sm text-blue-600 hover:text-blue-800 mb-2"
+            className={`flex items-center text-blue-600 hover:text-blue-800 mb-2 ${isMobile ? 'text-xs' : 'text-sm'}`}
           >
-            <span>{showAdvanced ? '▼' : '▶'} Advanced Options</span>
+            <span className="mr-1">{showAdvanced ? '▼' : '▶'}</span>
+            Advanced Options
           </button>
 
           {showAdvanced && (
-            <div className="grid grid-cols-2 gap-4 mt-2 p-4 bg-gray-50 rounded-lg">
+            <div className={`bg-gray-50 rounded-lg p-3 sm:p-4 ${isMobile ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-2 gap-4'}`}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                   Order ID
                 </label>
                 <input
@@ -854,11 +882,11 @@ export default function SalesEntryForm() {
                   value={saleData.orderId}
                   onChange={(e) => setSaleData({ ...saleData, orderId: e.target.value })}
                   placeholder="Optional order reference"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                   Stripe Session ID
                 </label>
                 <input
@@ -866,7 +894,7 @@ export default function SalesEntryForm() {
                   value={saleData.stripeSessionId}
                   onChange={(e) => setSaleData({ ...saleData, stripeSessionId: e.target.value })}
                   placeholder="Optional Stripe session ID"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
                 />
               </div>
             </div>
@@ -878,11 +906,12 @@ export default function SalesEntryForm() {
           <button
             type="submit"
             disabled={processing}
-            className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 font-medium disabled:bg-green-400 disabled:cursor-not-allowed transition-colors duration-200"
+            className={`w-full bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 font-medium disabled:bg-green-400 disabled:cursor-not-allowed transition-colors duration-200 ${isMobile ? 'py-2.5 px-3 text-sm' : 'py-3 px-4'}`}
           >
             {processing ? (
               <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <div className="animate-spin rounded-full border-b-2 border-white mr-2" 
+                  style={{ width: isMobile ? '14px' : '16px', height: isMobile ? '14px' : '16px' }}></div>
                 Processing {cart.length} {cart.length === 1 ? 'Sale' : 'Sales'}...
               </div>
             ) : (
@@ -892,20 +921,89 @@ export default function SalesEntryForm() {
         )}
       </form>
 
-      {/* Recent Sales */}
+      {/* Quick Add Products Toggle for Mobile */}
+      {isMobile && (
+        <div className="border-t pt-4">
+          <button
+            type="button"
+            onClick={() => setShowQuickProducts(!showQuickProducts)}
+            className="flex items-center justify-center w-full text-blue-600 hover:text-blue-800 text-sm font-medium"
+          >
+            <span className="mr-1">{showQuickProducts ? '▼' : '▶'}</span>
+            Quick Add Products
+          </button>
+        </div>
+      )}
+
+      {/* Quick Sales Buttons - Responsive */}
+      {(showQuickProducts || !isMobile) && (
+        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+          <h3 className={`font-semibold text-gray-900 mb-3 ${isMobile ? 'text-base' : 'text-lg'}`}>
+            Quick Add Products
+          </h3>
+          <div className={`grid gap-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-3'}`}>
+            {products
+              .filter(product => product.sellingPrice && product.isActive !== false)
+              .slice(0, isMobile ? 3 : 6)
+              .map(product => (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => {
+                    setCurrentProduct({
+                      productId: product.id,
+                      quantity: 1,
+                      salePrice: product.sellingPrice!.toString()
+                    })
+                    // Scroll to top on mobile for better UX
+                    if (isMobile) {
+                      document.querySelector('form')?.scrollIntoView({ behavior: 'smooth' })
+                    }
+                  }}
+                  className={`text-left bg-blue-50 rounded border border-blue-200 hover:bg-blue-100 transition-colors duration-200 ${isMobile ? 'p-2' : 'p-3'}`}
+                >
+                  <div className={`font-medium text-blue-900 truncate ${isMobile ? 'text-sm' : ''}`}>
+                    {product.name}
+                  </div>
+                  <div className={`text-blue-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                    ${product.sellingPrice}
+                  </div>
+                  <div className={`text-blue-500 truncate ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                    {product.portionSize}
+                  </div>
+                </button>
+              ))
+            }
+          </div>
+        </div>
+      )}
+
+      {/* Recent Sales - Responsive */}
       {recentSales.length > 0 && (
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Recent Sales</h3>
+        <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 sm:p-4">
+          <h3 className={`font-semibold text-gray-900 mb-3 ${isMobile ? 'text-base' : 'text-lg'}`}>
+            Recent Sales
+          </h3>
           <div className="space-y-2">
             {recentSales.map((sale, index) => (
-              <div key={index} className="flex justify-between items-center p-3 bg-white rounded border">
-                <div className="flex-1">
-                  <div className="font-medium text-gray-900">{sale.products}</div>
-                  <div className="text-sm text-gray-600">{sale.customerName}</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-green-600">${sale.totalAmount.toFixed(2)}</div>
-                  <div className="text-xs text-gray-500">{sale.timestamp}</div>
+              <div key={index} className="bg-white rounded border p-2 sm:p-3">
+                <div className={`flex ${isMobile ? 'flex-col gap-1' : 'justify-between items-center'}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-medium text-gray-900 truncate ${isMobile ? 'text-sm' : ''}`}>
+                      {sale.products}
+                    </div>
+                    <div className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      {sale.customerName}
+                    </div>
+                  </div>
+                  <div className={`${isMobile ? 'flex justify-between items-center mt-1' : 'text-right'}`}>
+                    <div className={`font-bold text-green-600 ${isMobile ? 'text-sm' : ''}`}>
+                      ${sale.totalAmount.toFixed(2)}
+                    </div>
+                    <div className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                      {sale.timestamp}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -913,48 +1011,21 @@ export default function SalesEntryForm() {
         </div>
       )}
 
-      {/* Quick Sales Buttons */}
-      <div className="bg-white p-4 rounded-lg border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Add Products</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {products
-            .filter(product => product.sellingPrice && product.isActive !== false)
-            .slice(0, 6)
-            .map(product => (
-              <button
-                key={product.id}
-                type="button"
-                onClick={() => {
-                  setCurrentProduct({
-                    productId: product.id,
-                    quantity: 1,
-                    salePrice: product.sellingPrice!.toString()
-                  })
-                }}
-                className="p-3 text-left bg-blue-50 rounded border border-blue-200 hover:bg-blue-100 transition-colors duration-200"
-              >
-                <div className="font-medium text-blue-900 truncate">{product.name}</div>
-                <div className="text-sm text-blue-700">${product.sellingPrice}</div>
-                <div className="text-xs text-blue-500 truncate">{product.portionSize}</div>
-              </button>
-            ))
-          }
-        </div>
-      </div>
-
-      {/* Admin Tools Section */}
-      <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <h3 className="text-lg font-semibold text-yellow-800 mb-2">Admin Tools</h3>
+      {/* Admin Tools Section - Responsive */}
+      <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4">
+        <h3 className={`font-semibold text-yellow-800 mb-2 ${isMobile ? 'text-base' : 'text-lg'}`}>
+          Admin Tools
+        </h3>
 
         <button
           type="button"
           onClick={handleFixOrders}
-          className="bg-yellow-500 text-white py-2 px-4 rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors duration-200"
+          className={`bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors duration-200 ${isMobile ? 'py-1.5 px-3 text-sm w-full' : 'py-2 px-4'}`}
         >
           🔧 Fix Pending Orders & Create Sales
         </button>
 
-        <p className="text-sm text-yellow-700 mt-2">
+        <p className={`text-yellow-700 mt-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
           This will process all pending Stripe orders and create sales records for them.
         </p>
       </div>
@@ -962,13 +1033,14 @@ export default function SalesEntryForm() {
   )
 }
 
-// Discount Form Component
+// Discount Form Component - Responsive
 const DiscountForm: React.FC<{
   onApply: (discount: Discount) => void
   onCancel: () => void
   isAdmin: boolean
   subtotal: number
-}> = ({ onApply, onCancel, isAdmin, subtotal }) => {
+  isMobile?: boolean
+}> = ({ onApply, onCancel, isAdmin, subtotal, isMobile = false }) => {
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage')
   const [discountValue, setDiscountValue] = useState('')
   const [reason, setReason] = useState('')
@@ -1012,15 +1084,15 @@ const DiscountForm: React.FC<{
     : 0
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
           Discount Type
         </label>
         <select
           value={discountType}
           onChange={(e) => setDiscountType(e.target.value as 'percentage' | 'fixed')}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
         >
           <option value="percentage">Percentage (%)</option>
           <option value="fixed">Fixed Amount ($)</option>
@@ -1028,7 +1100,7 @@ const DiscountForm: React.FC<{
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
           Discount Value
         </label>
         <input
@@ -1038,28 +1110,28 @@ const DiscountForm: React.FC<{
           max={discountType === 'percentage' ? 100 : subtotal}
           value={discountValue}
           onChange={(e) => setDiscountValue(e.target.value)}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
           placeholder={discountType === 'percentage' ? '10' : '5.00'}
           required
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
           Reason (Optional)
         </label>
         <input
           type="text"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
           placeholder="Special promotion, customer complaint, etc."
         />
       </div>
 
       {discountValue && (
-        <div className="bg-blue-50 p-3 rounded border border-blue-200">
-          <div className="text-sm text-blue-800">
+        <div className="bg-blue-50 rounded border border-blue-200 p-2 sm:p-3">
+          <div className={`text-blue-800 ${isMobile ? 'text-xs' : 'text-sm'}`}>
             Discount Amount: <strong>${discountAmount.toFixed(2)}</strong><br />
             New Subtotal: <strong>${(subtotal - discountAmount).toFixed(2)}</strong>
           </div>
@@ -1067,25 +1139,25 @@ const DiscountForm: React.FC<{
       )}
 
       {!isAdmin && (
-        <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
-          <div className="text-sm text-yellow-800">
+        <div className="bg-yellow-50 rounded border border-yellow-200 p-2 sm:p-3">
+          <div className={`text-yellow-800 ${isMobile ? 'text-xs' : 'text-sm'}`}>
             ⚠️ Only administrators can apply discounts
           </div>
         </div>
       )}
 
-      <div className="flex gap-3 pt-2">
+      <div className={`flex gap-2 sm:gap-3 pt-2 ${isMobile ? 'flex-col' : ''}`}>
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400"
+          className={`bg-gray-300 text-gray-700 rounded hover:bg-gray-400 ${isMobile ? 'w-full py-2 text-sm' : 'flex-1 py-2 px-4'}`}
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={!isAdmin}
-          className="flex-1 bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700 disabled:bg-purple-400 disabled:cursor-not-allowed"
+          className={`bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-purple-400 disabled:cursor-not-allowed ${isMobile ? 'w-full py-2 text-sm' : 'flex-1 py-2 px-4'}`}
         >
           Apply Discount
         </button>

@@ -10,7 +10,8 @@ export type Ingredient = {
   minimumStock: number
   currentStock: number
   createdAt: string
-  stockGrams: number
+  stockGrams: number;
+  displayOnBYOS: boolean;
 }
 
 export type ProductIngredient = {

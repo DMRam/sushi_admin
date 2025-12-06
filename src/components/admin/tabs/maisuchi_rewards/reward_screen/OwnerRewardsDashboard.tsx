@@ -3,7 +3,11 @@ import { useState, useEffect } from 'react';
 import { OwnerRewardsService } from '../services/OwnerRewardsService';
 import type { Reward } from '../../../../../pages/client_hub/service/RewardsService';
 
-export function OwnerRewardsDashboard() {
+interface OwnerRewardsDashboardProps {
+  isMobile?: boolean;
+}
+
+export function OwnerRewardsDashboard({ isMobile = false }: OwnerRewardsDashboardProps) {
     const [rewards, setRewards] = useState<(Reward & any)[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeSection, setActiveSection] = useState<'management' | 'redemption'>('management');
@@ -105,96 +109,103 @@ export function OwnerRewardsDashboard() {
         }
     };
 
+    const clearMessage = () => {
+        setTimeout(() => setMessage(null), 3000);
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
                 <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading rewards...</p>
+                    <div className={`border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4 ${isMobile ? 'w-12 h-12' : 'w-16 h-16'}`}></div>
+                    <p className={`text-gray-600 ${isMobile ? 'text-sm' : ''}`}>Loading rewards...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="p-6">
-            <h1 className="text-2xl font-bold mb-6">Rewards Management</h1>
+        <div className={`${isMobile ? 'p-3' : 'p-6'}`}>
+            <h1 className={`font-bold mb-4 ${isMobile ? 'text-xl' : 'text-2xl'}`}>Rewards Management</h1>
 
-            {/* Navigation Tabs */}
-            <div className="flex border-b border-gray-200 mb-6">
+            {/* Navigation Tabs - Responsive */}
+            <div className={`flex border-b border-gray-200 mb-4 sm:mb-6 ${isMobile ? 'overflow-x-auto' : ''}`}>
                 <button
                     onClick={() => setActiveSection('management')}
-                    className={`px-4 py-2 font-medium ${activeSection === 'management'
+                    className={`font-medium whitespace-nowrap ${isMobile ? 'px-3 py-2 text-sm' : 'px-4 py-2'} ${activeSection === 'management'
                         ? 'border-b-2 border-blue-500 text-blue-600'
                         : 'text-gray-500 hover:text-gray-700'
                         }`}
                 >
-                    Reward Management
+                    {isMobile ? 'Management' : 'Reward Management'}
                 </button>
                 <button
                     onClick={() => setActiveSection('redemption')}
-                    className={`px-4 py-2 font-medium ${activeSection === 'redemption'
+                    className={`font-medium whitespace-nowrap ${isMobile ? 'px-3 py-2 text-sm' : 'px-4 py-2'} ${activeSection === 'redemption'
                         ? 'border-b-2 border-blue-500 text-blue-600'
                         : 'text-gray-500 hover:text-gray-700'
                         }`}
                 >
-                    In-Person Redemption
+                    {isMobile ? 'Redemption' : 'In-Person Redemption'}
                 </button>
             </div>
 
             {/* Message Display */}
             {message && (
-                <div className={`p-4 rounded-lg mb-4 ${message.type === 'success'
-                    ? 'bg-green-100 text-green-800 border border-green-200'
-                    : 'bg-red-100 text-red-800 border border-red-200'
-                    }`}>
+                <div 
+                    className={`rounded-lg mb-4 ${isMobile ? 'p-3 text-sm' : 'p-4'} ${message.type === 'success'
+                        ? 'bg-green-100 text-green-800 border border-green-200'
+                        : 'bg-red-100 text-red-800 border border-red-200'
+                        }`}
+                    onAnimationEnd={clearMessage}
+                >
                     {message.text}
                 </div>
             )}
 
             {/* Management Section */}
             {activeSection === 'management' && (
-                <div>
-                    {/* Create New Reward Form */}
-                    <div className="bg-white p-6 rounded-lg shadow mb-6">
-                        <h2 className="text-lg font-semibold mb-4">Create New Reward</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4 sm:space-y-6">
+                    {/* Create New Reward Form - Responsive */}
+                    <div className="bg-white p-3 sm:p-4 md:p-6 rounded-lg shadow mb-4 sm:mb-6">
+                        <h2 className={`font-semibold mb-3 sm:mb-4 ${isMobile ? 'text-base' : 'text-lg'}`}>Create New Reward</h2>
+                        <div className={`grid gap-3 sm:gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                                <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>Name *</label>
                                 <input
                                     type="text"
                                     value={newReward.name}
                                     onChange={(e) => setNewReward({ ...newReward, name: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
                                     placeholder="Reward name"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Points Required</label>
+                                <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>Points Required</label>
                                 <input
                                     type="number"
                                     value={newReward.points_required}
                                     onChange={(e) => setNewReward({ ...newReward, points_required: parseInt(e.target.value) || 0 })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
                                     placeholder="0"
                                 />
                             </div>
-                            <div className="md:col-span-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                            <div className={isMobile ? '' : 'md:col-span-2'}>
+                                <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>Description *</label>
                                 <textarea
                                     value={newReward.description}
                                     onChange={(e) => setNewReward({ ...newReward, description: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
                                     placeholder="Reward description"
-                                    rows={2}
+                                    rows={isMobile ? 2 : 3}
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>Type</label>
                                 <select
                                     value={newReward.type}
                                     onChange={(e) => setNewReward({ ...newReward, type: e.target.value as any })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
                                 >
                                     <option value="discount">Discount</option>
                                     <option value="free_item">Free Item</option>
@@ -203,22 +214,22 @@ export function OwnerRewardsDashboard() {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Valid Until</label>
+                                <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>Valid Until</label>
                                 <input
                                     type="date"
                                     value={newReward.valid_until}
                                     onChange={(e) => setNewReward({ ...newReward, valid_until: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
                                 />
                             </div>
                             {newReward.type === 'discount' && (
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Discount Percentage</label>
+                                    <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>Discount %</label>
                                     <input
                                         type="number"
                                         value={newReward.discount_percentage}
                                         onChange={(e) => setNewReward({ ...newReward, discount_percentage: parseInt(e.target.value) || 0 })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
                                         placeholder="10"
                                         min="0"
                                         max="100"
@@ -227,12 +238,12 @@ export function OwnerRewardsDashboard() {
                             )}
                             {newReward.type === 'free_item' && (
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Free Item Name</label>
+                                    <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>Free Item Name</label>
                                     <input
                                         type="text"
                                         value={newReward.free_item_name}
                                         onChange={(e) => setNewReward({ ...newReward, free_item_name: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'}`}
                                         placeholder="Free item name"
                                     />
                                 </div>
@@ -240,194 +251,295 @@ export function OwnerRewardsDashboard() {
                         </div>
                         <button
                             onClick={handleCreateReward}
-                            className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                            className={`mt-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors ${isMobile ? 'w-full py-2.5 text-sm' : 'px-6 py-2'}`}
                         >
                             Create Reward
                         </button>
                     </div>
 
-                    {/* Quick Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-white p-4 rounded-lg shadow">
-                            <h3 className="text-lg font-semibold">Total Rewards</h3>
-                            <p className="text-2xl">{rewards.length}</p>
+                    {/* Quick Stats - Responsive */}
+                    <div className={`grid gap-3 sm:gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'}`}>
+                        <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
+                            <h3 className={`font-semibold ${isMobile ? 'text-sm' : 'text-base'}`}>Total Rewards</h3>
+                            <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mt-1`}>{rewards.length}</p>
                         </div>
-                        <div className="bg-white p-4 rounded-lg shadow">
-                            <h3 className="text-lg font-semibold">Active Rewards</h3>
-                            <p className="text-2xl text-green-600">
+                        <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
+                            <h3 className={`font-semibold ${isMobile ? 'text-sm' : 'text-base'}`}>Active Rewards</h3>
+                            <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-green-600 mt-1`}>
                                 {rewards.filter(r => r.is_active).length}
                             </p>
                         </div>
-                        <div className="bg-white p-4 rounded-lg shadow">
-                            <h3 className="text-lg font-semibold">Total Claims</h3>
-                            <p className="text-2xl text-blue-600">
+                        <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
+                            <h3 className={`font-semibold ${isMobile ? 'text-sm' : 'text-base'}`}>Total Claims</h3>
+                            <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-blue-600 mt-1`}>
                                 {rewards.reduce((sum, r) => sum + (r.total_claimed || 0), 0)}
                             </p>
                         </div>
-                        <div className="bg-white p-4 rounded-lg shadow">
-                            <h3 className="text-lg font-semibold">Avg. Redemption Rate</h3>
-                            <p className="text-2xl text-orange-600">
+                        <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
+                            <h3 className={`font-semibold ${isMobile ? 'text-sm' : 'text-base'}`}>Avg. Redemption Rate</h3>
+                            <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-orange-600 mt-1`}>
                                 {rewards.length > 0 ? Math.round(rewards.reduce((sum, r) => sum + (r.redemption_rate || 0), 0) / rewards.length) : 0}%
                             </p>
                         </div>
                     </div>
 
-                    {/* Rewards Table */}
+                    {/* Rewards Table - Responsive */}
                     <div className="bg-white rounded-lg shadow overflow-hidden">
-                        <table className="min-w-full">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left">Reward</th>
-                                    <th className="px-6 py-3 text-left">Points</th>
-                                    <th className="px-6 py-3 text-left">Claims</th>
-                                    <th className="px-6 py-3 text-left">Redemption Rate</th>
-                                    <th className="px-6 py-3 text-left">Status</th>
-                                    <th className="px-6 py-3 text-left">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        {isMobile ? (
+                            /* Mobile Card View */
+                            <div className="divide-y divide-gray-200">
                                 {rewards.map((reward) => (
-                                    <tr key={reward.id} className="border-t">
-                                        <td className="px-6 py-4">
-                                            <div>
-                                                <p className="font-medium">{reward.name}</p>
-                                                <p className="text-sm text-gray-500">{reward.description}</p>
+                                    <div key={reward.id} className="p-3 hover:bg-gray-50">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex-1">
+                                                <h3 className="font-medium text-gray-900">{reward.name}</h3>
+                                                <p className="text-xs text-gray-500 truncate">{reward.description}</p>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4">{reward.points_required}</td>
-                                        <td className="px-6 py-4">
-                                            {reward.total_claimed} claimed<br />
-                                            <span className="text-sm text-gray-500">
-                                                {reward.total_used} used
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs ${reward.redemption_rate >= 50 ? 'bg-green-100 text-green-800' :
-                                                reward.redemption_rate >= 25 ? 'bg-yellow-100 text-yellow-800' :
-                                                    'bg-red-100 text-red-800'
-                                                }`}>
-                                                {reward.redemption_rate}%
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs ${reward.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                                }`}>
-                                                {reward.is_active ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
                                             <button
                                                 onClick={() => handleToggleActive(reward.id, !reward.is_active)}
-                                                className={`px-3 py-1 rounded text-sm ${reward.is_active
+                                                className={`px-2 py-1 rounded text-xs ml-2 ${reward.is_active
                                                     ? 'bg-red-500 text-white hover:bg-red-600'
                                                     : 'bg-green-500 text-white hover:bg-green-600'
                                                     }`}
                                             >
                                                 {reward.is_active ? 'Deactivate' : 'Activate'}
                                             </button>
-                                        </td>
-                                    </tr>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div>
+                                                <span className="text-gray-600">Points: </span>
+                                                <span className="font-medium">{reward.points_required}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-600">Claims: </span>
+                                                <span className="font-medium">{reward.total_claimed || 0}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-600">Rate: </span>
+                                                <span className={`px-1 rounded ${reward.redemption_rate >= 50 ? 'bg-green-100 text-green-800' :
+                                                    reward.redemption_rate >= 25 ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-red-100 text-red-800'
+                                                    }`}>
+                                                    {reward.redemption_rate}%
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-600">Status: </span>
+                                                <span className={`px-1 rounded ${reward.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                                    }`}>
+                                                    {reward.is_active ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                            </div>
+                        ) : (
+                            /* Desktop Table View */
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className={`font-medium text-left ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'}`}>Reward</th>
+                                            <th className={`font-medium text-left ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'}`}>Points</th>
+                                            <th className={`font-medium text-left ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'}`}>Claims</th>
+                                            <th className={`font-medium text-left ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'}`}>Redemption Rate</th>
+                                            <th className={`font-medium text-left ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'}`}>Status</th>
+                                            <th className={`font-medium text-left ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'}`}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {rewards.map((reward) => (
+                                            <tr key={reward.id} className="hover:bg-gray-50">
+                                                <td className={`${isMobile ? 'px-3 py-2' : 'px-4 py-3'}`}>
+                                                    <div>
+                                                        <p className="font-medium text-gray-900">{reward.name}</p>
+                                                        <p className="text-sm text-gray-500">{reward.description}</p>
+                                                    </div>
+                                                </td>
+                                                <td className={`${isMobile ? 'px-3 py-2' : 'px-4 py-3'}`}>{reward.points_required}</td>
+                                                <td className={`${isMobile ? 'px-3 py-2' : 'px-4 py-3'}`}>
+                                                    {reward.total_claimed} claimed<br />
+                                                    <span className="text-sm text-gray-500">
+                                                        {reward.total_used} used
+                                                    </span>
+                                                </td>
+                                                <td className={`${isMobile ? 'px-3 py-2' : 'px-4 py-3'}`}>
+                                                    <span className={`px-2 py-1 rounded-full text-xs ${reward.redemption_rate >= 50 ? 'bg-green-100 text-green-800' :
+                                                        reward.redemption_rate >= 25 ? 'bg-yellow-100 text-yellow-800' :
+                                                            'bg-red-100 text-red-800'
+                                                        }`}>
+                                                        {reward.redemption_rate}%
+                                                    </span>
+                                                </td>
+                                                <td className={`${isMobile ? 'px-3 py-2' : 'px-4 py-3'}`}>
+                                                    <span className={`px-2 py-1 rounded-full text-xs ${reward.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                                        }`}>
+                                                        {reward.is_active ? 'Active' : 'Inactive'}
+                                                    </span>
+                                                </td>
+                                                <td className={`${isMobile ? 'px-3 py-2' : 'px-4 py-3'}`}>
+                                                    <button
+                                                        onClick={() => handleToggleActive(reward.id, !reward.is_active)}
+                                                        className={`rounded text-sm ${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1'} ${reward.is_active
+                                                            ? 'bg-red-500 text-white hover:bg-red-600'
+                                                            : 'bg-green-500 text-white hover:bg-green-600'
+                                                            }`}
+                                                    >
+                                                        {reward.is_active ? 'Deactivate' : 'Activate'}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
 
             {/* Redemption Section */}
             {activeSection === 'redemption' && (
-                <div className="bg-white p-6 rounded-lg shadow">
-                    <h2 className="text-xl font-bold mb-4">Reward Redemption</h2>
+                <div className="bg-white p-3 sm:p-4 md:p-6 rounded-lg shadow space-y-4 sm:space-y-6">
+                    <h2 className={`font-bold ${isMobile ? 'text-lg' : 'text-xl'}`}>Reward Redemption</h2>
 
                     {/* Search Section */}
-                    <div className="mb-6">
-                        <div className="flex gap-4 mb-4">
+                    <div>
+                        <div className={`flex gap-2 sm:gap-4 mb-4 ${isMobile ? 'flex-col' : ''}`}>
                             <input
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 onKeyPress={handleKeyPress}
                                 placeholder="Enter redemption code, customer name, or email..."
-                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className={`border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'w-full px-3 py-2 text-sm' : 'flex-1 px-4 py-2'}`}
                             />
                             <button
                                 onClick={handleSearch}
                                 disabled={!searchTerm.trim()}
-                                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                                className={`bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 ${isMobile ? 'w-full py-2.5 text-sm' : 'px-6 py-2'}`}
                             >
-                                Search
+                                {isMobile ? 'Search' : 'Search'}
                             </button>
                         </div>
 
                         {/* QR Scanner Placeholder */}
-                        <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg mb-4">
-                            <p className="text-gray-500">QR Scanner Placeholder</p>
-                            <p className="text-sm text-gray-400">(Camera integration for QR code scanning)</p>
+                        <div className={`text-center border-2 border-dashed border-gray-300 rounded-lg mb-4 ${isMobile ? 'py-3' : 'py-4'}`}>
+                            <p className={`text-gray-500 ${isMobile ? 'text-sm' : ''}`}>QR Scanner Placeholder</p>
+                            <p className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>(Camera integration for QR code scanning)</p>
                         </div>
                     </div>
 
                     {/* Search Results */}
                     {searchResults.length > 0 && (
                         <div className="border rounded-lg overflow-hidden">
-                            <table className="min-w-full">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left">Customer</th>
-                                        <th className="px-4 py-3 text-left">Reward</th>
-                                        <th className="px-4 py-3 text-left">Code</th>
-                                        <th className="px-4 py-3 text-left">Status</th>
-                                        <th className="px-4 py-3 text-left">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {/* In the search results table - ENHANCED VERSION */}
+                            {isMobile ? (
+                                /* Mobile Card View for Search Results */
+                                <div className="divide-y divide-gray-200">
                                     {searchResults.map((result) => {
-                                        // Handle different user data structures
                                         const userName = result.user?.full_name || result.user?.[0]?.full_name || 'Unknown Customer';
                                         const userEmail = result.user?.email || result.user?.[0]?.email || 'No email';
 
                                         return (
-                                            <tr key={result.id} className="border-t">
-                                                <td className="px-4 py-3">
+                                            <div key={result.id} className="p-3 hover:bg-gray-50">
+                                                <div className="mb-2">
+                                                    <h3 className="font-medium text-gray-900">{userName}</h3>
+                                                    <p className="text-xs text-gray-500">{userEmail}</p>
+                                                </div>
+                                                <div className="mb-2">
+                                                    <p className="text-sm font-medium">{result.reward?.name || result.reward?.[0]?.name}</p>
+                                                    <p className="text-xs text-gray-500 truncate">{result.reward?.description || result.reward?.[0]?.description}</p>
+                                                </div>
+                                                <div className="flex justify-between items-center">
                                                     <div>
-                                                        <p className="font-medium text-gray-900">{userName}</p>
-                                                        <p className="text-sm text-gray-500">{userEmail}</p>
+                                                        <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
+                                                            {result.redemption_code}
+                                                        </span>
+                                                        <span className={`ml-2 px-2 py-1 rounded-full text-xs ${result.is_used
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : 'bg-yellow-100 text-yellow-800'
+                                                            }`}>
+                                                            {result.is_used ? 'Used' : 'Available'}
+                                                        </span>
                                                     </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <p className="font-medium">{result.reward?.name || result.reward?.[0]?.name}</p>
-                                                    <p className="text-sm text-gray-500">{result.reward?.description || result.reward?.[0]?.description}</p>
-                                                </td>
-                                                <td className="px-4 py-3 font-mono text-sm">{result.redemption_code}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`px-2 py-1 rounded-full text-xs ${result.is_used
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : 'bg-yellow-100 text-yellow-800'
-                                                        }`}>
-                                                        {result.is_used ? 'Used' : 'Available'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3">
                                                     {!result.is_used && (
                                                         <button
                                                             onClick={() => handleRedeem(result.redemption_code)}
                                                             disabled={redeeming === result.redemption_code}
-                                                            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
+                                                            className={`bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 ${isMobile ? 'px-3 py-1.5 text-xs' : 'px-4 py-2'}`}
                                                         >
-                                                            {redeeming === result.redemption_code ? 'Processing...' : 'Redeem'}
+                                                            {redeeming === result.redemption_code ? '...' : 'Redeem'}
                                                         </button>
                                                     )}
-                                                </td>
-                                            </tr>
+                                                </div>
+                                            </div>
                                         );
                                     })}
-                                </tbody>
-                            </table>
+                                </div>
+                            ) : (
+                                /* Desktop Table View for Search Results */
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-sm font-medium">Customer</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium">Reward</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium">Code</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {searchResults.map((result) => {
+                                                const userName = result.user?.full_name || result.user?.[0]?.full_name || 'Unknown Customer';
+                                                const userEmail = result.user?.email || result.user?.[0]?.email || 'No email';
+
+                                                return (
+                                                    <tr key={result.id} className="border-t hover:bg-gray-50">
+                                                        <td className="px-4 py-3">
+                                                            <div>
+                                                                <p className="font-medium text-gray-900">{userName}</p>
+                                                                <p className="text-sm text-gray-500">{userEmail}</p>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <p className="font-medium">{result.reward?.name || result.reward?.[0]?.name}</p>
+                                                            <p className="text-sm text-gray-500">{result.reward?.description || result.reward?.[0]?.description}</p>
+                                                        </td>
+                                                        <td className="px-4 py-3 font-mono text-sm">{result.redemption_code}</td>
+                                                        <td className="px-4 py-3">
+                                                            <span className={`px-2 py-1 rounded-full text-xs ${result.is_used
+                                                                    ? 'bg-green-100 text-green-800'
+                                                                    : 'bg-yellow-100 text-yellow-800'
+                                                                }`}>
+                                                                {result.is_used ? 'Used' : 'Available'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            {!result.is_used && (
+                                                                <button
+                                                                    onClick={() => handleRedeem(result.redemption_code)}
+                                                                    disabled={redeeming === result.redemption_code}
+                                                                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
+                                                                >
+                                                                    {redeeming === result.redemption_code ? 'Processing...' : 'Redeem'}
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     )}
 
                     {searchTerm && searchResults.length === 0 && (
-                        <div className="text-center py-8 text-gray-500">
+                        <div className={`text-center text-gray-500 ${isMobile ? 'py-6 text-sm' : 'py-8'}`}>
                             No rewards found matching your search
                         </div>
                     )}
