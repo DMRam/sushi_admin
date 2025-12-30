@@ -6,7 +6,8 @@ import { useState, useEffect } from 'react'
 import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../../../firebase/firebase'
 import { supabase } from '../../../lib/supabase'
-import logo from '../../../assets/logo/logo_maisushi_illustratorX_white.svg'
+// import logo from '../../../assets/logo/logo_maisushi_illustratorX_white.svg'
+import logo from '../../../assets/logo/newlogo_white.svg'
 import { AuthModal } from '../../../pages/components/AuthModal'
 import { X, FileText } from 'lucide-react'
 
@@ -666,14 +667,14 @@ export const LandingCTAFooter = ({ displaySimple, user: propUser, isAdmin, isSta
                                     </>
                                 ) : (
                                     <>
-                                        <li>
+                                        {/* <li>
                                             <button
                                                 onClick={() => openAuthModal(true)}
                                                 className="hover:text-white transition-colors duration-300 text-gray-400 text-left"
                                             >
                                                 {t('header.signIn', 'Customer Sign In')}
                                             </button>
-                                        </li>
+                                        </li> */}
                                         <li>
                                             <button
                                                 onClick={toggleAdminLogin}
