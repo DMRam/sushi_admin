@@ -26,6 +26,7 @@ const BusinessAnalyticsPage = lazy(() => import('./pages/admin/BusinessAnalytics
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const ProfilePage = lazy(() => import('./pages/admin/ProfilePage'))
 const NavBar = lazy(() => import('./components/web/NavBar'))
+const KitchenPage = lazy(() => import('./pages/admin/kitchen/KitchenPage'))
 
 // Lazy load context providers
 const AdminProviders = lazy(() => import('./components/AdminProviders'))
@@ -57,6 +58,7 @@ function AppContent() {
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
             <Route path="/sales-tracking" element={<SalesTrackingPage />} />
+            <Route path="/kitchen" element={<KitchenPage />} />
             <Route path="/purchases" element={<PurchasesPage />} />
             <Route path="/stock" element={<StockPage />} />
             <Route path="/products" element={<ProductsPage />} />

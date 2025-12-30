@@ -48,7 +48,6 @@ export type Product = {
   featured?: boolean
 }
 
-// In your types file (types.ts)
 export type Purchase = {
   id: string
   purchaseType: 'ingredient' | 'supply'

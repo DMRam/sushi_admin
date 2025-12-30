@@ -81,7 +81,6 @@
     "categories": "Catégories",
     "exploreCategories": "Explorez Nos Catégories",
     "culinaryPortfolio": "Parcourez notre portfolio culinaire",
-
     "foundMatches": "Trouvé {{count}} résultats pour \"{{term}}\"",
     "showcasingCreations": "Présentation de {{count}} créations culinaires",
     "categorySelections": "{{count}} sélections {{category}}"
@@ -154,7 +153,8 @@
     "logout": "Déconnexion",
     "management": "Gestion",
     "client": "Client",
-    "orders": "Explorer le Menu"
+    "orders": "Explorer le Menu",
+    "kitchen": "Cuisine"
   },
   "landing": {
     "philosophy": "Nous nous concentrons sur l'équilibre, la fraîcheur et la saveur honnête dans chaque plat.",
@@ -325,7 +325,7 @@
     "placeOrder": "Passer la Commande",
     "client": "Client",
     "orderNow": "Commander Maintenant",
-     "watchVideo": "Regarder la Vidéo",
+    "watchVideo": "Regarder la Vidéo",
     "viewDetails": "Voir les Détails",
     "popular": "Populaire",
     "min": "min",
@@ -549,5 +549,110 @@
     "rejectAll": "Tout refuser",
     "customize": "Personnaliser",
     "acceptAll": "Tout accepter"
+  },
+  "kitchen": {
+    "title": "Gestion de la Cuisine",
+    "subtitle": "Gérez la préparation des aliments et suivez la progression des commandes",
+    "stats": {
+      "inQueue": "En Attente",
+      "preparing": "En Préparation",
+      "ready": "Prêt",
+      "completed": "Terminé"
+    },
+    "instructions": {
+      "title": "Comment Utiliser",
+      "steps": [
+        "Cliquez sur une commande de la file d'attente pour commencer la préparation",
+        "Cochez les étapes au fur et à mesure que vous les terminez",
+        "Marquez la commande comme prête lorsque tous les articles sont préparés"
+      ]
+    },
+    "tabs": {
+      "queue": "File d'Attente",
+      "preparation": "Préparation",
+      "completed": "Terminées",
+      "all": "Toutes les Commandes"
+    },
+    "orderQueue": {
+      "noOrders": "Aucune Commande en Attente",
+      "noOrdersMessage": "Les nouvelles commandes apparaîtront ici automatiquement",
+      "sortedBy": "Trié par heure de commande",
+      "clickToStart": "Cliquez pour commencer la préparation",
+      "order": "Commande",
+      "orderTime": "Heure de Commande",
+      "customer": "Client",
+      "type": "Type",
+      "items": "Articles",
+      "estimatedTime": "Temps Est.",
+      "startPreparation": "Commencer la Préparation",
+      "pickupOrder": "Commande à Emporter",
+      "deliveryOrder": "Livraison"
+    },
+    "orderPreparation": {
+      "preparingOrder": "Préparation de la Commande",
+      "progress": "Progression",
+      "markAsReady": "Marquer comme Prêt",
+      "cancel": "Annuler",
+      "requiredIngredients": "Ingrédients Requis",
+      "noIngredients": "Aucune donnée d'ingrédients disponible",
+      "ingredientsHint": "Assurez-vous que les produits ont des ingrédients définis dans les paramètres",
+      "preparationSteps": "Étapes de Préparation",
+      "orderItems": "Articles de la Commande",
+      "status": "Statut",
+      "estimatedTotalTime": "Temps Total Estimé",
+      "basedOnPrepTimes": "Basé sur les temps de préparation",
+      "minutes": "minutes",
+      "gatherIngredients": "Rassembler Tous les Ingrédients",
+      "gatherDescription": "Collectez tous les ingrédients nécessaires du stockage",
+      "prepareItem": "Préparer {{item}} ({{quantity}}x)",
+      "qualityCheck": "Contrôle Qualité et Emballage",
+      "qualityDescription": "Vérifiez que tous les articles sont correctement préparés et emballez pour le client",
+      "ready": "Prêt",
+      "pending": "En Attente",
+      "confirmComplete": "Marquer cette commande comme prête pour retrait/livraison ?",
+      "totalRequired": "Total requis"
+    },
+    "completedOrders": {
+      "title": "Commandes Terminées",
+      "noOrders": "Aucune commande terminée pour le moment",
+      "completedToday": "Terminées Aujourd'hui",
+      "orderNumber": "Commande #",
+      "completionTime": "Terminé à",
+      "preparationTime": "Temps de Préparation",
+      "viewDetails": "Voir les Détails"
+    },
+    "status": {
+      "pending": "En Attente",
+      "preparing": "En Préparation",
+      "ready": "Prêt",
+      "completed": "Terminé"
+    },
+    "buttons": {
+      "start": "Commencer la Préparation",
+      "complete": "Terminer la Commande",
+      "back": "Retour à la File",
+      "refresh": "Actualiser les Commandes",
+      "viewAll": "Voir Toutes les Commandes"
+    },
+    "messages": {
+      "loading": "Chargement des données de la cuisine...",
+      "selectOrder": "Veuillez sélectionner une commande de la file d'attente pour commencer la préparation",
+      "orderUpdated": "Statut de la commande mis à jour avec succès",
+      "errorUpdating": "Échec de la mise à jour du statut de la commande",
+      "orderCompleted": "Commande marquée comme terminée",
+      "webhookTriggered": "Notification envoyée avec succès"
+    },
+    "time": {
+      "minutes": "min",
+      "hours": "h",
+      "now": "À l'instant",
+      "today": "Aujourd'hui",
+      "yesterday": "Hier"
+    },
+    "notifications": {
+      "newOrder": "Nouvelle Commande Reçue",
+      "orderReady": "Commande Prête à Être Récupérée",
+      "deliveryReady": "Commande de Livraison Prête"
+    }
   }
 }

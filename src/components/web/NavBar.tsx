@@ -30,6 +30,7 @@ export default function NavBar() {
     // Define navigation links with translation - using safe fallbacks
     const navLinks: NavLink[] = [
         { path: '/admin/sales-tracking', label: t('nav.salesTracking', 'Sales Tracking'), allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
+        { path: '/admin/kitchen', label: t('nav.kitchen', 'Kitchen'), allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
         { path: '/admin/purchases', label: t('nav.purchases', 'Purchases'), allowedRoles: [UserRole.MANAGER, UserRole.ADMIN] },
         { path: '/admin/products', label: t('nav.products', 'Products'), allowedRoles: [UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
         { path: '/admin/stock', label: t('nav.stock', 'Stock'), allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
@@ -60,16 +61,16 @@ export default function NavBar() {
     const getLinkClass = (path: string) => {
         const isActive = loc.pathname.startsWith(path)
         return `px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${isActive
-                ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            ? 'bg-blue-100 text-blue-700 border border-blue-200'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`
     }
 
     const getMobileLinkClass = (path: string) => {
         const isActive = loc.pathname.startsWith(path)
         return `block px-4 py-3 text-base font-medium transition-colors duration-200 ${isActive
-                ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`
     }
 

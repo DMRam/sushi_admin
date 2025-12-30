@@ -154,7 +154,8 @@
     "logout": "Cerrar Sesión",
     "management": "Gestión",
     "client": "Cliente",
-    "orders": "Explorar Menú"
+    "orders": "Explorar Menú",
+    "kitchen": "Cocina"
   },
   "landing": {
     "philosophy": "Nos enfocamos en el equilibrio, la frescura y el sabor honesto en cada plato.",
@@ -550,5 +551,122 @@
     "rejectAll": "Rechazar todas",
     "customize": "Personalizar",
     "acceptAll": "Aceptar todas"
+  },
+  "kitchen": {
+    "title": "Gestión de Cocina",
+    "subtitle": "Gestiona la preparación de alimentos y sigue el progreso de los pedidos",
+    
+    "stats": {
+      "inQueue": "En Cola",
+      "preparing": "Preparando",
+      "ready": "Listo",
+      "completed": "Completado"
+    },
+    
+    "instructions": {
+      "title": "Cómo Usar",
+      "steps": [
+        "Haz clic en un pedido de la cola para comenzar la preparación",
+        "Marca los pasos a medida que los completes",
+        "Marca el pedido como listo cuando todos los artículos estén preparados"
+      ]
+    },
+    
+    "tabs": {
+      "queue": "Cola de Pedidos",
+      "preparation": "Preparación",
+      "completed": "Completados",
+      "all": "Todos los Pedidos"
+    },
+    
+    "orderQueue": {
+      "noOrders": "No Hay Pedidos en Cola",
+      "noOrdersMessage": "Los nuevos pedidos aparecerán aquí automáticamente",
+      "sortedBy": "Ordenados por hora",
+      "clickToStart": "Haz clic para comenzar preparación",
+      "order": "Pedido",
+      "orderTime": "Hora del Pedido",
+      "customer": "Cliente",
+      "type": "Tipo",
+      "items": "Artículos",
+      "estimatedTime": "Tiempo Est.",
+      "startPreparation": "Comenzar Preparación",
+      "pickupOrder": "Pedido para Recoger",
+      "deliveryOrder": "Pedido a Domicilio"
+    },
+    
+    "orderPreparation": {
+      "preparingOrder": "Preparando Pedido",
+      "progress": "Progreso",
+      "markAsReady": "Marcar como Listo",
+      "cancel": "Cancelar",
+      "requiredIngredients": "Ingredientes Requeridos",
+      "noIngredients": "No hay datos de ingredientes disponibles",
+      "ingredientsHint": "Asegúrate de que los productos tengan ingredientes definidos en la configuración",
+      "preparationSteps": "Pasos de Preparación",
+      "orderItems": "Artículos del Pedido",
+      "status": "Estado",
+      "estimatedTotalTime": "Tiempo Total Estimado",
+      "basedOnPrepTimes": "Basado en tiempos de preparación",
+      "minutes": "minutos",
+      "gatherIngredients": "Reunir Todos los Ingredientes",
+      "gatherDescription": "Recoge todos los ingredientes necesarios del almacén",
+      "prepareItem": "Preparar {{item}} ({{quantity}}x)",
+      "qualityCheck": "Control de Calidad y Empaque",
+      "qualityDescription": "Verifica que todos los artículos estén correctamente preparados y empaqueta para el cliente",
+      "ready": "Listo",
+      "pending": "Pendiente",
+      "confirmComplete": "¿Marcar este pedido como listo para recoger/entrega?",
+      "totalRequired": "Total requerido"
+    },
+    
+    "completedOrders": {
+      "title": "Pedidos Completados",
+      "noOrders": "Aún no hay pedidos completados",
+      "completedToday": "Completados Hoy",
+      "orderNumber": "Pedido #",
+      "completionTime": "Completado a las",
+      "preparationTime": "Tiempo de Prep.",
+      "viewDetails": "Ver Detalles"
+    },
+    
+    "status": {
+      "pending": "Pendiente",
+      "preparing": "Preparando",
+      "ready": "Listo",
+      "completed": "Completado"
+    },
+    
+    "buttons": {
+      "start": "Comenzar Preparación",
+      "complete": "Completar Pedido",
+      "back": "Volver a Cola",
+      "refresh": "Actualizar Pedidos",
+      "viewAll": "Ver Todos los Pedidos"
+    },
+    
+    "messages": {
+      "loading": "Cargando datos de cocina...",
+      "selectOrder": "Por favor selecciona un pedido de la cola para comenzar preparación",
+      "orderUpdated": "Estado del pedido actualizado exitosamente",
+      "errorUpdating": "Error al actualizar estado del pedido",
+      "orderCompleted": "Pedido marcado como completado",
+      "webhookTriggered": "Notificación enviada exitosamente"
+    },
+    
+    "time": {
+      "minutes": "min",
+      "hours": "hrs",
+      "now": "Ahora mismo",
+      "today": "Hoy",
+      "yesterday": "Ayer"
+    },
+    
+    "notifications": {
+      "newOrder": "Nuevo Pedido Recibido",
+      "orderReady": "Pedido Listo para Recoger",
+      "deliveryReady": "Pedido a Domicilio Listo"
+    }
   }
+
 }

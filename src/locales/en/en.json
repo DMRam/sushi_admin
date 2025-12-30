@@ -157,7 +157,8 @@
     "management": "Management",
     "client": "Client",
     "staff": "Staff Portal",
-    "orders": "Explore Menu"
+    "orders": "Explore Menu",
+    "kitchen": "Kitchen"
   },
   "landing": {
     "philosophy": "We focus on balance, freshness, and honest flavor in every dish.",
@@ -557,5 +558,126 @@
     "rejectAll": "Reject All",
     "customize": "Customize",
     "acceptAll": "Accept All"
+  },
+
+  "kitchen": {
+    "title": "Kitchen Management",
+    "subtitle": "Manage food preparation and track order progress",
+    
+    "stats": {
+      "inQueue": "In Queue",
+      "preparing": "Preparing",
+      "ready": "Ready",
+      "completed": "Completed"
+    },
+    
+    "instructions": {
+      "title": "How to Use",
+      "steps": [
+        "Click on an order from the queue to start preparation",
+        "Check off steps as you complete them",
+        "Mark the order as ready when all items are prepared"
+      ]
+    },
+    
+    "tabs": {
+      "queue": "Order Queue",
+      "preparation": "Preparation",
+      "completed": "Completed",
+      "all": "All Orders"
+    },
+    
+    "orderQueue": {
+      "noOrders": "No Orders in Queue",
+      "noOrdersMessage": "New orders will appear here automatically",
+      "sortedBy": "Sorted by order time",
+      "clickToStart": "Click to start preparation",
+      "order": "Order",
+      "orderTime": "Order Time",
+      "customer": "Customer",
+      "type": "Type",
+      "items": "Items",
+      "estimatedTime": "Est. Time",
+      "startPreparation": "Start Preparation",
+      "pickupOrder": "Pickup Order",
+      "deliveryOrder": "Delivery Order"
+    },
+    
+    "orderPreparation": {
+      "preparingOrder": "Preparing Order",
+      "progress": "Progress",
+      "markAsReady": "Mark as Ready",
+      "cancel": "Cancel",
+      "requiredIngredients": "Required Ingredients",
+      "noIngredients": "No ingredient data available",
+      "ingredientsHint": "Make sure products have ingredients defined in the product settings",
+      "preparationSteps": "Preparation Steps",
+      "orderItems": "Order Items",
+      "status": "Status",
+      "estimatedTotalTime": "Estimated Total Time",
+      "basedOnPrepTimes": "Based on product preparation times",
+      "minutes": "minutes",
+      "gatherIngredients": "Gather All Ingredients",
+      "gatherDescription": "Collect all required ingredients from storage",
+      "prepareItem": "Prepare {{item}} ({{quantity}}x)",
+      "qualityCheck": "Quality Check & Packaging",
+      "qualityDescription": "Verify all items are correctly prepared and package for customer",
+      "ready": "Ready",
+      "pending": "Pending",
+      "confirmComplete": "Mark this order as ready for pickup/delivery?",
+      "totalRequired": "Total required"
+    },
+    
+    "completedOrders": {
+      "title": "Completed Orders",
+      "noOrders": "No completed orders yet",
+      "completedToday": "Completed Today",
+      "orderNumber": "Order #",
+      "completionTime": "Completed at",
+      "preparationTime": "Prep Time",
+      "viewDetails": "View Details"
+    },
+    
+    "status": {
+      "pending": "Pending",
+      "preparing": "Preparing",
+      "ready": "Ready",
+      "completed": "Completed"
+    },
+    
+    "buttons": {
+      "start": "Start Preparation",
+      "complete": "Complete Order",
+      "back": "Back to Queue",
+      "refresh": "Refresh Orders",
+      "viewAll": "View All Orders"
+    },
+    
+    "messages": {
+      "loading": "Loading kitchen data...",
+      "selectOrder": "Please select an order from the queue to start preparation",
+      "orderUpdated": "Order status updated successfully",
+      "errorUpdating": "Failed to update order status",
+      "orderCompleted": "Order marked as completed",
+      "webhookTriggered": "Notification sent successfully"
+    },
+    
+    "time": {
+      "minutes": "min",
+      "hours": "hrs",
+      "now": "Just now",
+      "today": "Today",
+      "yesterday": "Yesterday"
+    },
+    
+    "notifications": {
+      "newOrder": "New Order Received",
+      "orderReady": "Order Ready for Pickup",
+      "deliveryReady": "Delivery Order Ready"
+    }
   }
 }
+
+
+
+
