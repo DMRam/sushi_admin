@@ -1,4 +1,3 @@
-// context/AuthContext.tsx - Updated with better loading state
 import  { createContext, useContext, useEffect, useState } from 'react'
 import { 
   type User, 
@@ -38,6 +37,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true)
     try {
       await signInWithEmailAndPassword(auth, email, password)
+
+      setLoading(false)
     } catch (error) {
       setLoading(false)
       throw error

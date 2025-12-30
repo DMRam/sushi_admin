@@ -1,51 +1,130 @@
-// App.tsx - Updated version
-import { SalesProvider } from './context/SalesContext'
-import { ExpensesProvider } from './context/ExpensesContext'
-import BusinessAnalyticsPage from './pages/BusinessAnalyticsPage'
-import { IngredientsProvider } from './context/IngredientsContext'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import NavBar from './components/NavBar'
-import { ProductsProvider } from './context/ProductsContext'
-import { PurchasesProvider } from './context/PurchasesContext'
-import { CostAnalysisPage } from './pages/CostAnalysisPage'
-import ProductsPage from './pages/ProductsPage'
-import PurchasesPage from './pages/PurchasesPage'
-import SalesTrackingPage from './pages/SalesTrackingPage'
-import StockPage from './pages/StockPage'
-import { SettingsProvider } from './context/SettingContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
 import { UserProfileProvider } from './context/UserProfileContext'
 import { InvitationProvider } from './context/InvitationContext'
-import ProtectedRoute from './components/ProtectedRoute'
-import AdminPage from './pages/AdminPage'
-import ProfilePage from './pages/ProfilePage'
+import LoginPage from './pages/admin/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import LandingPage from './pages/landing/LandingPage'
+import SuccessPage from './pages/SuccessPage'
+import ProtectedRoute from './components/web/ProtectedRoute'
+import { lazy, Suspense } from 'react'
+import OrderPage from './pages/orders/OrderPage'
+import CheckoutPage from './pages/orders/CheckoutPage'
+import CookieBanner from './components/web/CookieBanner'
+import { CateringPage } from './pages/catering/CateringPage'
+import { TermsConditions } from './pages/legal/TermsConditions'
+import { PrivacyPolicy } from './pages/legal/PrivacyPolicy'
+import { CookiesPolicy } from './pages/legal/CookiesPolicy'
+
+// Lazy load all admin components (assuming default exports)
+const SalesTrackingPage = lazy(() => import('./pages/admin/SalesTrackingPage'))
+const PurchasesPage = lazy(() => import('./pages/admin/PurchasesPage'))
+const StockPage = lazy(() => import('./pages/admin/StockPage'))
+const ProductsPage = lazy(() => import('./pages/admin/ProductsPage'))
+const CostAnalysisPage = lazy(() => import('./pages/admin/CostAnalysisPage'))
+const BusinessAnalyticsPage = lazy(() => import('./pages/admin/BusinessAnalyticsPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+const ProfilePage = lazy(() => import('./pages/admin/ProfilePage'))
+const NavBar = lazy(() => import('./components/web/NavBar'))
+const KitchenPage = lazy(() => import('./pages/admin/kitchen/KitchenPage'))
+
+// Lazy load context providers
+const AdminProviders = lazy(() => import('./components/AdminProviders'))
+
+// Lazy load client auth pages
+const ClientLogin = lazy(() => import('./pages/client_hub/ClientLoginPage'))
+const ClientRegistration = lazy(() => import('./pages/client_hub/ClientRegistrationPage'))
+const ClientDashboard = lazy(() => import('./pages/client_hub/ClientDashboard'))
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center h-64">
+    <div className="text-lg text-gray-600 font-light">Loading...</div>
+  </div>
+)
 
 // Main app content that requires authentication
 function AppContent() {
   const { user } = useAuth()
 
-  console.log('🎯 AppContent rendering, user:', user?.email)
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* NavBar should always show when user is authenticated */}
-      {user && <NavBar />}
+      {user && (
+        <Suspense fallback={<div>Loading navigation...</div>}>
+          <NavBar />
+        </Suspense>
+      )}
       <main className="container mx-auto p-4">
-        <Routes>
-          <Route path="/sales-tracking" element={<SalesTrackingPage />} />
-          <Route path="/purchases" element={<PurchasesPage />} />
-          <Route path="/stock" element={<StockPage />} />
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/cost-analysis" element={<CostAnalysisPage />} />
-          <Route path="/business-analytics" element={<BusinessAnalyticsPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/" element={<Navigate to="/sales-tracking" replace />} />
-        </Routes>
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            <Route path="/sales-tracking" element={<SalesTrackingPage />} />
+            <Route path="/kitchen" element={<KitchenPage />} />
+            <Route path="/purchases" element={<PurchasesPage />} />
+            <Route path="/stock" element={<StockPage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/cost-analysis" element={<CostAnalysisPage />} />
+            <Route path="/business-analytics" element={<BusinessAnalyticsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/" element={<Navigate to="/sales-tracking" replace />} />
+          </Routes>
+        </Suspense>
       </main>
     </div>
+  )
+}
+
+// Public routes component
+function PublicRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/order" element={<OrderPage />} />
+      <Route path="/menu" element={<OrderPage />} />
+      <Route path="/admin-login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/checkout" element={<CheckoutPage />} />
+      <Route path="/success" element={<SuccessPage />} />
+      <Route path="/catering" element={<CateringPage />} />
+
+      {/* Legal Pages */}
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/cookies" element={<CookiesPolicy />} />
+      <Route path="/cookies-policy" element={<CookiesPolicy />} />
+      <Route path="/terms" element={<TermsConditions />} />
+      <Route path="/terms-conditions" element={<TermsConditions />} />
+
+      {/* Client Auth Routes */}
+      <Route path="/client-login" element={
+        <Suspense fallback={<LoadingSpinner />}>
+          <ClientLogin />
+        </Suspense>
+      } />
+      <Route path="/client-register" element={
+        <Suspense fallback={<LoadingSpinner />}>
+          <ClientRegistration />
+        </Suspense>
+      } />
+      <Route path="/client-dashboard" element={
+        <Suspense fallback={<LoadingSpinner />}>
+          <ClientDashboard />
+        </Suspense>
+      } />
+
+      <Route path="/admin/*" element={
+        <ProtectedRoute>
+          <Suspense fallback={<LoadingSpinner />}>
+            <AdminProviders>
+              <AppContent />
+            </AdminProviders>
+          </Suspense>
+        </ProtectedRoute>
+      } />
+
+      {/* Catch all route - redirect to home */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
 
@@ -54,32 +133,10 @@ export default function App() {
     <AuthProvider>
       <InvitationProvider>
         <UserProfileProvider>
-          <IngredientsProvider>
-            <SettingsProvider>
-              <ProductsProvider>
-                <PurchasesProvider>
-                  <SalesProvider>
-                    <ExpensesProvider>
-                      <Routes>
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/register" element={<RegisterPage />} />
-                        <Route
-                          path="/*"
-                          element={
-                            <ProtectedRoute>
-                              <AppContent />
-                            </ProtectedRoute>
-                          }
-                        />
-                      </Routes>
-                    </ExpensesProvider>
-                  </SalesProvider>
-                </PurchasesProvider>
-              </ProductsProvider>
-            </SettingsProvider>
-          </IngredientsProvider>
+          <PublicRoutes />
+          <CookieBanner />
         </UserProfileProvider>
       </InvitationProvider>
     </AuthProvider>
-  )
+  );
 }

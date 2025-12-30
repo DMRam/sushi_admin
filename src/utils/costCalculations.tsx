@@ -18,7 +18,7 @@ export const ingredientCost = (ingredient: Ingredient, quantity: number, unit: U
 
 export const productCost = (product: Product, ingredients: Ingredient[]): number => {
     return product.ingredients.reduce((total, productIngredient) => {
-        const ingredient = ingredients.find(ing => ing.id === productIngredient.ingredientId)
+        const ingredient = ingredients.find(ing => ing.id === productIngredient.id)
         if (!ingredient) return total
 
         return total + ingredientCost(ingredient, productIngredient.quantity, productIngredient.unit)

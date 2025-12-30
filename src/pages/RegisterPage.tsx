@@ -60,7 +60,7 @@ export default function RegisterPage() {
                 // Don't fail the registration if code marking fails
             }
 
-            navigate('/dashboard')
+            navigate('/admin/dashboard')
         } catch (error: any) {
             console.error('❌ Registration failed:', error)
             setError('Failed to create an account: ' + error.message)

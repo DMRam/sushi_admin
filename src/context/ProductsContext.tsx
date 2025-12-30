@@ -1,5 +1,4 @@
-// context/ProductsContext.tsx
-import  { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { type Product } from '../types/types'
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
@@ -10,6 +9,7 @@ interface ProductsContextType {
   updateProduct: (id: string, product: Partial<Omit<Product, 'id' | 'createdAt'>>) => Promise<void>
   removeProduct: (id: string) => Promise<void>
   getProductById: (id: string) => Product | undefined
+  refreshProducts: () => Promise<void> // Add this line
   loading: boolean
   error: string | null
 }
@@ -42,53 +42,64 @@ export const ProductsProvider: React.FC<{ children: ReactNode }> = ({ children }
     return new Date().toISOString()
   }
 
+  // Move the load logic into a reusable function
+  const loadProducts = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      console.log('Loading products from Firebase...')
+
+      const querySnapshot = await getDocs(collection(db, 'products'))
+      console.log(`Found ${querySnapshot.size} products`)
+
+      const productsList: Product[] = []
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        console.log('Product data:', doc.id, data)
+
+        productsList.push({
+          id: doc.id,
+          name: data.name || '',
+          description: data.description || '',
+          preparation: data.preparation || '',
+          ingredients: data.ingredients || [],
+          costPrice: data.costPrice || 0,
+          sellingPrice: data.sellingPrice,
+          profitMargin: data.profitMargin,
+          category: data.category || '',
+          portionSize: data.portionSize || '',
+          preparationTime: data.preparationTime || 0,
+          isActive: data.isActive ?? true,
+          tags: data.tags || [],
+          productType: data.productType || 'ingredientBased',
+          createdAt: convertFirestoreTimestamp(data.createdAt),
+          quantity: data.quantity || 0,
+          allergens: data.allergens || [],
+          imageUrls: data.imageUrls || []
+        })
+      })
+
+      console.log('Loaded products:', productsList)
+      setProducts(productsList)
+    } catch (err) {
+      console.error('Error loading products:', err)
+      setError('Failed to load products')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Load products from Firebase
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        console.log('Loading products from Firebase...')
-
-        const querySnapshot = await getDocs(collection(db, 'products'))
-        console.log(`Found ${querySnapshot.size} products`)
-
-        const productsList: Product[] = []
-
-        querySnapshot.forEach((doc) => {
-          const data = doc.data()
-          console.log('Product data:', doc.id, data)
-
-          productsList.push({
-            id: doc.id,
-            name: data.name || '',
-            description: data.description || '',
-            ingredients: data.ingredients || [],
-            costPrice: data.costPrice || 0,
-            sellingPrice: data.sellingPrice,
-            profitMargin: data.profitMargin,
-            category: data.category || '',
-            portionSize: data.portionSize || '',
-            preparationTime: data.preparationTime || 0,
-            isActive: data.isActive ?? true,
-            tags: data.tags || [],
-            productType: data.productType || 'ingredientBased',
-            createdAt: convertFirestoreTimestamp(data.createdAt)
-          })
-        })
-
-        console.log('Loaded products:', productsList)
-        setProducts(productsList)
-      } catch (err) {
-        console.error('Error loading products:', err)
-        setError('Failed to load products')
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadProducts()
   }, [])
+
+  // Add the refresh function
+  const refreshProducts = async () => {
+    console.log('Refreshing products...')
+    await loadProducts()
+  }
 
   const addProduct = async (productData: Omit<Product, 'id' | 'createdAt'>) => {
     try {
@@ -160,6 +171,7 @@ export const ProductsProvider: React.FC<{ children: ReactNode }> = ({ children }
     updateProduct,
     removeProduct,
     getProductById,
+    refreshProducts, // Add this to the context value
     loading,
     error
   }

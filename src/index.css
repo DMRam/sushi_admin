@@ -1,7 +1,241 @@
 @import "tailwindcss";
 
-html, body, #root { height: 100%; }
+html,
+body,
+#root {
+  height: 100%;
+}
+/* Global sophisticated styles */
 body {
-  background-color: #f9fafb; /* Tailwind bg-gray-50 */
-  color: #1f2937;            /* Tailwind text-gray-800 */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.6;
+  color: #1a1a1a;
+}
+
+/* Japanese-inspired color palette */
+:root {
+  --color-wasabi: #9daf6c;
+  --color-sake: #f8f5f0;
+  --color-midnight: #2c3e50;
+  --color-charcoal: #34495e;
+  --color-rice: #fefefe;
+}
+
+/* Sophisticated button styles */
+.btn-modern {
+  background-color: #111827;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  transition-property: all;
+  transition-duration: 300ms;
+  transform: translateY(0);
+}
+
+.btn-modern:hover {
+  background-color: #1f2937;
+  transform: translateY(-0.125rem);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-15px) rotate(5deg);
+  }
+}
+
+@keyframes float-delayed {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(-3deg);
+  }
+}
+
+@keyframes bounce-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 4s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 5s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 6s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+:root {
+  --color-bg: #ffffff;
+  --color-text: #0d0d0d;
+  --color-accent: #e63946;
+}
+
+/* Theme 1: Minimal Japan */
+.theme-minimal-japan {
+  --color-bg: #ffffff;
+  --color-text: #0d0d0d;
+  --color-accent: #e63946;
+  --color-border: #e5e5e5;
+  --color-highlight: #f2c94c;
+}
+
+/* Theme 3: Street Sushi */
+.theme-street-sushi {
+  --color-bg: #1c1c1e;
+  --color-text: #f5f5f7;
+  --color-accent: #ff3b30;
+  --color-border: #a1a1a1;
+  --color-highlight: #a4c639;
+}
+
+/* Theme 4: Eco Sushi */
+.theme-eco-sushi {
+  --color-bg: #faf9f6;
+  --color-text: #1e1e1e;
+  --color-accent: #7cb518;
+  --color-border: #c1a57b;
+  --color-highlight: #d62828;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  transition: background-color 0.4s, color 0.4s;
+}
+
+nav[data-mobile-menu].open ~ .fixed[class*="right-"] {
+  display: none !important;
+}
+
+@keyframes slow-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes slow-ping {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  75%,
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.slow-pulse {
+  animation: slow-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.slow-ping {
+  animation: slow-ping 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.6s ease-out;
 }

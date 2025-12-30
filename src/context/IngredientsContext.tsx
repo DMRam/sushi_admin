@@ -28,7 +28,7 @@ export const IngredientsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         querySnapshot.forEach((doc) => {
           const data = doc.data()
           ingredientsList.push({
-            id: doc.id, // Use Firebase document ID
+            id: doc.id,
             name: data.name,
             pricePerKg: data.pricePerKg,
             unit: data.unit,
@@ -38,6 +38,7 @@ export const IngredientsProvider: React.FC<{ children: React.ReactNode }> = ({ c
             stockGrams: data.stockGrams || 0,
             createdAt: data.createdAt?.toDate().toISOString() || new Date().toISOString(),
             supplier: data.supplier,
+            displayOnBYOS: false
           })
         })
 

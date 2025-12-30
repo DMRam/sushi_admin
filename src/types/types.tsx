@@ -10,20 +10,27 @@ export type Ingredient = {
   minimumStock: number
   currentStock: number
   createdAt: string
-  stockGrams: number
+  stockGrams: number;
+  displayOnBYOS: boolean;
 }
 
 export type ProductIngredient = {
-  ingredientId: string
+  id: string
+  name: string
   quantity: number
   unit: Unit
 }
 
-// Updated Product type with productType
 export type Product = {
+  allergens: never[]
   id: string
   name: string
-  description: string
+  description: {
+    es: string
+    fr: string
+    en: string
+  }
+  preparation: string
   ingredients: ProductIngredient[]
   costPrice?: number
   sellingPrice?: number
@@ -34,13 +41,20 @@ export type Product = {
   isActive?: boolean
   tags?: string[]
   createdAt: string
-  productType: 'ingredientBased' | 'directCost' // New field
+  productType: 'ingredientBased' | 'directCost'
+  preparationVideoUrl?: string;
+  imageUrls: string[];
+  quantity: number
+  featured?: boolean
 }
 
 export type Purchase = {
   id: string
+  purchaseType: 'ingredient' | 'supply'
   ingredientId: string
   ingredientName: string
+  supplyName?: string
+  supplyCategory?: 'packaging' | 'cleaning' | 'delivery' | 'office' | 'other'
   quantity: number
   unit: Unit
   totalCost: number
@@ -95,15 +109,39 @@ export type WasteRecord = {
   notes?: string
 }
 
-export type SalesRecord = {
+export interface SaleProduct {
   id: string
-  productId: string
+  name: string
   quantity: number
   salePrice: number
-  saleDate: string
-  createdAt: string
-  lowStockFlag?: boolean // New field to track if sale was made with low stock
+  originalPrice: number
+  costPrice?: number
 }
+
+export interface SalesRecord {
+  id: string
+  orderId: string
+  products: SaleProduct[]
+  subtotal: number
+  discountAmount?: number
+  taxes?: {
+    gst: number
+    qst: number
+    total: number
+  }
+  totalAmount: number
+  costTotal?: number
+  profitTotal?: number
+  saleDate: string
+  createdAt: string | Date
+  customerName: string
+  customerEmail: string
+  saleType: string
+  paymentStatus: string
+  lowStockFlag: boolean
+  stripeSessionId?: string
+}
+
 
 export type BusinessExpense = {
   id: string
@@ -248,7 +286,7 @@ export type Table = {
 
 // Analytics and Reporting Types
 export type SalesReport = {
-  period: string 
+  period: string
   dateRange: {
     start: string
     end: string
@@ -307,4 +345,68 @@ export type FinancialReport = {
   netProfit: number
   profitMargin: number
   breakEvenAnalysis: BreakEvenAnalysis
+}
+
+export interface MenuItem {
+  id: string
+  name: string
+  description: {
+    es: string;
+    fr: string;
+    en: string;
+  };
+  preparation: string
+  price: number
+  image: string
+  category: string
+  videoUrl?: string
+  ingredients: string[]
+  allergens: string[]
+  preparationTime: number
+  spicyLevel: 0 | 1 | 2 | 3
+  popular: boolean;
+  quantity: number;
+}
+
+export interface WebProduct {
+  id?: string
+  name: string
+  description: {
+    es: string;
+    fr: string;
+    en: string;
+  };
+  price: number
+  imageUrl: string
+  category: string
+  isActive: boolean
+  sortOrder: number
+  costPrice?: number
+  sellingPrice?: number
+  profitMargin?: number
+  portionSize?: string
+  preparationTime?: number
+  tags?: string[]
+  productType?: 'ingredientBased' | 'directCost'
+  ingredients?: ProductIngredient[];
+  featured?: boolean
+}
+
+export interface ClientProfile {
+  id: string
+  firebase_uid: string
+  email: string
+  full_name: string
+  first_name: string;
+  last_name: string;
+  points: number;
+  address?: string;
+  city?: string;
+  zip_code?: string;
+  phone?: string
+  created_at: string
+  updated_at: string
+  total_points: number
+  current_tier: string
+  avatar_url?: string;
 }

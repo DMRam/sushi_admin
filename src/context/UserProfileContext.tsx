@@ -1,22 +1,13 @@
-// context/UserProfileContext.tsx - Updated with roles
-import  { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { isSuperAdmin } from '../utils/authUtils'
-import {
-    doc,
-    getDoc,
-    setDoc,
-    updateDoc,
-    onSnapshot,
-    collection
-} from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
 import { useAuth } from './AuthContext'
-import { SUPER_ADMINS } from '../config/superAdmins'
 
-// Define user roles
+// Define user roles (ADMINS ONLY)
 export const UserRole = {
     ADMIN: 'admin',
-    MANAGER: 'manager',
+    MANAGER: 'manager', 
     STAFF: 'staff',
     VIEWER: 'viewer'
 } as const
@@ -31,6 +22,7 @@ export interface UserProfile {
     createdAt: Date
     updatedAt: Date
     isActive: boolean
+    points?: number
 }
 
 interface UserProfileContextType {
@@ -52,48 +44,10 @@ const roleHierarchy = {
     [UserRole.ADMIN]: 3
 }
 
-
-// Helper function to create initial invitation codes
-const createInitialInvitationCodes = async (adminUid: string) => {
-    try {
-        const invitationCodesRef = collection(db, 'invitationCodes')
-
-        // Create a manager code
-        await setDoc(doc(invitationCodesRef, 'MANAGER001'), {
-            code: 'MANAGER001',
-            createdBy: adminUid,
-            createdAt: new Date(),
-            used: false,
-            maxUses: 5,
-            currentUses: 0
-        })
-
-        // Create a staff code
-        await setDoc(doc(invitationCodesRef, 'STAFF001'), {
-            code: 'STAFF001',
-            createdBy: adminUid,
-            createdAt: new Date(),
-            used: false,
-            maxUses: 10,
-            currentUses: 0
-        })
-
-        console.log('Initial invitation codes created')
-    } catch (error) {
-        console.error('Error creating initial invitation codes:', error)
-    }
-}
-
 export function UserProfileProvider({ children }: { children: React.ReactNode }) {
     const { user } = useAuth()
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
     const [loading, setLoading] = useState(true)
-
-    console.log('🔄 UserProfileProvider: User changed', {
-        user: user?.email,
-        hasUserProfile: !!userProfile,
-        loading
-    })
 
     const getUserDocRef = (userId: string) => doc(db, 'users', userId)
 
@@ -116,8 +70,7 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
             return
         }
 
-        // In UserProfileContext.tsx - update the initializeUserProfile function
-        // In UserProfileContext.tsx - update the initializeUserProfile function
+        // Your existing admin profile logic here (no client stuff)
         const initializeUserProfile = async () => {
             try {
                 console.log('🔄 UserProfile: Starting initialization for user:', user?.email)
@@ -127,44 +80,29 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
                 if (userDoc.exists()) {
                     let profileData = userDoc.data() as UserProfile
 
-                    // Check if profile is missing the role field
                     if (!profileData.role) {
                         console.log('🔧 UserProfile: Existing profile missing role field, fixing...')
-
-                        // Determine the correct role
                         const userIsSuperAdmin = isSuperAdmin(user.email)
                         const correctRole = userIsSuperAdmin ? UserRole.ADMIN : UserRole.VIEWER
 
-                        // Update the profile with the missing role
                         profileData = {
                             ...profileData,
                             role: correctRole,
                             updatedAt: new Date()
                         }
 
-                        // Save the fixed profile back to Firestore
                         await updateDoc(userDocRef, {
                             role: correctRole,
                             updatedAt: new Date()
                         })
-
-                        console.log('✅ UserProfile: Fixed missing role, set to:', correctRole)
                     }
 
                     console.log('✅ UserProfile: Existing profile found:', profileData)
                     setUserProfile(profileData)
                 } else {
                     console.log('🆕 UserProfile: No existing profile, creating new one')
-
-                    // Check if user is a super admin
                     const userIsSuperAdmin = isSuperAdmin(user.email)
-                    console.log('🔐 UserProfile: Super admin check:', {
-                        email: user.email,
-                        isSuperAdmin: userIsSuperAdmin,
-                        superAdmins: SUPER_ADMINS
-                    })
-
-                    // Create new user profile
+                    
                     const newUserProfile: UserProfile = {
                         uid: user.uid,
                         email: user.email || '',
@@ -178,12 +116,6 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
                     console.log('📝 UserProfile: Creating new profile:', newUserProfile)
                     await setDoc(userDocRef, newUserProfile)
                     setUserProfile(newUserProfile)
-
-                    if (userIsSuperAdmin) {
-                        console.log('🎯 UserProfile: Super admin detected, profile created as admin')
-                    } else {
-                        console.log('👤 UserProfile: Regular user, profile created as viewer')
-                    }
                 }
             } catch (error) {
                 console.error('❌ UserProfile: Error initializing profile:', error)
@@ -209,14 +141,12 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
 
     const updateProfile = async (updates: Partial<UserProfile>) => {
         if (!user) throw new Error('No user logged in')
-
         try {
             const userDocRef = getUserDocRef(user.uid)
             const updateData = {
                 ...updates,
                 updatedAt: new Date()
             }
-
             await updateDoc(userDocRef, updateData)
         } catch (error) {
             console.error('Error updating profile:', error)
@@ -226,12 +156,9 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
 
     const updateUserRole = async (userId: string, role: UserRole) => {
         if (!user) throw new Error('No user logged in')
-
-        // Only admins can change roles
         if (userProfile?.role !== UserRole.ADMIN) {
             throw new Error('Insufficient permissions to change roles')
         }
-
         try {
             const userDocRef = getUserDocRef(userId)
             await updateDoc(userDocRef, {

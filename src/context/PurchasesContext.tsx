@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode, useEffect } from 'react'
 import { type Purchase } from '../types/types'
-import { collection, getDocs, addDoc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
 
 interface PurchasesContextType {
@@ -8,6 +8,8 @@ interface PurchasesContextType {
   loading: boolean
   error: string | null
   addPurchase: (purchase: Omit<Purchase, 'id' | 'createdAt'>) => Promise<void>
+  removePurchase: (purchaseId: string) => Promise<void>
+  getRecentPurchases: (count?: number) => Purchase[]
 }
 
 const PurchasesContext = createContext<PurchasesContextType | undefined>(undefined)
@@ -48,20 +50,52 @@ export const PurchasesProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }
 
+  // Remove purchase function
+  const removePurchase = async (purchaseId: string) => {
+    try {
+      // Delete from Firebase
+      await deleteDoc(doc(db, 'purchases', purchaseId))
+
+      // Update local state
+      setPurchases(prev => prev.filter(purchase => purchase.id !== purchaseId))
+    } catch (error) {
+      console.error('Error removing purchase:', error)
+      throw error
+    }
+  }
+
+  // Get recent purchases function
+  const getRecentPurchases = (count: number = 5): Purchase[] => {
+    return purchases
+      .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
+      .slice(0, count)
+  }
+
+  // In your PurchasesContext.tsx - update the loadPurchases function
   useEffect(() => {
     const loadPurchases = async () => {
       try {
         setLoading(true)
         setError(null)
-        const querySnapshot = await getDocs(collection(db, 'purchases'))
+
+        // Load purchases ordered by purchase date (most recent first)
+        const q = query(
+          collection(db, 'purchases'),
+          orderBy('purchaseDate', 'desc')
+        )
+
+        const querySnapshot = await getDocs(q)
         const purchasesList: Purchase[] = []
 
         querySnapshot.forEach((doc) => {
           const data = doc.data()
           purchasesList.push({
             id: doc.id,
+            purchaseType: data.purchaseType || 'ingredient', // Default to 'ingredient' for backward compatibility
             ingredientId: data.ingredientId,
             ingredientName: data.ingredientName,
+            supplyName: data.supplyName,
+            supplyCategory: data.supplyCategory,
             quantity: data.quantity,
             unit: data.unit,
             totalCost: data.totalCost,
@@ -92,7 +126,9 @@ export const PurchasesProvider: React.FC<{ children: ReactNode }> = ({ children 
     purchases,
     loading,
     error,
-    addPurchase
+    addPurchase,
+    removePurchase,
+    getRecentPurchases
   }
 
   return (
