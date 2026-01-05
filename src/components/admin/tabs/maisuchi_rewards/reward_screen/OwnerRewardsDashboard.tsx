@@ -1,7 +1,6 @@
-// components/admin/tabs/maisuchi_rewards/reward_screen/OwnerRewardsDashboard.tsx
 import { useState, useEffect } from 'react';
 import { OwnerRewardsService } from '../services/OwnerRewardsService';
-import type { Reward } from '../../../../../pages/client_hub/service/RewardsService';
+import type { Reward } from '../../../../../pages/client_hub/interfaces/IClientHub';
 
 interface OwnerRewardsDashboardProps {
   isMobile?: boolean;

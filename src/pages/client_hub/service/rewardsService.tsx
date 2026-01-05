@@ -1,39 +1,5 @@
-// RewardsService.ts — WITH DAILY CLAIM LIMIT
 import { supabase, supabaseAdmin } from "../../../lib/supabase";
-
-export interface BaseReward {
-    id: string;
-    name: string;
-    description: string;
-    points_required: number;
-    type: 'discount' | 'free_item' | 'birthday' | 'special';
-    discount_percentage?: number;
-    free_item_name?: string;
-    is_active: boolean;
-    valid_until: string;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface Reward extends BaseReward {
-    claimed: boolean;
-    claimed_at?: string;
-    used_at?: string;
-    is_used?: boolean;
-    has_active_claim?: boolean;
-}
-
-export interface UserClaimedReward {
-    id: string;
-    user_id: string;
-    reward_id: string;
-    claimed_at: string;
-    used_at?: string;
-    is_used: boolean;
-    redemption_code?: string;
-    qr_code_data?: string | null;
-    reward?: Reward;
-}
+import type { Reward, UserClaimedReward } from "../interfaces/IClientHub";
 
 export class RewardsService {
 

@@ -1,6 +1,5 @@
 import { supabase, supabaseAdmin } from "../../../../../lib/supabase";
-import type { Reward, UserClaimedReward } from "../../../../../pages/client_hub/service/RewardsService";
-
+import type { Reward, UserClaimedReward } from "../../../../../pages/client_hub/interfaces/IClientHub";
 
 export interface UserClaimedRewardWithCode extends UserClaimedReward {
     redemption_code?: string;

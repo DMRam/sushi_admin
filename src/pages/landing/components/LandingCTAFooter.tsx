@@ -7,7 +7,7 @@ import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from 'fir
 import { auth } from '../../../firebase/firebase'
 import { supabase } from '../../../lib/supabase'
 // import logo from '../../../assets/logo/logo_maisushi_illustratorX_white.svg'
-import logo from '../../../assets/logo/newlogo_white.svg'
+import logo from '../../../assets/logo/maisushi_logo_white_last.svg'
 import { AuthModal } from '../../../pages/components/AuthModal'
 import { X, FileText } from 'lucide-react'
 

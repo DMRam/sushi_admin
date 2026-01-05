@@ -7,7 +7,7 @@ import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from 'fir
 import { auth } from '../../../firebase/firebase'
 import { supabase } from '../../../lib/supabase'
 // import logo from '../../../assets/logo/logo_maisushi_illustrator_final.svg'
-import logo from '../../../assets/logo/newlogoII.svg'
+import logo from '../../../assets/logo/maisushi_logo_last.svg'
 
 
 import { useCartStore } from '../../../stores/cartStore'

@@ -7,7 +7,7 @@ interface OrderQueueProps {
   activeTab: 'queue' | 'preparation' | 'completed' | 'all';
 }
 
-export default function OrderQueue({ orders, onSelectOrder, activeTab }: OrderQueueProps) {
+export default function OrderQueue({ orders, activeTab }: OrderQueueProps) {
   const { t } = useTranslation();
 
   const formatTime = (timestamp: any) => {

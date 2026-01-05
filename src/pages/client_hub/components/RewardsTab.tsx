@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useClientAuth } from '../hooks/useClientAuth';
 import { PointsService } from '../service/PointsService';
-import { RewardsService, type Reward } from '../service/RewardsService';
+import type { Reward } from '../interfaces/IClientHub';
+import { RewardsService } from '../service/rewardsService';
 
 interface RewardsTabProps {
     onRewardClaimed?: () => void;

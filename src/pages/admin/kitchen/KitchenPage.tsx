@@ -14,7 +14,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../../../firebase/firebase';
-import { CheckCircle, Clock, Package, AlertCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle, Clock, Package, RefreshCw } from 'lucide-react';
 import { useProducts } from '../../../context/ProductsContext';
 import type { Product } from '../../../types/types';
 
