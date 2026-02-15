@@ -6,8 +6,7 @@ import { AuthModal } from '../../components/AuthModal'
 import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../../../firebase/firebase'
 import { supabase } from '../../../lib/supabase'
-// import logo from '../../../assets/logo/logo_maisushi_illustrator_final.svg'
-import logo from '../../../assets/logo/maisushi_logo_last.svg'
+import logo from '../../../assets/logo/final/maisushi-logo-color.svg'
 
 
 import { useCartStore } from '../../../stores/cartStore'
