@@ -27,3 +27,9 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Firebase Admin service account
+sushi-admin-firebase-adminsdk-fbsvc-dba831c51c.json
+serviceAccount.json
+
+.firebase/

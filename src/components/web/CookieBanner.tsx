@@ -47,7 +47,7 @@ export default function CookieBanner() {
 
     const rejectAll = () => {
         const preferences = {
-            essential: true, // Essential cookies cannot be rejected
+            essential: true, 
             functional: false,
             analytics: false
         };

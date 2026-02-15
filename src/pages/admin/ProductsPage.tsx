@@ -4,7 +4,7 @@ import { ProductList } from '../../components/admin/tabs/products/ProductList'
 export default function ProductsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <div className="max-w-10xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
         {/* Header */}
         <div className="mb-4 sm:mb-6">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-light text-gray-900">Product Management</h1>

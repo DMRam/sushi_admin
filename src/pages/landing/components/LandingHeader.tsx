@@ -7,8 +7,6 @@ import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from 'fir
 import { auth } from '../../../firebase/firebase'
 import { supabase } from '../../../lib/supabase'
 import logo from '../../../assets/logo/final/maisushi-logo-color.svg'
-
-
 import { useCartStore } from '../../../stores/cartStore'
 
 interface UserProfile {
@@ -26,6 +24,15 @@ interface UserProfile {
 export const LandingHeader = () => {
     const { t } = useTranslation()
     const [isOpen, setIsOpen] = useState(false)
+
+    // ✅ NEW: scroll state for nicer shadow + opacity
+    const [scrolled, setScrolled] = useState(false)
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 8)
+        onScroll()
+        window.addEventListener('scroll', onScroll, { passive: true })
+        return () => window.removeEventListener('scroll', onScroll)
+    }, [])
 
     // Cart state
     const cart = useCartStore((state) => state.cart)
@@ -48,7 +55,6 @@ export const LandingHeader = () => {
     const [isAuthLoading, setIsAuthLoading] = useState(false)
     const [authError, setAuthError] = useState('')
 
-    // Check user authentication state
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
@@ -81,8 +87,6 @@ export const LandingHeader = () => {
                 const nameParts = fullName.split(' ')
                 const firstName = nameParts[0] || ''
                 const lastName = nameParts.slice(1).join(' ') || ''
-
-                // Safely handle missing points column
                 const userPoints = clientProfile.points !== undefined ? clientProfile.points : 0
 
                 setUser({
@@ -109,14 +113,9 @@ export const LandingHeader = () => {
         e.preventDefault()
         setIsAuthLoading(true)
         setAuthError('')
-
         try {
             const { signInWithEmailAndPassword } = await import('firebase/auth')
-            const userCredential = await signInWithEmailAndPassword(
-                auth,
-                authForm.email,
-                authForm.password
-            )
+            const userCredential = await signInWithEmailAndPassword(auth, authForm.email, authForm.password)
 
             const firebaseUser = userCredential.user
             const { data: clientProfile, error } = await supabase
@@ -136,8 +135,6 @@ export const LandingHeader = () => {
                 const nameParts = fullName.split(' ')
                 const firstName = nameParts[0] || ''
                 const lastName = nameParts.slice(1).join(' ') || ''
-
-                // Safely handle missing points column
                 const userPoints = clientProfile.points !== undefined ? clientProfile.points : 0
 
                 setUser({
@@ -167,19 +164,11 @@ export const LandingHeader = () => {
         e.preventDefault()
         setIsAuthLoading(true)
         setAuthError('')
-
         try {
-            // Create user in Firebase Auth
-            const userCredential = await createUserWithEmailAndPassword(
-                auth,
-                authForm.email,
-                authForm.password
-            )
-
+            const userCredential = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password)
             const firebaseUser = userCredential.user
             const fullName = `${authForm.firstName} ${authForm.lastName}`.trim()
 
-            // Create user profile in Supabase - only include fields that exist
             const profileData: any = {
                 firebase_uid: firebaseUser.uid,
                 email: authForm.email,
@@ -196,8 +185,6 @@ export const LandingHeader = () => {
 
             if (profileError) {
                 console.error('Supabase profile error:', profileError)
-
-                // If it's a column error, try without the problematic column
                 if (profileError.message.includes('points')) {
                     delete profileData.points
                     const { data: retryProfile, error: retryError } = await supabase
@@ -218,7 +205,7 @@ export const LandingHeader = () => {
                             first_name: authForm.firstName,
                             last_name: authForm.lastName,
                             phone: retryProfile.phone,
-                            points: 0 // Default value
+                            points: 0
                         })
                     }
                 } else {
@@ -240,8 +227,6 @@ export const LandingHeader = () => {
             setAuthForm({ email: '', password: '', firstName: '', lastName: '', phone: '' })
         } catch (error: any) {
             console.error('Signup error:', error)
-
-            // Handle specific error cases
             if (error.code === 'auth/email-already-in-use') {
                 setAuthError('This email is already registered. Please sign in instead.')
             } else if (error.message?.includes('points')) {
@@ -274,10 +259,22 @@ export const LandingHeader = () => {
 
     return (
         <>
-            <header className="bg-white shadow-sm border-b border-gray-100 fixed inset-x-0 top-0 z-40">
-                <div className="w-full px-3 sm:px-4 md:px-8 py-3 overflow-x-clip">
+            {/* ✅ Enhanced header: subtle transparency + blur + scroll shadow */}
+            <header
+                className={[
+                    "fixed inset-x-0 top-0 z-40",
+                    "border-b",
+                    "transition-all duration-300",
+                    "supports-[backdrop-filter]:backdrop-blur-md",
+                    // transparency
+                    scrolled ? "bg-white/92 border-gray-200 shadow-md" : "bg-white/80 border-gray-100 shadow-sm",
+                ].join(" ")}
+            >
+                {/* Optional: little gradient sheen (very subtle) */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-full bg-gradient-to-b from-white/40 to-transparent" />
+
+                <div className="relative w-full px-3 sm:px-4 md:px-8 py-3 overflow-x-clip">
                     <div className="flex items-center justify-between gap-3">
-                        {/* Enhanced Logo - Better spacing and width */}
                         <Link to="/" className="flex items-center min-w-0 shrink-0 ml-2 sm:ml-4">
                             <img
                                 src={logo}
@@ -354,7 +351,7 @@ export const LandingHeader = () => {
                                 ) : (
                                     <button
                                         onClick={() => openAuthModal(true)}
-                                        className="text-xs text-gray-500 hover:text-gray-700 transition-colors duration-300 font-light whitespace-nowrap"
+                                        className="text-xs text-gray-600 hover:text-gray-800 transition-colors duration-300 font-light whitespace-nowrap"
                                     >
                                         {t('header.signIn', 'Sign In')}
                                     </button>
@@ -364,7 +361,6 @@ export const LandingHeader = () => {
 
                         {/* Mobile menu button and cart */}
                         <div className="flex items-center gap-3 md:hidden">
-                            {/* Cart for Mobile */}
                             <Link
                                 to="/checkout"
                                 className="relative text-gray-700 hover:text-red-600 transition-colors duration-300 p-2"
@@ -388,12 +384,17 @@ export const LandingHeader = () => {
                     </div>
                 </div>
 
-                {/* Mobile Dropdown Menu */}
+                {/* ✅ Mobile Dropdown: make it match the translucent vibe */}
                 <div
-                    className={`md:hidden bg-white shadow-sm border-t border-gray-100 transition-all duration-300 overflow-hidden ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-                        }`}
+                    className={[
+                        "md:hidden border-t transition-all duration-300 overflow-hidden",
+                        "supports-[backdrop-filter]:backdrop-blur-md",
+                        scrolled ? "bg-white/92 border-gray-200" : "bg-white/85 border-gray-100",
+                        isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                    ].join(" ")}
                 >
                     <div className="flex flex-col px-4 py-4 space-y-4">
+                        {/* ...keep your existing mobile items... */}
                         <Link
                             to="/order"
                             onClick={() => setIsOpen(false)}
@@ -410,7 +411,6 @@ export const LandingHeader = () => {
                             {t('header.contact', 'Contact')}
                         </a>
 
-                        {/* Cart in Mobile Menu */}
                         <Link
                             to="/checkout"
                             onClick={() => setIsOpen(false)}
@@ -471,7 +471,7 @@ export const LandingHeader = () => {
                                     openAuthModal(true)
                                     setIsOpen(false)
                                 }}
-                                className="pt-3 border-t border-gray-200 text-xs text-gray-500 hover:text-gray-700 font-light transition text-left"
+                                className="pt-3 border-t border-gray-200 text-xs text-gray-600 hover:text-gray-800 font-light transition text-left"
                             >
                                 {t('header.signIn', 'Sign In')}
                             </button>
@@ -480,7 +480,6 @@ export const LandingHeader = () => {
                 </div>
             </header>
 
-            {/* Auth Modal */}
             {showAuthModal && (
                 <AuthModal
                     isLoginMode={isLoginMode}
