@@ -2,6 +2,7 @@ import { MediaUpload } from './components/MediaUpload'
 import { ProductDetails } from './components/ProductDetails'
 import { IngredientsSectionAndCost } from './components/IngredientsSectionAndCost'
 import { useProductForm } from './hooks/useProductForm'
+import { ProductPicker } from './components/ProductPicker'
 
 export default function ProductForm() {
     const {
@@ -45,57 +46,105 @@ export default function ProductForm() {
         getIngredientCost
     } = useProductForm()
 
+
+    const requestProductTypeChange = (nextType: 'ingredientBased' | 'directCost') => {
+        if (nextType === productType) return
+
+        const isSwitchingToDirect = nextType === 'directCost'
+        const hasIngredients = productIngredients?.length > 0
+        const hasDirectCost = !!formData?.directCostPrice && String(formData.directCostPrice).trim() !== ''
+
+        // Build a clear warning message
+        let msg = `Switch product type to "${isSwitchingToDirect ? 'Direct Cost' : 'Ingredient Based'}"?\n\n`
+
+        if (isSwitchingToDirect && hasIngredients) {
+            msg += `This will CLEAR the current ingredients list (recommended to avoid confusion).\n`
+        }
+        if (!isSwitchingToDirect && hasDirectCost) {
+            msg += `This will CLEAR the direct cost value (recommended to avoid confusion).\n`
+        }
+
+        msg += `\nContinue?`
+
+        if (!confirm(msg)) return
+
+        // Apply switch
+        setProductType(nextType)
+        setFormData((prev: any) => {
+            const updated = { ...prev, productType: nextType }
+
+            if (isSwitchingToDirect) {
+                // clear ingredient-based stuff (recommended)
+                updated.ingredients = []
+            } else {
+                // clear direct-cost stuff (recommended)
+                updated.directCostPrice = ''
+                updated.costPrice = 0
+            }
+
+            return updated
+        })
+
+        // If your hook keeps separate productIngredients state, clear it too
+        if (isSwitchingToDirect) {
+            setNewIngredient({ id: '', quantity: 0, unit: 'g' } as any) // optional
+            // If hook exposes a setter for productIngredients, use it.
+            // If not, the formData.ingredients clearing usually is enough.
+        }
+    }
+
+
     return (
         <div className="space-y-6">
             {/* Product Selection */}
             <div>
-                <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">
-                    SELECT PRODUCT TO EDIT
-                </label>
-                <select
-                    value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(e.target.value)}
-                    className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
-                >
-                    <option value="">CREATE NEW PRODUCT</option>
-                    {products.map(product => (
-                        <option key={product.id} value={product.id}>
-                            {product.name} {product.productType === 'directCost' ? '(Direct Cost)' : '(Ingredient Based)'}
-                        </option>
-                    ))}
-                </select>
+
+                <ProductPicker
+                    products={products}
+                    selectedProductId={selectedProductId}
+                    setSelectedProductId={setSelectedProductId}
+                />
+
             </div>
 
             {/* Product Type Selection - Only show when creating new product */}
-            {!selectedProductId && (
-                <div className="bg-white border border-gray-200 rounded-sm p-6">
-                    <h3 className="text-lg font-light text-gray-900 tracking-wide mb-4">PRODUCT TYPE</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <button
-                            type="button"
-                            onClick={() => setProductType('ingredientBased')}
-                            className={`p-4 border-2 rounded-sm text-center transition-colors ${productType === 'ingredientBased'
-                                ? 'border-gray-900 bg-gray-50 text-gray-900'
-                                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                                }`}
-                        >
-                            <div className="font-light tracking-wide">INGREDIENT BASED</div>
-                            <div className="text-sm mt-1 font-light">Calculate cost from ingredients</div>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setProductType('directCost')}
-                            className={`p-4 border-2 rounded-sm text-center transition-colors ${productType === 'directCost'
-                                ? 'border-gray-900 bg-gray-50 text-gray-900'
-                                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                                }`}
-                        >
-                            <div className="font-light tracking-wide">DIRECT COST</div>
-                            <div className="text-sm mt-1 font-light">Set cost directly</div>
-                        </button>
-                    </div>
+            <div className="bg-white border border-gray-200 rounded-sm p-6">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                    <h3 className="text-lg font-light text-gray-900 tracking-wide">PRODUCT TYPE</h3>
+                    {selectedProductId && (
+                        <span className="text-xs text-gray-500">
+                            Changing type may reset related fields
+                        </span>
+                    )}
                 </div>
-            )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                        type="button"
+                        onClick={() => requestProductTypeChange('ingredientBased')}
+                        className={`p-4 border-2 rounded-sm text-center transition-colors ${productType === 'ingredientBased'
+                                ? 'border-gray-900 bg-gray-50 text-gray-900'
+                                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                    >
+                        <div className="font-light tracking-wide">INGREDIENT BASED</div>
+                        <div className="text-sm mt-1 font-light">Calculate cost from ingredients</div>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => requestProductTypeChange('directCost')}
+                        className={`p-4 border-2 rounded-sm text-center transition-colors ${productType === 'directCost'
+                                ? 'border-gray-900 bg-gray-50 text-gray-900'
+                                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                    >
+                        <div className="font-light tracking-wide">DIRECT COST</div>
+                        <div className="text-sm mt-1 font-light">Set cost directly</div>
+                    </button>
+                </div>
+            </div>
+
 
             <ProductDetails
                 formData={formData}
