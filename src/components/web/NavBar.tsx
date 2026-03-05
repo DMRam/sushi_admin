@@ -1,218 +1,321 @@
-import { Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
-import { useUserProfile, UserRole } from '../../context/UserProfileContext'
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { useUserProfile, UserRole } from "../../context/UserProfileContext";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+    BarChart3,
+    ChefHat,
+    ShoppingCart,
+    Package,
+    Boxes,
+    TrendingUp,
+    Shield,
+    User as UserIcon,
+    LogOut,
+    Menu,
+    X,
+} from "lucide-react";
 
 interface NavLink {
-    path: string
-    label: string
-    allowedRoles: UserRole[]
+    path: string;
+    label: string;
+    allowedRoles: UserRole[];
+    icon: React.ComponentType<{ className?: string }>;
 }
 
 // Simple super admin check function
 const isSuperAdmin = (email: string): boolean => {
     const superAdminEmails = [
-        'admin@sushi.com',
-        'superadmin@sushi.com',
+        "admin@sushi.com",
+        "superadmin@sushi.com",
         // Add other super admin emails here
-    ]
-    return superAdminEmails.includes(email.toLowerCase())
+    ];
+    return superAdminEmails.includes(email.toLowerCase());
+};
+
+function initials(nameOrEmail?: string) {
+    const s = String(nameOrEmail ?? "").trim();
+    if (!s) return "U";
+    const parts = s.split(" ").filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return s.slice(0, 2).toUpperCase();
+}
+
+function roleBadge(role: UserRole) {
+    switch (role) {
+        case UserRole.ADMIN:
+            return "bg-violet-50 text-violet-700 border-violet-200";
+        case UserRole.MANAGER:
+            return "bg-amber-50 text-amber-800 border-amber-200";
+        case UserRole.STAFF:
+            return "bg-blue-50 text-blue-700 border-blue-200";
+        default:
+            return "bg-gray-50 text-gray-700 border-gray-200";
+    }
 }
 
 export default function NavBar() {
-    const { user, logout } = useAuth()
-    const { userProfile, loading } = useUserProfile()
-    const loc = useLocation()
-    const [isMenuOpen, setIsMenuOpen] = useState(false)
-    const { t } = useTranslation()
+    const { user, logout } = useAuth();
+    const { userProfile, loading } = useUserProfile();
+    const loc = useLocation();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const { t } = useTranslation();
 
-    // Define navigation links with translation - using safe fallbacks
-    const navLinks: NavLink[] = [
-        { path: '/admin/sales-tracking', label: t('nav.salesTracking', 'Sales Tracking'), allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
-        { path: '/admin/kitchen', label: t('nav.kitchen', 'Kitchen'), allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
-        { path: '/admin/purchases', label: t('nav.purchases', 'Purchases'), allowedRoles: [UserRole.MANAGER, UserRole.ADMIN] },
-        { path: '/admin/products', label: t('nav.products', 'Products'), allowedRoles: [UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
-        { path: '/admin/stock', label: t('nav.stock', 'Stock'), allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER] },
-        { path: '/admin/cost-analysis', label: t('nav.costAnalysis', 'Cost Analysis'), allowedRoles: [UserRole.MANAGER, UserRole.ADMIN] },
-        { path: '/admin/business-analytics', label: t('nav.businessAnalytics', 'Business Analytics'), allowedRoles: [UserRole.MANAGER, UserRole.ADMIN] },
-        { path: '/admin/admin', label: t('nav.admin', 'Admin'), allowedRoles: [UserRole.ADMIN] },
-    ]
+    // Role resolution (profile > superadmin email > viewer)
+    const userRole: UserRole = useMemo(() => {
+        if (userProfile?.role) return userProfile.role;
+        if (user?.email && isSuperAdmin(user.email)) return UserRole.ADMIN;
+        return UserRole.VIEWER;
+    }, [userProfile?.role, user?.email]);
 
-    // Determine user role with fallback rules
-    const getUserRoleForNav = (): UserRole => {
-        if (userProfile?.role) return userProfile.role
-        if (user?.email && isSuperAdmin(user.email)) return UserRole.ADMIN
-        return UserRole.VIEWER // Default fallback
-    }
+    const navLinks: NavLink[] = useMemo(
+        () => [
+            {
+                path: "/admin/sales-tracking",
+                label: t("nav.salesTracking", "Sales"),
+                allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
+                icon: BarChart3,
+            },
+            {
+                path: "/admin/kitchen",
+                label: t("nav.kitchen", "Kitchen"),
+                allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
+                icon: ChefHat,
+            },
+            {
+                path: "/admin/purchases",
+                label: t("nav.purchases", "Purchases"),
+                allowedRoles: [UserRole.MANAGER, UserRole.ADMIN],
+                icon: ShoppingCart,
+            },
+            {
+                path: "/admin/products",
+                label: t("nav.products", "Products"),
+                allowedRoles: [UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
+                icon: Package,
+            },
+            {
+                path: "/admin/stock",
+                label: t("nav.stock", "Stock"),
+                allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
+                icon: Boxes,
+            },
+            {
+                path: "/admin/cost-analysis",
+                label: t("nav.costAnalysis", "Cost"),
+                allowedRoles: [UserRole.MANAGER, UserRole.ADMIN],
+                icon: TrendingUp,
+            },
+            {
+                path: "/admin/business-analytics",
+                label: t("nav.businessAnalytics", "Analytics"),
+                allowedRoles: [UserRole.MANAGER, UserRole.ADMIN],
+                icon: TrendingUp,
+            },
+            {
+                path: "/admin/admin",
+                label: t("nav.admin", "Admin"),
+                allowedRoles: [UserRole.ADMIN],
+                icon: Shield,
+            },
+        ],
+        [t]
+    );
 
-    const userRole = getUserRoleForNav()
-    const filteredNavLinks = navLinks.filter(link => link.allowedRoles.includes(userRole))
+    const filteredNavLinks = useMemo(
+        () => navLinks.filter((link) => link.allowedRoles.includes(userRole)),
+        [navLinks, userRole]
+    );
+
+    const displayName = userProfile?.displayName || user?.email?.split("@")[0] || "User";
+
+    // Close mobile menu on route change
+    useEffect(() => {
+        setIsMenuOpen(false);
+    }, [loc.pathname]);
 
     const handleLogout = async () => {
         try {
-            await logout()
-            setIsMenuOpen(false)
+            await logout();
+            setIsMenuOpen(false);
         } catch (error) {
-            console.error('Failed to log out', error)
+            console.error("Failed to log out", error);
         }
-    }
+    };
 
-    const getLinkClass = (path: string) => {
-        const isActive = loc.pathname.startsWith(path)
-        return `px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${isActive
-            ? 'bg-blue-100 text-blue-700 border border-blue-200'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`
-    }
+    const isActive = (path: string) =>
+        loc.pathname === path || loc.pathname.startsWith(path + "/") || loc.pathname.startsWith(path);
 
-    const getMobileLinkClass = (path: string) => {
-        const isActive = loc.pathname.startsWith(path)
-        return `block px-4 py-3 text-base font-medium transition-colors duration-200 ${isActive
-            ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`
-    }
+    // Enhanced desktop link classes
+    const desktopLinkClass = (active: boolean) =>
+        [
+            "relative inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
+            active
+                ? "text-blue-700"
+                : "text-gray-600 hover:text-gray-900",
+        ].join(" ");
 
-    // Don't render navbar if no user
-    if (!user) return null
+    // Add active indicator underline
+    const activeIndicator = (active: boolean) =>
+        active ? "after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-blue-600 after:rounded-full" : "";
+
+    const mobileLinkClass = (active: boolean) =>
+        [
+            "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
+            active
+                ? "bg-blue-50 text-blue-700"
+                : "text-gray-700 hover:bg-gray-50",
+        ].join(" ");
+
+    if (!user) return null;
 
     return (
-        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16">
-                    {/* Left section - Title and Logo */}
-                    <div className="flex items-center">
-                        <h1 className="text-xl font-semibold text-gray-900">
-                            Sushi Admin
-                        </h1>
-                        <span className="ml-3 text-sm text-gray-500 capitalize bg-gray-100 px-2 py-1 rounded-md">
-                            {userRole}
-                            {!userProfile && !loading && ' • No Profile'}
-                            {loading && ' • Loading...'}
-                        </span>
-                    </div>
-
-                    {/* Desktop Navigation */}
-                    <nav className="hidden md:flex items-center space-x-1">
-                        {filteredNavLinks.map((link) => (
-                            <Link
-                                key={link.path}
-                                className={getLinkClass(link.path)}
-                                to={link.path}
-                            >
-                                {link.label}
-                            </Link>
-                        ))}
-                    </nav>
-
-                    {/* Right section - User Info / Language / Logout */}
-                    <div className="hidden md:flex items-center space-x-4">
-
-                        <div className="flex items-center space-x-3">
-                            <div className="text-right">
-                                <div className="text-sm font-medium text-gray-900 max-w-32 truncate">
-                                    {userProfile?.displayName || user.email?.split('@')[0]}
-                                </div>
-                                <div className="text-xs text-gray-500 capitalize">
-                                    {userRole}
-                                </div>
+        <header className="sticky top-0 z-50 border-b border-gray-200 bg-white">
+            <div className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
+                <div className="flex h-18 items-center justify-between">
+                    {/* Logo and Brand */}
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900 text-white font-semibold text-lg">
+                            S
+                        </div>
+                        <div className="hidden sm:block">
+                            <div className="text-sm font-semibold text-gray-900">Sushi Admin</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                                <span
+                                    className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${roleBadge(
+                                        userRole
+                                    )}`}
+                                >
+                                    {String(userRole)}
+                                </span>
+                                {!userProfile && !loading && (
+                                    <span className="text-[10px] text-gray-400">No profile</span>
+                                )}
                             </div>
-
-                            <Link
-                                to="/admin/profile"
-                                className="text-gray-500 hover:text-blue-600 p-2 rounded-md transition-colors duration-200"
-                                title={t('nav.profile', 'Profile')}
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                            </Link>
-
-                            <button
-                                onClick={handleLogout}
-                                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition-colors duration-200 flex items-center space-x-2"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                </svg>
-                                <span>{t('nav.logout', 'Logout')}</span>
-                            </button>
                         </div>
                     </div>
 
-                    {/* Mobile Menu Button */}
-                    <div className="md:hidden flex items-center space-x-2">
+                    {/* Desktop Navigation - Centered */}
+                    <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
+                        {filteredNavLinks.map((link) => {
+                            const active = isActive(link.path);
+                            const Icon = link.icon;
+                            return (
+                                <Link
+                                    key={link.path}
+                                    to={link.path}
+                                    className={`${desktopLinkClass(active)} ${activeIndicator(active)}`}
+                                    aria-current={active ? "page" : undefined}
+                                >
+                                    <Icon className={`h-4 w-4 ${active ? "text-blue-700" : "text-gray-400"}`} />
+                                    <span>{link.label}</span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
+
+                    {/* Right Actions */}
+                    <div className="flex items-center gap-3">
+                        {/* Profile Menu - Desktop */}
+                        <div className="hidden md:block">
+                            <Link
+                                to="/admin/profile"
+                                className="flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 hover:bg-gray-50 transition-colors group"
+                            >
+                                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-white text-sm font-medium">
+                                    {initials(displayName)}
+                                </div>
+                                <div className="max-w-[120px]">
+                                    <div className="truncate text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                                        {displayName}
+                                    </div>
+                                    <div className="text-xs text-gray-400">
+                                        {String(userRole).toLowerCase()}
+                                    </div>
+                                </div>
+                            </Link>
+                        </div>
+
+                        {/* Logout Button - Desktop */}
                         <button
-                            onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200"
+                            onClick={handleLogout}
+                            className="hidden md:inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                            title="Sign out"
+                        >
+                            <LogOut className="h-4 w-4 text-gray-400" />
+                        </button>
+
+                        {/* Mobile Menu Button */}
+                        <button
+                            onClick={() => setIsMenuOpen((v) => !v)}
+                            className="md:hidden inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-2.5 text-gray-600 hover:bg-gray-50 transition-colors"
                             aria-label="Toggle menu"
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                {isMenuOpen ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                                )}
-                            </svg>
+                            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                         </button>
                     </div>
                 </div>
 
                 {/* Mobile Menu */}
                 {isMenuOpen && (
-                    <div className="md:hidden border-t border-gray-200 bg-white shadow-lg">
-                        {/* Navigation Links */}
-                        <nav className="px-2 pt-2 pb-3 space-y-1">
-                            {filteredNavLinks.map((link) => (
-                                <Link
-                                    key={link.path}
-                                    className={getMobileLinkClass(link.path)}
-                                    to={link.path}
-                                    onClick={() => setIsMenuOpen(false)}
-                                >
-                                    {link.label}
-                                </Link>
-                            ))}
+                    <div className="md:hidden border-t border-gray-100 py-4">
+                        {/* User Info */}
+                        <div className="flex items-center gap-3 px-2 pb-4 mb-2 border-b border-gray-100">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-600 text-white text-base font-medium">
+                                {initials(displayName)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="font-medium text-gray-900 truncate">{displayName}</div>
+                                <div className="text-sm text-gray-500 truncate">{user.email}</div>
+                            </div>
+                            <span
+                                className={`inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium ${roleBadge(
+                                    userRole
+                                )}`}
+                            >
+                                {String(userRole)}
+                            </span>
+                        </div>
+
+                        {/* Mobile Navigation Links */}
+                        <nav className="space-y-1 px-2">
+                            {filteredNavLinks.map((link) => {
+                                const active = isActive(link.path);
+                                const Icon = link.icon;
+                                return (
+                                    <Link
+                                        key={link.path}
+                                        to={link.path}
+                                        className={mobileLinkClass(active)}
+                                    >
+                                        <Icon className={`h-5 w-5 ${active ? "text-blue-700" : "text-gray-400"}`} />
+                                        <span>{link.label}</span>
+                                    </Link>
+                                );
+                            })}
                         </nav>
 
-                        {/* User Info and Actions */}
-                        <div className="border-t border-gray-200 px-4 py-4 bg-gray-50 space-y-4">
-                            <div className="flex items-center space-x-3">
-                                <div className="flex-shrink-0">
-                                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                                        {(userProfile?.displayName || user.email?.[0] || 'U').toUpperCase()}
-                                    </div>
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <div className="text-sm font-medium text-gray-900 truncate">
-                                        {userProfile?.displayName || user.email}
-                                    </div>
-                                    <div className="text-sm text-gray-500 capitalize">
-                                        {userRole}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex space-x-3">
-                                <Link
-                                    to="/admin/profile"
-                                    className="flex-1 bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors duration-200 text-center"
-                                    onClick={() => setIsMenuOpen(false)}
-                                >
-                                    {t('nav.profile', 'Profile')}
-                                </Link>
-                                <button
-                                    onClick={handleLogout}
-                                    className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-red-700 transition-colors duration-200"
-                                >
-                                    {t('nav.logout', 'Logout')}
-                                </button>
-                            </div>
+                        {/* Mobile Actions */}
+                        <div className="mt-4 pt-4 border-t border-gray-100 px-2 space-y-2">
+                            <Link
+                                to="/admin/profile"
+                                className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                                <UserIcon className="h-5 w-5 text-gray-400" />
+                                <span>{t("nav.profile", "Profile")}</span>
+                            </Link>
+                            <button
+                                onClick={handleLogout}
+                                className="w-full flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                                <LogOut className="h-5 w-5 text-red-400" />
+                                <span>{t("nav.logout", "Sign out")}</span>
+                            </button>
                         </div>
                     </div>
                 )}
             </div>
         </header>
-    )
+    );
 }

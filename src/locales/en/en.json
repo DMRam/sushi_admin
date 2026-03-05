@@ -145,12 +145,12 @@
     "backToInfo": "Back"
   },
   "nav": {
-    "salesTracking": "Sales Tracking",
+    "salesTracking": "Sales",
     "purchases": "Purchases",
     "products": "Products",
     "stock": "Stock",
-    "costAnalysis": "Cost Analysis",
-    "businessAnalytics": "Business Analytics",
+    "costAnalysis": "Cost",
+    "businessAnalytics": "Analytics",
     "admin": "Admin",
     "profile": "Profile",
     "logout": "Logout",

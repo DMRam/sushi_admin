@@ -83,8 +83,8 @@ function PublicRoutes() {
       <Route path="/menu" element={<OrderPage />} />
       <Route path="/admin-login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/checkout/success" element={<SuccessPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
-      <Route path="/success" element={<SuccessPage />} />
       <Route path="/catering" element={<CateringPage />} />
 
       {/* Legal Pages */}

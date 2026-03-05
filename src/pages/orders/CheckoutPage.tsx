@@ -35,26 +35,38 @@ export interface CartItemCheckOut {
     preparationTime?: number;
 }
 
-interface CheckoutResponse {
-    success: boolean;
-    url?: string;
-    orderId?: string;
-    error?: string;
-    details?: any;
-    userMessage?: string;
-    requestId?: string;
-}
+// interface CheckoutResponse {
+//     success: boolean;
+//     url?: string;
+//     orderId?: string;
+//     error?: string;
+//     details?: any;
+//     userMessage?: string;
+//     requestId?: string;
+// }
 
-function getCheckoutHttpUrl(): string {
-    const explicit = (import.meta as any)?.env?.VITE_CHECKOUT_HTTP_URL as string | undefined;
-    if (explicit) return explicit;
+// function getCheckoutHttpUrl(): string {
+//     const explicit = (import.meta as any)?.env?.VITE_CHECKOUT_HTTP_URL as string | undefined;
+//     if (explicit) return explicit;
 
-    // opcional fallback si tienes project id en env
-    const projectId = (import.meta as any)?.env?.VITE_FIREBASE_PROJECT_ID as string | undefined;
-    if (projectId) return `https://us-central1-${projectId}.cloudfunctions.net/createCheckoutHTTP`;
+//     // opcional fallback si tienes project id en env
+//     const projectId = (import.meta as any)?.env?.VITE_FIREBASE_PROJECT_ID as string | undefined;
+//     if (projectId) return `https://us-central1-${projectId}.cloudfunctions.net/createCheckoutHTTP`;
 
-    throw new Error("Missing checkout function URL. Set VITE_CHECKOUT_HTTP_URL.");
-}
+//     throw new Error("Missing checkout function URL. Set VITE_CHECKOUT_HTTP_URL.");
+// }
+
+// function getCloverCheckoutHttpUrl(): string {
+//     const explicit = (import.meta as any)?.env?.VITE_CLOVER_CHECKOUT_HTTP_URL as string | undefined;
+//     if (explicit) return explicit;
+
+//     const projectId = (import.meta as any)?.env?.VITE_FIREBASE_PROJECT_ID as string | undefined;
+//     if (projectId) return `https://us-central1-${projectId}.cloudfunctions.net/cloverCreateHostedCheckout`;
+
+//     throw new Error("Missing Clover checkout function URL. Set VITE_CLOVER_CHECKOUT_HTTP_URL.");
+// }
+
+
 
 export default function CheckoutPage() {
     const cart = useCartStore((s) => s.cart);
@@ -127,6 +139,35 @@ export default function CheckoutPage() {
     const { gst, qst, finalTotal } = useCheckoutTotals(subtotal, deliveryInfo.fee);
 
     const pointsEarned = Math.floor(subtotal);
+
+    // type CloverCheckoutResponse = {
+    //     checkoutUrl: string;
+    //     checkoutSessionId?: string;
+    //     expirationTime?: string;
+    //     error?: string;
+    //     status?: number;
+    //     data?: any;
+    // };
+
+    // const createCloverCheckoutHttp = useCallback(async (payload: any): Promise<CloverCheckoutResponse> => {
+    //     const url = getCloverCheckoutHttpUrl();
+
+    //     const resp = await fetch(url, {
+    //         method: "POST",
+    //         headers: { "Content-Type": "application/json" },
+    //         body: JSON.stringify(payload),
+    //     });
+
+    //     const json = (await resp.json().catch(() => ({}))) as any;
+
+    //     if (!resp.ok) {
+    //         const msg = json?.error || `Clover checkout failed (HTTP ${resp.status})`;
+    //         throw new Error(msg);
+    //     }
+
+    //     if (!json.checkoutUrl) throw new Error("Clover did not return checkoutUrl");
+    //     return json as CloverCheckoutResponse;
+    // }, []);
 
     const estimatedPrepTime = useMemo(() => {
         const baseTime = 15;
@@ -225,144 +266,203 @@ export default function CheckoutPage() {
             .eq("id", user.id);
     }, [user, formData]);
 
-    const collectValidImageUrls = useCallback((item: CartItemCheckOut): string[] => {
-        const out: string[] = [];
-        const add = (url: any) => {
-            if (typeof url !== "string") return;
-            const u = url.trim();
-            if (!u) return;
-            try {
-                new URL(u);
-                const isImg =
-                    /\.(jpg|jpeg|png|webp|gif|bmp|svg)(\?.*)?$/i.test(u) ||
-                    u.includes("cloudinary") ||
-                    u.includes("firebase") ||
-                    u.includes("storage.googleapis.com");
-                if (isImg && !out.includes(u)) out.push(u);
-            } catch { }
-        };
+    // const collectValidImageUrls = useCallback((item: CartItemCheckOut): string[] => {
+    //     const out: string[] = [];
+    //     const add = (url: any) => {
+    //         if (typeof url !== "string") return;
+    //         const u = url.trim();
+    //         if (!u) return;
+    //         try {
+    //             new URL(u);
+    //             const isImg =
+    //                 /\.(jpg|jpeg|png|webp|gif|bmp|svg)(\?.*)?$/i.test(u) ||
+    //                 u.includes("cloudinary") ||
+    //                 u.includes("firebase") ||
+    //                 u.includes("storage.googleapis.com");
+    //             if (isImg && !out.includes(u)) out.push(u);
+    //         } catch { }
+    //     };
 
-        [item.image, item.imageUrl, item.thumbnail, item.mainImage, item.photo, item.img, item.picture].forEach(add);
-        (item.images || []).forEach(add);
-        (item.imageUrls || []).forEach(add);
-        return out;
-    }, []);
+    //     [item.image, item.imageUrl, item.thumbnail, item.mainImage, item.photo, item.img, item.picture].forEach(add);
+    //     (item.images || []).forEach(add);
+    //     (item.imageUrls || []).forEach(add);
+    //     return out;
+    // }, []);
 
-    const createCheckoutHttp = useCallback(async (payload: any): Promise<CheckoutResponse> => {
-        const url = getCheckoutHttpUrl();
+    // const createCheckoutHttp = useCallback(async (payload: any): Promise<CheckoutResponse> => {
+    //     const url = getCheckoutHttpUrl();
 
-        const resp = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
+    //     const resp = await fetch(url, {
+    //         method: "POST",
+    //         headers: { "Content-Type": "application/json" },
+    //         body: JSON.stringify(payload),
+    //     });
 
-        const json = (await resp.json().catch(() => ({}))) as any;
+    //     const json = (await resp.json().catch(() => ({}))) as any;
 
-        // backend compat: if it returns {data:{...}} unwrap it
-        const data: CheckoutResponse = json?.data ? json.data : json;
+    //     // backend compat: if it returns {data:{...}} unwrap it
+    //     const data: CheckoutResponse = json?.data ? json.data : json;
 
-        if (!resp.ok) {
-            const msg = data.userMessage || data.error || `Checkout failed (HTTP ${resp.status})`;
-            throw new Error(msg);
-        }
+    //     if (!resp.ok) {
+    //         const msg = data.userMessage || data.error || `Checkout failed (HTTP ${resp.status})`;
+    //         throw new Error(msg);
+    //     }
 
-        return data;
-    }, []);
+    //     return data;
+    // }, []);
 
     const handleCardPayment = useCallback(async () => {
         setIsProcessing(true);
 
         try {
-            if (!validate(formData, deliveryInfo)) throw new Error("Please complete the required fields.");
-            if (!safeCart.length) throw new Error("Your cart is empty.");
+            if (!validate(formData, deliveryInfo)) {
+                throw new Error("Please complete the required fields.");
+            }
+            if (!safeCart.length) {
+                throw new Error("Your cart is empty.");
+            }
 
-            const cartItems = safeCart.map((it, idx) => {
+            // Subtotal BASE (sin impuestos), desde el carrito
+            const calculatedSubtotal = safeCart.reduce((sum, it) => {
+                const qty = Number.isFinite(it.quantity) ? Number(it.quantity) : 1;
+                return sum + (it.price * qty);
+            }, 0);
+
+            if (Math.abs(calculatedSubtotal - subtotal) > 0.01) {
+                console.warn("Subtotal mismatch:", { calculated: calculatedSubtotal, passed: subtotal });
+            }
+
+            // ✅ ENVIAR A CLOVER: precios BASE (sin taxes)
+            const items = safeCart.map((it, idx) => {
                 if (!it.name?.trim()) throw new Error(`Item ${idx + 1} is missing a name`);
-                if (typeof it.price !== "number" || it.price < 0) throw new Error(`Item "${it.name}" has an invalid price`);
-                if (it.quantity && (it.quantity < 1 || !Number.isInteger(it.quantity))) {
+                if (typeof it.price !== "number" || it.price < 0) {
+                    throw new Error(`Item "${it.name}" has an invalid price`);
+                }
+
+                const quantity = Number.isFinite(it.quantity) ? Number(it.quantity) : 1;
+                if (quantity < 1 || !Number.isInteger(quantity)) {
                     throw new Error(`Item "${it.name}" has an invalid quantity`);
                 }
 
-                const imgs = collectValidImageUrls(it);
-                const descriptionText = getLocalizedDescription(it.description);
+                const note = getLocalizedDescription(it.description)?.substring(0, 250) ?? "";
 
-                const base: any = {
-                    productId: it.id || `item-${idx}-${Date.now()}`,
+                return {
                     name: it.name.trim(),
-                    price: Number(it.price),
-                    quantity: it.quantity || 1,
-                    ...(descriptionText ? { description: descriptionText.substring(0, 495) } : {}),
-                    ...(it.category ? { category: it.category } : {}),
+                    price: Math.round(it.price * 100), // ✅ cents BASE (sin impuestos)
+                    unitQty: quantity,
+                    note,
                 };
-
-                if (imgs.length) {
-                    base.image = imgs[0];
-                    base.imageUrls = imgs.slice(0, 8);
-                }
-
-                return base;
             });
 
-            const customerInfo = {
-                name: `${formData.firstName}`.trim(),
-                email: formData.email?.trim() || "",
-                phone: formData.phone?.trim() || "",
-                address: formData.deliveryMethod === "delivery" ? formData.address?.trim() || "" : "",
-                city:
-                    formData.deliveryMethod === "delivery"
-                        ? `${formData.city}${formData.area ? ` (${formData.area})` : ""}`
-                        : "",
-                zipCode: formData.deliveryMethod === "delivery" ? formData.zipCode?.trim() || "" : "",
-                deliveryInstructions: formData.deliveryInstructions?.trim() || "",
-                province: "QC",
-                deliveryMethod: formData.deliveryMethod,
+            const customer = {
+                email: (formData.email ?? "").trim(),
+                firstName: (`${formData.firstName ?? ""}`).trim() || "Guest",
+                phoneNumber: (formData.phone ?? "").trim(),
             };
 
             if (user) await updateClientProfile();
 
-            const payload: any = {
-                cartItems,
-                customerInfo,
-                totals: { subtotal, gst, qst, deliveryFee: deliveryInfo.fee, finalTotal },
-                userId: user?.id || `guest-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            const url = (import.meta.env.VITE_CLOVER_CHECKOUT_HTTP_URL as string) || "";
+            const merchantId = (import.meta.env.VITE_CLOVER_MERCHANT_ID as string) || "";
+            if (!url) throw new Error("Missing VITE_CLOVER_CHECKOUT_HTTP_URL");
+            if (!merchantId) throw new Error("Missing VITE_CLOVER_MERCHANT_ID");
+
+            const payload = {
+                merchantId,
+                tipsEnabled: true,
                 clientUrl: window.location.origin,
-                estimatedPrepTime,
+                customer,
+                items,
+                metadata: {
+                    userId: user?.id || "guest",
+                    pointsEarned: String(user ? pointsEarned ?? 0 : 0),
+                    totals: JSON.stringify({
+                        subtotal: calculatedSubtotal,        
+                        gst,                                 
+                        qst,                               
+                        deliveryFee: deliveryInfo.fee,
+                        finalTotal,                         
+                    }),
+                    deliveryMethod: formData.deliveryMethod,
+                },
             };
 
-            if (user) payload.pointsInfo = { userId: user.id, pointsEarned, currentBalance: user.points };
+             const itemsTotalBase = items.reduce((sum, it) => sum + (it.price * it.unitQty) / 100, 0);
+            const expectedTotal = itemsTotalBase + gst + qst + (deliveryInfo.fee || 0);
 
-            const data = await createCheckoutHttp(payload);
-
-            if (!data.success || !data.url) {
-                throw new Error(data.error || "Checkout session creation failed");
+            if (Math.abs(expectedTotal - finalTotal) > 0.02) {
+                console.warn("Total mismatch check:", {
+                    itemsTotalBase,
+                    gst,
+                    qst,
+                    deliveryFee: deliveryInfo.fee,
+                    expectedTotal,
+                    finalTotal,
+                    diff: expectedTotal - finalTotal,
+                });
             }
 
-            if (user) {
-                sessionStorage.setItem(
-                    "pendingPointsOrder",
-                    JSON.stringify({
-                        userId: user.id,
-                        orderId: data.orderId || `order-${Date.now()}`,
-                        pointsEarned,
-                        cartTotal: subtotal,
-                        estimatedPrepTime,
-                    })
+            const resp = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "omit",
+                body: JSON.stringify(payload),
+            });
+
+            const raw = await resp.text();
+            let data: any = {};
+            try {
+                data = raw ? JSON.parse(raw) : {};
+            } catch {
+                data = { raw };
+            }
+
+            if (!resp.ok) {
+                const details =
+                    data?.data?.errors ||
+                    data?.data?.message ||
+                    data?.data?.details ||
+                    data?.message ||
+                    data?.error ||
+                    data?.raw ||
+                    raw ||
+                    "Unknown error";
+
+                throw new Error(
+                    [
+                        data?.error || "Hosted checkout create failed",
+                        data?.status ? `CloverStatus=${data.status}` : "",
+                        typeof details === "string" ? details : JSON.stringify(details),
+                    ]
+                        .filter(Boolean)
+                        .join(" | ")
                 );
             }
 
+            if (!data?.checkoutUrl) throw new Error("Missing checkoutUrl in Clover response");
+
             sessionStorage.setItem(
-                "pendingCheckout",
+                "pendingCloverCheckout",
                 JSON.stringify({
-                    cartItems,
-                    customerInfo,
-                    totals: { subtotal, gst, qst, deliveryFee: deliveryInfo.fee, finalTotal },
-                    timestamp: Date.now(),
-                    estimatedPrepTime,
+                    orderId: data.orderId,
+                    checkoutSessionId: data.checkoutSessionId || null,
+                    checkoutUrl: data.checkoutUrl,
+                    expirationTime: data.expirationTime || null,
+                    createdAt: Date.now(),
+                    totals: {
+                        subtotal: calculatedSubtotal,
+                        gst,
+                        qst,
+                        deliveryFee: deliveryInfo.fee,
+                        finalTotal,
+                    },
+                    pointsEarned: user ? pointsEarned ?? 0 : 0,
+                    userId: user?.id || null,
+                    customerEmail: customer.email,
                 })
             );
 
-            window.location.href = data.url;
+            window.location.href = data.checkoutUrl;
         } catch (err: any) {
             console.error("❌ Checkout error:", err);
             alert(err?.message || "Payment processing failed. Please try again.");
@@ -374,16 +474,13 @@ export default function CheckoutPage() {
         formData,
         deliveryInfo,
         safeCart,
-        collectValidImageUrls,
         getLocalizedDescription,
         user,
         updateClientProfile,
-        createCheckoutHttp,
         subtotal,
         gst,
         qst,
         finalTotal,
-        estimatedPrepTime,
         pointsEarned,
     ]);
 

@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { collection, doc, getDocs, updateDoc, addDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../../../../firebase/firebase'
 import type { WebProduct } from '../../../../types/types'
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "../../../../firebase/firebase";
 
 interface PageContent {
     id?: string
@@ -34,6 +36,7 @@ const PREDEFINED_PAGES = [
 
 
 export default function WebManagementPage() {
+    const [productSearch, setProductSearch] = useState("");
     const [activeSection, setActiveSection] = useState<'pages' | 'products' | 'settings'>('pages')
     const [pages, setPages] = useState<PageContent[]>([])
     const [products, setProducts] = useState<WebProduct[]>([])
@@ -107,45 +110,88 @@ export default function WebManagementPage() {
         }
     }
 
+    const normalizeDescription = (desc: any): { en: string; fr: string; es: string } => {
+        if (!desc) return { en: "", fr: "", es: "" };
+        if (typeof desc === "string") return { en: desc, fr: "", es: "" };
+        return {
+            en: typeof desc.en === "string" ? desc.en : "",
+            fr: typeof desc.fr === "string" ? desc.fr : "",
+            es: typeof desc.es === "string" ? desc.es : "",
+        };
+    };
+
+    const normalizeDate = (v: any): Date => {
+        // Firestore Timestamp -> toDate()
+        if (v?.toDate) return v.toDate();
+        // ISO string
+        if (typeof v === "string") {
+            const d = new Date(v);
+            return isNaN(d.getTime()) ? new Date() : d;
+        }
+        // Date
+        if (v instanceof Date) return v;
+        return new Date();
+    };
+
     const fetchProducts = async () => {
         try {
-            const snapshot = await getDocs(collection(db, 'products'))
-            const productsData: WebProduct[] = snapshot.docs.map(doc => {
-                const data = doc.data()
+            const snapshot = await getDocs(collection(db, "products"));
+
+            const productsData: WebProduct[] = snapshot.docs.map((d) => {
+                const data = d.data();
+
+                const price =
+                    typeof data.sellingPrice === "number"
+                        ? data.sellingPrice
+                        : typeof data.price === "number"
+                            ? data.price
+                            : 0;
+
+                const imageUrl = data.imageUrls?.[0] || data.imageUrl || "";
 
                 return {
-                    id: doc.id,
-                    name: data.name || 'Unnamed Product',
-                    description: data.description || '',
-                    price: typeof data.sellingPrice === 'number' ? data.sellingPrice :
-                        typeof data.price === 'number' ? data.price : 0,
-                    imageUrl: data.imageUrls?.[0] || data.imageUrl || '',
-                    category: data.category || 'general',
+                    id: d.id,
+                    name: data.name || "Unnamed Product",
+                    description: normalizeDescription(data.description),
+                    price,
+                    imageUrl,
+                    category: data.category || "general",
                     isActive: data.isActive !== undefined ? data.isActive : true,
-                    featured: data.featured || false,
-                    sortOrder: typeof data.sortOrder === 'number' ? data.sortOrder : 0,
-                    costPrice: typeof data.costPrice === 'number' ? data.costPrice : 0,
-                    sellingPrice: typeof data.sellingPrice === 'number' ? data.sellingPrice : 0,
-                    profitMargin: typeof data.profitMargin === 'number' ? data.profitMargin : 0,
-                    portionSize: data.portionSize || '',
-                    preparationTime: typeof data.preparationTime === 'number' ? data.preparationTime : 0,
-                    tags: Array.isArray(data.tags) ? data.tags : [],
-                    productType: data.productType || 'directCost',
-                    ingredients: Array.isArray(data.ingredients) ? data.ingredients.map((ing: any) => ({
-                        id: ing.id || '',
-                        name: ing.name || '',
-                        quantity: typeof ing.quantity === 'number' ? ing.quantity : 0,
-                        unit: ing.unit || ''
-                    })) : []
-                } as WebProduct
-            })
+                    featured: !!data.featured,
+                    sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : 0,
+                    costPrice: typeof data.costPrice === "number" ? data.costPrice : 0,
+                    sellingPrice: typeof data.sellingPrice === "number" ? data.sellingPrice : price,
+                    profitMargin: typeof data.profitMargin === "number" ? data.profitMargin : 0,
+                    portionSize: data.portionSize || "",
+                    preparationTime: typeof data.preparationTime === "number" ? data.preparationTime : 0,
+                    tags: Array.isArray(data.tags) ? data.tags.filter((t: any) => typeof t === "string") : [],
+                    productType: data.productType || "directCost",
+                    ingredients: Array.isArray(data.ingredients)
+                        ? data.ingredients.map((ing: any) => ({
+                            id: ing.id || "",
+                            name: ing.name || "",
+                            quantity: typeof ing.quantity === "number" ? ing.quantity : 0,
+                            unit: ing.unit || "",
+                        }))
+                        : [],
+                    // opcional: si tu tipo WebProduct lo soporta
+                    lastUpdated: normalizeDate(data.lastUpdated),
+                } as any as WebProduct;
+            });
 
-            setProducts(productsData.sort((a, b) => a.sortOrder - b.sortOrder))
+            // sort inicial: sortOrder, luego name
+            productsData.sort((a: any, b: any) => {
+                const so = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+                if (so !== 0) return so;
+                return String(a.name ?? "").localeCompare(String(b.name ?? ""));
+            });
+
+            setProducts(productsData);
         } catch (error) {
-            console.error('Error fetching products:', error)
-            throw error
+            console.error("Error fetching products:", error);
+            throw error;
         }
-    }
+    };
 
     const fetchSiteConfig = async () => {
         try {
@@ -194,69 +240,90 @@ export default function WebManagementPage() {
         }
     }
 
+    const upsertLocalProduct = (p: WebProduct) => {
+        setProducts((prev) => {
+            const idx = prev.findIndex((x) => x.id === p.id);
+            if (idx >= 0) {
+                const next = [...prev];
+                next[idx] = { ...prev[idx], ...p };
+                return next.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+            }
+            return [...prev, p].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+        });
+    };
+
     const saveProduct = async (product: WebProduct) => {
-        setLoading(true)
-        setError(null)
+        setLoading(true);
+        setError(null);
+
         try {
-            // Prepare product data with proper defaults
             const productData: FirestoreData = {
-                name: product.name || '',
-                description: product.description || '',
-                sellingPrice: typeof product.price === 'number' ? product.price : 0,
-                costPrice: typeof product.costPrice === 'number' ? product.costPrice : 0,
-                profitMargin: typeof product.profitMargin === 'number' ? product.profitMargin : 0,
-                category: product.category || 'general',
-                portionSize: product.portionSize || '',
-                preparationTime: typeof product.preparationTime === 'number' ? product.preparationTime : 0,
+                name: product.name || "",
+                description: product.description || { en: "", fr: "", es: "" },
+                sellingPrice: typeof product.price === "number" ? product.price : 0,
+                costPrice: typeof product.costPrice === "number" ? product.costPrice : 0,
+                profitMargin: typeof product.profitMargin === "number" ? product.profitMargin : 0,
+                category: product.category || "general",
+                portionSize: product.portionSize || "",
+                preparationTime: typeof product.preparationTime === "number" ? product.preparationTime : 0,
                 isActive: product.isActive !== undefined ? product.isActive : true,
-                featured: product.featured || false,
+                featured: !!product.featured,
                 tags: Array.isArray(product.tags) ? product.tags : [],
-                productType: product.productType || 'directCost',
-                // Ensure ingredients array is properly formatted
+                productType: product.productType || "directCost",
                 ingredients: Array.isArray(product.ingredients)
-                    ? product.ingredients.map(ing => ({
-                        id: ing.id || '',
-                        name: ing.name || '',
-                        quantity: typeof ing.quantity === 'number' ? ing.quantity : 0,
-                        unit: ing.unit || ''
+                    ? product.ingredients.map((ing) => ({
+                        id: ing.id || "",
+                        name: ing.name || "",
+                        quantity: typeof ing.quantity === "number" ? ing.quantity : 0,
+                        unit: ing.unit || "",
                     }))
                     : [],
                 imageUrls: product.imageUrl ? [product.imageUrl] : [],
-                lastUpdated: new Date().toISOString(),
-                sortOrder: typeof product.sortOrder === 'number' ? product.sortOrder : 0
-            }
-
-            console.log('Saving product data:', productData)
+                lastUpdated: new Date(), // 🔥 timestamp
+                sortOrder: typeof product.sortOrder === "number" ? product.sortOrder : 0,
+            };
 
             if (product.id) {
-                await updateDoc(doc(db, 'products', product.id), productData)
-                console.log('Product updated successfully')
+                await updateDoc(doc(db, "products", product.id), productData);
+
+                upsertLocalProduct({
+                    ...product,
+                    sellingPrice: productData.sellingPrice,
+                    lastUpdated: new Date() as any,
+                } as any);
             } else {
-                const docRef = await addDoc(collection(db, 'products'), productData)
-                console.log('Product created with ID:', docRef.id)
+                const ref = await addDoc(collection(db, "products"), productData);
+
+                upsertLocalProduct({
+                    ...product,
+                    id: ref.id,
+                    sellingPrice: productData.sellingPrice,
+                    lastUpdated: new Date() as any,
+                } as any);
             }
-            await fetchProducts()
-            setEditingProduct(null)
+
+            setEditingProduct(null);
         } catch (error) {
-            console.error('Error saving product:', error)
-            setError('Failed to save product: ' + (error as Error).message)
+            console.error("Error saving product:", error);
+            setError("Failed to save product: " + (error as Error).message);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
+
 
     const deleteProduct = async (id: string) => {
-        if (confirm('Are you sure you want to delete this product?')) {
-            setError(null)
-            try {
-                await deleteDoc(doc(db, 'products', id))
-                await fetchProducts()
-            } catch (error) {
-                console.error('Error deleting product:', error)
-                setError('Failed to delete product')
-            }
+        if (!confirm("Are you sure you want to delete this product?")) return;
+
+        setError(null);
+        try {
+            await deleteDoc(doc(db, "products", id));
+            setProducts((prev) => prev.filter((p) => p.id !== id)); // ✅ update local only
+        } catch (error) {
+            console.error("Error deleting product:", error);
+            setError("Failed to delete product");
         }
-    }
+    };
 
     const saveSiteConfig = async () => {
         setLoading(true)
@@ -549,6 +616,8 @@ export default function WebManagementPage() {
                             onEdit={setEditingProduct}
                             onDelete={deleteProduct}
                             formatPrice={formatPrice}
+                            search={productSearch}
+                            setSearch={setProductSearch}
                         />
                     )}
                 </div>
@@ -575,6 +644,25 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
     onCancel: () => void
     loading: boolean
 }) {
+    const [uploading, setUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [tagsText, setTagsText] = useState("");
+
+
+    const [priceInput, setPriceInput] = useState<string>(
+        product.price?.toString() ?? ""
+    );
+
+    const [costInput, setCostInput] = useState<string>(
+        product.costPrice?.toString() ?? ""
+    );
+
+
+    useEffect(() => {
+        setPriceInput(String(product.price ?? ""));
+        setCostInput(String(product.costPrice ?? ""));
+        setTagsText((product.tags ?? []).join(", "));
+    }, [product.id]); // si cambias de producto, se actualiza el input
 
     // Helper to ensure description object has all required languages
     const getDescriptionObject = (): { en: string; fr: string; es: string } => {
@@ -593,6 +681,40 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
             fr: product.description?.fr || '',
             es: product.description?.es || ''
         };
+    };
+
+    const handleImageFileUpload = async (file: File) => {
+        setUploadError(null);
+
+        if (!file.type.startsWith("image/")) {
+            setUploadError("Invalid file type. Please select an image.");
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            setUploadError("Image too large. Max 10MB.");
+            return;
+        }
+
+        try {
+            setUploading(true);
+
+            // si no hay id (producto nuevo), subimos a un path temporal
+            const baseId = product.id || `temp_${Date.now()}`;
+            const safeName = file.name.replace(/\s+/g, "_");
+            const path = `web-products/${baseId}/${Date.now()}_${safeName}`;
+
+            const r = ref(storage, path);
+            await uploadBytes(r, file);
+            const url = await getDownloadURL(r);
+
+            // ✅ setea el url en el form
+            onChange({ ...product, imageUrl: url });
+        } catch (e: any) {
+            console.error("Upload error:", e);
+            setUploadError(e?.message || "Failed to upload image.");
+        } finally {
+            setUploading(false);
+        }
     };
 
     const description = getDescriptionObject();
@@ -646,8 +768,27 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
                         type="number"
                         step="0.01"
                         min="0"
-                        value={product.price}
-                        onChange={(e) => onChange({ ...product, price: parseFloat(e.target.value) || 0 })}
+                        value={priceInput}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            setPriceInput(value);
+
+                            if (value !== "" && !isNaN(Number(value))) {
+                                onChange({
+                                    ...product,
+                                    price: Number(value),
+                                });
+                            }
+                        }}
+                        onBlur={() => {
+                            if (priceInput === "") {
+                                setPriceInput("0");
+                                onChange({
+                                    ...product,
+                                    price: 0,
+                                });
+                            }
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-light"
                     />
                 </div>
@@ -659,8 +800,27 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
                         type="number"
                         step="0.01"
                         min="0"
-                        value={product.costPrice || 0}
-                        onChange={(e) => onChange({ ...product, costPrice: parseFloat(e.target.value) || 0 })}
+                        value={costInput}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            setCostInput(value);
+
+                            if (value !== "" && !isNaN(Number(value))) {
+                                onChange({
+                                    ...product,
+                                    costPrice: Number(value),
+                                });
+                            }
+                        }}
+                        onBlur={() => {
+                            if (costInput === "") {
+                                setCostInput("0");
+                                onChange({
+                                    ...product,
+                                    costPrice: 0,
+                                });
+                            }
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-light"
                     />
                 </div>
@@ -738,16 +898,64 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
                 </div>
 
                 <div className="md:col-span-2">
-                    <label className="block text-sm font-light text-gray-700 mb-2">
-                        Image URL
-                    </label>
-                    <input
-                        type="url"
-                        value={product.imageUrl}
-                        onChange={(e) => onChange({ ...product, imageUrl: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-light"
-                        placeholder="https://example.com/image.jpg"
-                    />
+                    <label className="block text-sm font-light text-gray-700 mb-2">Image</label>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                        {/* URL input */}
+                        <div className="md:col-span-8">
+                            <input
+                                type="url"
+                                value={product.imageUrl}
+                                onChange={(e) => onChange({ ...product, imageUrl: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-light"
+                                placeholder="https://example.com/image.jpg"
+                            />
+                            <p className="text-xs text-gray-500 font-light mt-1">
+                                Paste an image URL or upload a file.
+                            </p>
+                        </div>
+
+                        {/* Upload button */}
+                        <div className="md:col-span-4">
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleImageFileUpload(f);
+                                    e.currentTarget.value = ""; // permite subir el mismo archivo otra vez
+                                }}
+                                className="block w-full text-sm font-light text-gray-600
+                   file:mr-3 file:py-2 file:px-4
+                   file:rounded-md file:border-0
+                   file:text-sm file:font-light
+                   file:bg-gray-900 file:text-white
+                   hover:file:bg-gray-800
+                   disabled:opacity-50"
+                                disabled={uploading}
+                            />
+
+                            {uploading && (
+                                <div className="mt-2 text-xs text-gray-500 font-light">Uploading…</div>
+                            )}
+                            {uploadError && (
+                                <div className="mt-2 text-xs text-red-600 font-light">{uploadError}</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Preview */}
+                    {product.imageUrl?.trim() && (
+                        <div className="mt-3">
+                            <div className="text-xs text-gray-500 font-light mb-2">Preview</div>
+                            <img
+                                src={product.imageUrl}
+                                alt={product.name || "Product image"}
+                                className="h-32 w-32 object-cover rounded-lg border border-gray-200"
+                                onError={() => setUploadError("Image URL is not valid or cannot be loaded.")}
+                            />
+                        </div>
+                    )}
                 </div>
                 <div>
                     <label className="block text-sm font-light text-gray-700 mb-2">
@@ -790,8 +998,18 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
                     </label>
                     <input
                         type="text"
-                        value={product.tags?.join(', ') || ''}
-                        onChange={(e) => onChange({ ...product, tags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag) })}
+                        value={tagsText}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            setTagsText(value);
+
+                            const tags = value
+                                .split(",")
+                                .map((t) => t.trim())
+                                .filter(Boolean);
+
+                            onChange({ ...product, tags });
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-light"
                         placeholder="Popular, Spicy, Vegan"
                     />
@@ -847,80 +1065,329 @@ function ProductForm({ product, onChange, onSave, onCancel, loading }: {
     )
 }
 
-// Product List Component with Multi-language Support
-function ProductList({ products, onEdit, onDelete, formatPrice }: {
-    products: WebProduct[]
-    onEdit: (product: WebProduct) => void
-    onDelete: (id: string) => void
-    formatPrice: (price: number | undefined) => string
+function useDebouncedValue<T>(value: T, delay = 250) {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const id = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(id);
+    }, [value, delay]);
+    return debounced;
+}
+
+function clamp(n: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, n));
+}
+
+function safeLower(s: any) {
+    return String(s ?? "").toLowerCase();
+}
+
+function productSearchText(p: any) {
+    const desc = p?.description ?? {};
+    const descAll = [desc.en, desc.fr, desc.es].filter(Boolean).join(" ");
+    const tags = Array.isArray(p?.tags) ? p.tags.join(" ") : "";
+    return [p?.name, p?.category, tags, descAll].filter(Boolean).join(" ");
+}
+
+
+function ProductList({
+    products,
+    onEdit,
+    onDelete,
+    formatPrice,
+    search,
+    setSearch,
+}: {
+    products: WebProduct[];
+    onEdit: (product: WebProduct) => void;
+    onDelete: (id: string) => void;
+    formatPrice: (price: number | undefined) => string;
+    search: string;
+    setSearch: (v: string) => void;
 }) {
 
-    const truncateText = (text: string | undefined, maxLength = 80): string => {
-        if (!text || !text.trim()) return 'No description'
+    // UI state
+    const debouncedSearch = useDebouncedValue(search, 250);
 
-        const clean = text.trim()
+    const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
+    const [featured, setFeatured] = useState<"all" | "featured" | "not_featured">("all");
+    const [category, setCategory] = useState<string>("all");
+    const [tag, setTag] = useState<string>("all");
 
-        if (clean.length <= maxLength) return clean
+    const [sortKey, setSortKey] = useState<"sortOrder" | "name" | "price" | "updated">("sortOrder");
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-        return clean.slice(0, maxLength - 1).trimEnd() + '…'
-    }
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
 
-    // Helper function to get the best available description
-    const getDescription = (product: WebProduct, preferredLanguage: string = 'en'): string => {
-        const desc = product.description;
+    // computed options
+    const categories = useMemo(() => {
+        const s = new Set<string>();
+        products.forEach((p: any) => s.add(p.category || "general"));
+        return ["all", ...Array.from(s).sort((a, b) => a.localeCompare(b))];
+    }, [products]);
 
-        // Return preferred language if available
-        if (desc[preferredLanguage as keyof typeof desc]?.trim()) {
-            return desc[preferredLanguage as keyof typeof desc];
-        }
+    const tags = useMemo(() => {
+        const s = new Set<string>();
+        products.forEach((p: any) => (p.tags || []).forEach((t: any) => typeof t === "string" && s.add(t)));
+        return ["all", ...Array.from(s).sort((a, b) => a.localeCompare(b))];
+    }, [products]);
 
-        // Fallback to English
-        if (desc.en?.trim()) {
-            return desc.en;
-        }
+    // filter + search
+    const filtered = useMemo(() => {
+        const q = safeLower(debouncedSearch).trim();
 
-        // Fallback to any available language
-        const availableLang = ['en', 'fr', 'es'].find(lang => desc[lang as keyof typeof desc]?.trim());
-        if (availableLang) {
-            return desc[availableLang as keyof typeof desc];
-        }
+        return products.filter((p: any) => {
+            if (status === "active" && !p.isActive) return false;
+            if (status === "inactive" && p.isActive) return false;
 
-        return 'No description';
-    }
+            if (featured === "featured" && !p.featured) return false;
+            if (featured === "not_featured" && !!p.featured) return false;
 
-    // Helper function to get description for title/tooltip (all languages)
-    const getDescriptionForTitle = (product: WebProduct): string => {
-        const desc = product.description;
-        const descriptions: string[] = [];
+            if (category !== "all" && (p.category || "general") !== category) return false;
 
-        ['en', 'fr', 'es'].forEach(lang => {
-            const langDesc = desc[lang as keyof typeof desc];
-            if (langDesc?.trim()) {
-                descriptions.push(`${lang.toUpperCase()}: ${langDesc}`);
+            if (tag !== "all") {
+                const t = Array.isArray(p.tags) ? p.tags : [];
+                if (!t.includes(tag)) return false;
             }
+
+            if (!q) return true;
+            return safeLower(productSearchText(p)).includes(q);
+        });
+    }, [products, debouncedSearch, status, featured, category, tag]);
+
+    // sorting
+    const sorted = useMemo(() => {
+        const copy = [...filtered];
+
+        copy.sort((a: any, b: any) => {
+            let v = 0;
+
+            if (sortKey === "sortOrder") {
+                v = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+                if (v === 0) v = String(a.name ?? "").localeCompare(String(b.name ?? ""));
+            } else if (sortKey === "name") {
+                v = String(a.name ?? "").localeCompare(String(b.name ?? ""));
+            } else if (sortKey === "price") {
+                v = (a.price ?? 0) - (b.price ?? 0);
+            } else if (sortKey === "updated") {
+                const ad = a.lastUpdated?.getTime?.() ?? (a.lastUpdated ? new Date(a.lastUpdated).getTime() : 0);
+                const bd = b.lastUpdated?.getTime?.() ?? (b.lastUpdated ? new Date(b.lastUpdated).getTime() : 0);
+                v = ad - bd;
+            }
+
+            return sortDir === "asc" ? v : -v;
         });
 
-        return descriptions.join('\n') || 'No description';
-    }
+        return copy;
+    }, [filtered, sortKey, sortDir]);
+
+    // pagination
+    const total = sorted.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const safePage = clamp(page, 1, totalPages);
+
+    useEffect(() => {
+        // reset to page 1 when changing filters/search/sort/pageSize
+        setPage(1);
+    }, [debouncedSearch, status, featured, category, tag, sortKey, sortDir, pageSize]);
+
+    const paged = useMemo(() => {
+        const start = (safePage - 1) * pageSize;
+        return sorted.slice(start, start + pageSize);
+    }, [sorted, safePage, pageSize]);
+
+    // descriptions (same as you had, but safer)
+    const truncateText = (text: string | undefined, maxLength = 80): string => {
+        if (!text || !text.trim()) return "No description";
+        const clean = text.trim();
+        if (clean.length <= maxLength) return clean;
+        return clean.slice(0, maxLength - 1).trimEnd() + "…";
+    };
+
+    const getDescription = (product: any, preferredLanguage: string = "en"): string => {
+        const desc = product?.description ?? { en: "", fr: "", es: "" };
+
+        if (desc?.[preferredLanguage]?.trim()) return desc[preferredLanguage];
+        if (desc?.en?.trim()) return desc.en;
+
+        const available = ["en", "fr", "es"].find((lang) => desc?.[lang]?.trim());
+        if (available) return desc[available];
+
+        return "No description";
+    };
+
+    const getDescriptionForTitle = (product: any): string => {
+        const desc = product?.description ?? {};
+        const lines: string[] = [];
+        (["en", "fr", "es"] as const).forEach((lang) => {
+            const v = desc?.[lang];
+            if (typeof v === "string" && v.trim()) lines.push(`${lang.toUpperCase()}: ${v}`);
+        });
+        return lines.join("\n") || "No description";
+    };
+
+    const clearFilters = () => {
+        setSearch("");
+        setStatus("all");
+        setFeatured("all");
+        setCategory("all");
+        setTag("all");
+        setSortKey("sortOrder");
+        setSortDir("asc");
+        setPageSize(25);
+        setPage(1);
+    };
 
     return (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
-            {/* Mobile Card View */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 space-y-4">
+            {/* Toolbar */}
+            <div className="sticky top-[56px] z-10 bg-white border border-gray-200 rounded-xl p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div>
+                        <div className="text-sm font-light text-gray-900">
+                            Showing <span className="text-gray-700">{total}</span> of{" "}
+                            <span className="text-gray-700">{products.length}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 font-light mt-1">
+                            Search + filters + sorting for large catalogs
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={clearFilters}
+                            className="px-3 py-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-sm font-light"
+                        >
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-12 gap-2">
+                    <div className="sm:col-span-6">
+                        <input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search name / category / tags / description…"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                        />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                        <select
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value as any)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                        >
+                            <option value="all">All status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                        <select
+                            value={featured}
+                            onChange={(e) => setFeatured(e.target.value as any)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                        >
+                            <option value="all">All</option>
+                            <option value="featured">Featured</option>
+                            <option value="not_featured">Not featured</option>
+                        </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                        <select
+                            value={pageSize}
+                            onChange={(e) => setPageSize(parseInt(e.target.value) || 25)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                        >
+                            <option value={10}>10 / page</option>
+                            <option value={25}>25 / page</option>
+                            <option value={50}>50 / page</option>
+                            <option value={100}>100 / page</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-12 gap-2">
+                    <div className="sm:col-span-4">
+                        <select
+                            value={category}
+                            onChange={(e) => setCategory(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                        >
+                            {categories.map((c) => (
+                                <option key={c} value={c}>
+                                    {c === "all" ? "All categories" : c}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="sm:col-span-4">
+                        <select
+                            value={tag}
+                            onChange={(e) => setTag(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                        >
+                            {tags.map((t) => (
+                                <option key={t} value={t}>
+                                    {t === "all" ? "All tags" : t}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="sm:col-span-3">
+                        <select
+                            value={sortKey}
+                            onChange={(e) => setSortKey(e.target.value as any)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                        >
+                            <option value="sortOrder">Sort order</option>
+                            <option value="name">Name</option>
+                            <option value="price">Price</option>
+                            <option value="updated">Updated</option>
+                        </select>
+                    </div>
+
+                    <div className="sm:col-span-1">
+                        <button
+                            type="button"
+                            onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
+                            className="w-full px-3 py-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-sm font-light"
+                            title="Toggle sort direction"
+                        >
+                            {sortDir === "asc" ? "Asc" : "Desc"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Mobile cards */}
             <div className="sm:hidden space-y-3">
-                {products.map((product) => (
+                {paged.map((product: any) => (
                     <div key={product.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <div className="flex justify-between items-start mb-3">
                             <div className="min-w-0 flex-1">
                                 <div className="font-light text-gray-900 text-sm mb-1 truncate">
-                                    {product.name || 'Unnamed Product'}
+                                    {product.name || "Unnamed Product"}
                                 </div>
                                 <div className="text-xs text-gray-500 font-light truncate">
-                                    {product.category || 'No category'}
+                                    {product.category || "No category"}
                                 </div>
                             </div>
+
                             <div className="flex flex-col items-end space-y-1 flex-shrink-0 ml-2">
-                                <span className={`inline-flex px-2 py-1 text-xs font-light rounded-full ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                    {product.isActive ? 'Active' : 'Inactive'}
+                                <span
+                                    className={`inline-flex px-2 py-1 text-xs font-light rounded-full ${product.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                                        }`}
+                                >
+                                    {product.isActive ? "Active" : "Inactive"}
                                 </span>
                                 {product.featured && (
                                     <span className="inline-flex px-2 py-1 text-xs font-light rounded-full bg-yellow-100 text-yellow-800">
@@ -929,25 +1396,35 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                                 )}
                             </div>
                         </div>
-                        <div
-                            className="text-xs text-gray-600 mb-2 font-light line-clamp-2"
-                            title={getDescriptionForTitle(product)}
-                        >
+
+                        <div className="text-xs text-gray-600 mb-2 font-light line-clamp-2" title={getDescriptionForTitle(product)}>
                             {truncateText(getDescription(product), 80)}
                         </div>
+
                         <div className="flex justify-between items-center mb-3">
-                            <div className="text-sm font-light text-green-600">
-                                {formatPrice(product.price)}
-                            </div>
-                            <div className="text-xs text-gray-500 font-light">
-                                Cost: {formatPrice(product.costPrice)}
-                            </div>
+                            <div className="text-sm font-light text-green-600">{formatPrice(product.price)}</div>
+                            <div className="text-xs text-gray-500 font-light">Cost: {formatPrice(product.costPrice)}</div>
                         </div>
+
                         {product.portionSize && (
-                            <div className="text-xs text-gray-500 mb-2 font-light truncate">
-                                Portion: {product.portionSize}
+                            <div className="text-xs text-gray-500 mb-2 font-light truncate">Portion: {product.portionSize}</div>
+                        )}
+
+                        {Array.isArray(product.tags) && product.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                                {product.tags.slice(0, 4).map((t: string) => (
+                                    <span key={t} className="text-xs px-2 py-1 rounded-full border border-gray-200 bg-white text-gray-600">
+                                        {t}
+                                    </span>
+                                ))}
+                                {product.tags.length > 4 && (
+                                    <span className="text-xs px-2 py-1 rounded-full border border-gray-200 bg-white text-gray-500">
+                                        +{product.tags.length - 4}
+                                    </span>
+                                )}
                             </div>
                         )}
+
                         <div className="flex space-x-2">
                             <button
                                 onClick={() => onEdit(product)}
@@ -966,7 +1443,7 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                 ))}
             </div>
 
-            {/* Desktop Table View with Truncation */}
+            {/* Desktop table */}
             <div className="hidden sm:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 table-fixed">
                     <thead className="bg-gray-50">
@@ -988,31 +1465,42 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                             </th>
                         </tr>
                     </thead>
+
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {products.map((product) => (
+                        {paged.map((product: any) => (
                             <tr key={product.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-4 w-2/5 min-w-0 overflow-hidden">
                                     <div className="flex flex-col min-w-0 overflow-hidden">
-                                        <div
-                                            className="text-sm font-light text-gray-900 truncate"
-                                            title={product.name}
-                                        >
+                                        <div className="text-sm font-light text-gray-900 truncate" title={product.name}>
                                             {product.name || "Unnamed Product"}
                                         </div>
 
-                                        <div
-                                            className="text-xs text-gray-500 font-light mt-1"
-                                            title={getDescriptionForTitle(product)}
-                                        >
+                                        <div className="text-xs text-gray-500 font-light mt-1" title={getDescriptionForTitle(product)}>
                                             {truncateText(getDescription(product), 80)}
                                         </div>
 
                                         {product.portionSize && (
-                                            <div
-                                                className="text-xs text-gray-400 font-light truncate mt-1"
-                                                title={product.portionSize}
-                                            >
+                                            <div className="text-xs text-gray-400 font-light truncate mt-1" title={product.portionSize}>
                                                 {product.portionSize}
+                                            </div>
+                                        )}
+
+                                        {Array.isArray(product.tags) && product.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-2">
+                                                {product.tags.slice(0, 3).map((t: string) => (
+                                                    <span
+                                                        key={t}
+                                                        className="text-xs px-2 py-1 rounded-full border border-gray-200 bg-white text-gray-600"
+                                                        title={t}
+                                                    >
+                                                        {t}
+                                                    </span>
+                                                ))}
+                                                {product.tags.length > 3 && (
+                                                    <span className="text-xs px-2 py-1 rounded-full border border-gray-200 bg-white text-gray-500">
+                                                        +{product.tags.length - 3}
+                                                    </span>
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -1020,21 +1508,22 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
 
                                 <td className="px-4 py-4 w-1/6">
                                     <div className="text-sm text-gray-600 font-light truncate" title={product.category}>
-                                        {product.category || 'No category'}
+                                        {product.category || "No category"}
                                     </div>
                                 </td>
+
                                 <td className="px-4 py-4 w-1/6">
-                                    <div className="text-sm font-light text-green-600">
-                                        {formatPrice(product.price)}
-                                    </div>
-                                    <div className="text-xs text-gray-500 font-light">
-                                        Cost: {formatPrice(product.costPrice)}
-                                    </div>
+                                    <div className="text-sm font-light text-green-600">{formatPrice(product.price)}</div>
+                                    <div className="text-xs text-gray-500 font-light">Cost: {formatPrice(product.costPrice)}</div>
                                 </td>
+
                                 <td className="px-4 py-4 w-1/6">
                                     <div className="flex flex-col space-y-1">
-                                        <span className={`inline-flex px-2 py-1 text-xs font-light rounded-full ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                            {product.isActive ? 'Active' : 'Inactive'}
+                                        <span
+                                            className={`inline-flex px-2 py-1 text-xs font-light rounded-full ${product.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                                                }`}
+                                        >
+                                            {product.isActive ? "Active" : "Inactive"}
                                         </span>
                                         {product.featured && (
                                             <span className="inline-flex px-2 py-1 text-xs font-light rounded-full bg-yellow-100 text-yellow-800">
@@ -1043,6 +1532,7 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                                         )}
                                     </div>
                                 </td>
+
                                 <td className="px-4 py-4 w-1/6">
                                     <div className="flex space-x-2">
                                         <button
@@ -1065,15 +1555,37 @@ function ProductList({ products, onEdit, onDelete, formatPrice }: {
                 </table>
             </div>
 
+            {/* Pagination */}
+            <div className="flex items-center justify-between pt-2">
+                <p className="text-xs text-gray-500 font-light">
+                    Page {safePage} / {totalPages} · {total} results
+                </p>
+
+                <div className="flex gap-2">
+                    <button
+                        className="px-3 py-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-sm font-light disabled:opacity-50"
+                        disabled={safePage <= 1}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                        Prev
+                    </button>
+                    <button
+                        className="px-3 py-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-sm font-light disabled:opacity-50"
+                        disabled={safePage >= totalPages}
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                        Next
+                    </button>
+                </div>
+            </div>
+
             {products.length === 0 && (
                 <div className="text-center py-8">
-                    <div className="text-gray-400 text-sm font-light">
-                        No products found. Add your first product to get started.
-                    </div>
+                    <div className="text-gray-400 text-sm font-light">No products found. Add your first product to get started.</div>
                 </div>
             )}
         </div>
-    )
+    );
 }
 
 // Site Settings Component (keep the same as before)

@@ -113,7 +113,7 @@ const ImageModal = ({
                 {/* Close Button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 z-20 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white transition-all duration-300 backdrop-blur-sm border border-white/10 hover:border-white/20 hover:scale-110"
+                    className="absolute top-2 right-4 z-20 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white transition-all duration-300 backdrop-blur-sm border border-white/10 hover:border-white/20 hover:scale-110 mb-4"
                 >
                     <X className="w-5 h-5" />
                 </button>
@@ -134,8 +134,8 @@ const ImageModal = ({
                             <button
                                 onClick={handleAddToCart}
                                 className={`absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center text-white transition-all duration-500 group ${isAddingToCart
-                                        ? 'bg-green-500 scale-110 shadow-2xl shadow-green-500/50'
-                                        : 'bg-[#E62B2B] hover:bg-[#ff4444] shadow-2xl shadow-[#E62B2B]/40 hover:shadow-2xl hover:shadow-[#ff4444]/50'
+                                    ? 'bg-green-500 scale-110 shadow-2xl shadow-green-500/50'
+                                    : 'bg-[#E62B2B] hover:bg-[#ff4444] shadow-2xl shadow-[#E62B2B]/40 hover:shadow-2xl hover:shadow-[#ff4444]/50'
                                     }`}
                             >
                                 {/* Success Checkmark Animation */}
@@ -181,7 +181,7 @@ const ImageModal = ({
                     {/* Content Section - Smaller font throughout */}
                     <div className="lg:w-1/2 flex flex-col h-full">
                         {/* Scrollable Content Area */}
-                        <div className="flex-1 overflow-y-auto p-5">
+                        <div className="flex-1 overflow-y-auto p-5 pr-16">
                             {/* Header - Smaller font */}
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex-1">
@@ -193,7 +193,7 @@ const ImageModal = ({
                                         </div>
                                     )}
                                 </div>
-                                <div className="text-right pl-3">
+                                <div className="text-right pl-3 pt-6">
                                     <div className="text-xl font-bold text-[#E62B2B]">${item.price}</div>
                                     <div className="flex items-center space-x-1 text-white/60 text-xs mt-1">
                                         <Clock className="w-3 h-3" />
