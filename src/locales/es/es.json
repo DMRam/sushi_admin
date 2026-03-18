@@ -262,8 +262,8 @@
     "emailAddressDisplay": "contact@maisushi.ca",
     "addressLine1": "1975 King Ouest,",
     "addressLine2": "Sherbrooke, QC J1J 2E6",
-    "hoursTuesdayWednesday": "Mar-Mié: 11:00 AM - 8:00 PM",
-    "hoursThursdaySaturday": "Jue-Sáb: 11:00 AM - 9:00 PM",
+    "hoursTuesdayWednesday": "Mar-Jeu: 11:00 AM - 8:00 PM",
+    "hoursThursdaySaturday": "Vie-Sáb: 12:00 PM - 9:00 PM",
     "hoursSunday": "Dom: Cerrado",
     "hoursMonday": "Lun: Cerrado",
     "email_placeholder": "tu.email@ejemplo.com"

@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import OrderQueue from './OrderQueue';
-import OrderPreparation from './OrderPreparation';
-import { 
-  collection, 
+import {
+  collection,
   onSnapshot,
   orderBy,
   query,
@@ -11,85 +9,125 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  addDoc,
 } from 'firebase/firestore';
 import { db } from '../../../firebase/firebase';
-import { CheckCircle, Clock, Package, RefreshCw } from 'lucide-react';
+import { CheckCircle, Clock, Package, RefreshCw, Plus, X } from 'lucide-react';
 import { useProducts } from '../../../context/ProductsContext';
 import type { Product } from '../../../types/types';
+import OrderQueue from './OrderQueue';
+import OrderPreparation from './OrderPreparation';
+
+type KitchenTab = 'queue' | 'preparation' | 'completed' | 'all';
+
+type OrderSource = 'web' | 'uber' | 'clover' | 'manual';
+
+type ManualOrderDraft = {
+  orderType: 'pickup' | 'delivery';
+  paymentStatus: 'paid' | 'cash' | 'unpaid' | 'unknown';
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  specialInstructions: string;
+  items: Array<{
+    productId: string;
+    name: string;
+    quantity: number;
+    price: number;
+    notes: string;
+  }>;
+};
+
+const defaultDraft = (): ManualOrderDraft => ({
+  orderType: 'pickup',
+  paymentStatus: 'cash',
+  customerName: '',
+  customerPhone: '',
+  address: 'Pickup',
+  specialInstructions: '',
+  items: [],
+});
 
 export default function KitchenPage() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'queue' | 'preparation' | 'completed' | 'all'>('queue');
+  const [activeTab, setActiveTab] = useState<KitchenTab>('queue');
   const [orders, setOrders] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Manual order UI
+  const [manualOpen, setManualOpen] = useState(false);
+  const [draft, setDraft] = useState<ManualOrderDraft>(defaultDraft());
+  const [savingManual, setSavingManual] = useState(false);
+
   const { products, loading: productsLoading, refreshProducts } = useProducts();
 
-  // Get translation arrays safely
   const instructionsSteps = t('kitchen.instructions.steps', { returnObjects: true }) as string[];
 
-  // Fetch paid orders from Firebase
   useEffect(() => {
-    loadOrders();
+    const cleanup = loadOrders();
+    return () => {
+      if (typeof cleanup === 'function') cleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadOrders = async () => {
+  const loadOrders = () => {
     setIsLoading(true);
-    
+
     try {
       console.log('🍳 Kitchen: Setting up orders listener...');
-      
-      // Query ONLY paid orders (no kitchen status filter)
+
       const ordersQuery = query(
         collection(db, 'orders'),
-        where('paymentStatus', '==', 'paid'),
+        where('paymentStatus', 'in', ['paid', 'cash', 'unpaid', 'unknown']), // keep broad
         orderBy('createdAt', 'desc')
       );
 
-      const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-        const ordersData: any[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          
-          // Convert Firestore timestamp to Date
-          let orderDate;
-          if (data.createdAt?.toDate) {
-            orderDate = data.createdAt.toDate();
-          } else if (data.createdAt) {
-            orderDate = new Date(data.createdAt);
-          } else {
-            orderDate = new Date();
-          }
-          
-          // Determine kitchen status based on existing data
-          let kitchenStatus = 'pending';
-          if (data.kitchenStatus) {
-            kitchenStatus = data.kitchenStatus;
-          } else if (data.completedAt || data.kitchenCompletedAt) {
-            kitchenStatus = 'completed';
-          } else if (data.preparationStartedAt) {
-            kitchenStatus = 'preparing';
-          }
-          
-          ordersData.push({ 
-            id: doc.id, 
-            ...data,
-            createdAt: orderDate,
-            kitchenStatus: kitchenStatus
+      const unsubscribe = onSnapshot(
+        ordersQuery,
+        (snapshot) => {
+          const ordersData: any[] = [];
+
+          snapshot.forEach((d) => {
+            const data = d.data();
+
+            let orderDate: Date;
+            if (data.createdAt?.toDate) orderDate = data.createdAt.toDate();
+            else if (data.createdAt) orderDate = new Date(data.createdAt);
+            else orderDate = new Date();
+
+            // Determine kitchen status
+            let kitchenStatus = 'pending';
+            if (data.kitchenStatus) kitchenStatus = data.kitchenStatus;
+            else if (data.completedAt || data.kitchenCompletedAt) kitchenStatus = 'completed';
+            else if (data.preparationStartedAt) kitchenStatus = 'preparing';
+
+            // Determine source
+            const source: OrderSource = (data.source || 'web') as OrderSource;
+
+            ordersData.push({
+              id: d.id,
+              ...data,
+              createdAt: orderDate,
+              kitchenStatus,
+              source,
+            });
           });
-        });
-        
-        setOrders(ordersData);
-        setIsLoading(false);
-        setRefreshing(false);
-        console.log('✅ Kitchen: Orders loaded:', ordersData.length);
-      }, (error) => {
-        console.error('❌ Kitchen: Error fetching orders:', error);
-        setIsLoading(false);
-        setRefreshing(false);
-      });
+
+          setOrders(ordersData);
+          setIsLoading(false);
+          setRefreshing(false);
+          console.log('✅ Kitchen: Orders loaded:', ordersData.length);
+        },
+        (error) => {
+          console.error('❌ Kitchen: Error fetching orders:', error);
+          setIsLoading(false);
+          setRefreshing(false);
+        }
+      );
 
       return () => {
         console.log('🧹 Kitchen: Cleaning up orders listener');
@@ -108,27 +146,16 @@ export default function KitchenPage() {
     loadOrders();
   };
 
-  // Start preparing an order
   const startOrderPreparation = async (order: any) => {
     try {
-      // Update order status to 'preparing' in Firestore
       const orderRef = doc(db, 'orders', order.id);
       await updateDoc(orderRef, {
         kitchenStatus: 'preparing',
         preparationStartedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
-      
-      console.log('🔥 ZAPIER/N8N INTEGRATION COMMENT 🔥');
-      console.log('// When order preparation starts, you can trigger webhooks:');
-      console.log('// 1. Send to kitchen display system');
-      console.log('// 2. Notify manager about order in progress');
-      console.log('// 3. Update order tracking dashboard');
-      
-      setSelectedOrder({
-        ...order,
-        kitchenStatus: 'preparing'
-      });
+
+      setSelectedOrder({ ...order, kitchenStatus: 'preparing' });
       setActiveTab('preparation');
     } catch (error) {
       console.error('Error starting order preparation:', error);
@@ -136,94 +163,159 @@ export default function KitchenPage() {
     }
   };
 
-  // Complete an order
   const completeOrder = async (orderId: string) => {
-    if (window.confirm(t('kitchen.orderPreparation.confirmComplete'))) {
-      try {
-        const orderRef = doc(db, 'orders', orderId);
-        const completedAt = new Date();
-        
-        await updateDoc(orderRef, {
-          kitchenStatus: 'completed',
-          completedAt: Timestamp.fromDate(completedAt),
-          kitchenCompletedAt: completedAt.toISOString(),
-          updatedAt: serverTimestamp()
-        });
+    if (!window.confirm(t('kitchen.orderPreparation.confirmComplete'))) return;
 
-        console.log('✅ Order completed:', orderId);
-        
-        // N8N INTEGRATION POINT
-        console.log('// WEBHOOK DATA FOR ZAPIER/N8N:');
-        console.log('// Event: order_completed');
-        console.log('// Order ID:', orderId);
-        console.log('// Customer:', orders.find(o => o.id === orderId)?.customerInfo?.name);
-        console.log('// Completion Time:', completedAt.toISOString());
-        console.log('// ---');
-        console.log('// Example webhook call (uncomment and configure):');
-        console.log('// fetch("https://hooks.zapier.com/hooks/catch/...", {');
-        console.log('//   method: "POST",');
-        console.log('//   headers: { "Content-Type": "application/json" },');
-        console.log('//   body: JSON.stringify({');
-        console.log('//     event: "order_completed",');
-        console.log('//     orderId: orderId,');
-        console.log('//     completedAt: completedAt.toISOString(),');
-        console.log('//     customerName: customerName,');
-        console.log('//     orderType: orderType,');
-        console.log('//     totalAmount: totalAmount');
-        console.log('//   })');
-        console.log('// })');
-        console.log('// ---');
-        console.log('// You can use this to:');
-        console.log('// 1. Send SMS/WhatsApp notification to customer');
-        console.log('// 2. Update Google Sheets/Excel with completion time');
-        console.log('// 3. Trigger delivery driver assignment');
-        console.log('// 4. Send to accounting software');
-        console.log('// 5. Update inventory management system');
-        
-        setSelectedOrder(null);
-        setActiveTab('queue');
-        
-        alert(t('kitchen.messages.orderCompleted'));
-      } catch (error) {
-        console.error('Error completing order:', error);
-        alert(t('kitchen.messages.errorUpdating'));
-      }
+    try {
+      const orderRef = doc(db, 'orders', orderId);
+      const completedAt = new Date();
+
+      await updateDoc(orderRef, {
+        kitchenStatus: 'completed',
+        completedAt: Timestamp.fromDate(completedAt),
+        kitchenCompletedAt: completedAt.toISOString(),
+        updatedAt: serverTimestamp(),
+      });
+
+      setSelectedOrder(null);
+      setActiveTab('queue');
+      alert(t('kitchen.messages.orderCompleted'));
+    } catch (error) {
+      console.error('Error completing order:', error);
+      alert(t('kitchen.messages.errorUpdating'));
     }
   };
 
   const getOrderStats = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    const todayOrders = orders.filter(order => {
-      const orderDate = order.createdAt instanceof Date 
-        ? order.createdAt 
-        : new Date(order.createdAt);
+
+    const todayOrders = orders.filter((order) => {
+      const orderDate = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
       return orderDate >= today;
     });
-    
-    const queueCount = todayOrders.filter(o => !o.kitchenStatus || o.kitchenStatus === 'pending').length;
-    const preparingCount = todayOrders.filter(o => o.kitchenStatus === 'preparing').length;
-    const readyCount = todayOrders.filter(o => o.kitchenStatus === 'ready').length;
-    const completedCount = todayOrders.filter(o => o.kitchenStatus === 'completed').length;
-    
+
+    const queueCount = todayOrders.filter((o) => !o.kitchenStatus || o.kitchenStatus === 'pending').length;
+    const preparingCount = todayOrders.filter((o) => o.kitchenStatus === 'preparing').length;
+    const readyCount = todayOrders.filter((o) => o.kitchenStatus === 'ready').length;
+    const completedCount = todayOrders.filter((o) => o.kitchenStatus === 'completed').length;
+
     return { queueCount, preparingCount, readyCount, completedCount };
   };
 
   const stats = getOrderStats();
 
-  const filteredOrders = () => {
+  const filteredOrders = useMemo(() => {
     switch (activeTab) {
       case 'queue':
-        return orders.filter(o => !o.kitchenStatus || o.kitchenStatus === 'pending');
+        return orders.filter((o) => !o.kitchenStatus || o.kitchenStatus === 'pending');
       case 'preparation':
-        return orders.filter(o => o.kitchenStatus === 'preparing');
+        return orders.filter((o) => o.kitchenStatus === 'preparing');
       case 'completed':
-        return orders.filter(o => o.kitchenStatus === 'completed');
+        return orders.filter((o) => o.kitchenStatus === 'completed');
       case 'all':
-        return orders;
       default:
         return orders;
+    }
+  }, [activeTab, orders]);
+
+  // ---------------------------
+  // Manual order helpers
+  // ---------------------------
+  const productById = useMemo(() => {
+    const map = new Map<string, Product>();
+    (products as Product[]).forEach((p) => map.set(p.id, p));
+    return map;
+  }, [products]);
+
+  const addProductToDraft = (productId: string) => {
+    const p = productById.get(productId);
+    if (!p) return;
+
+    const existing = draft.items.find((it) => it.productId === productId && it.notes === '');
+    if (existing) {
+      setDraft({
+        ...draft,
+        items: draft.items.map((it) =>
+          it === existing ? { ...it, quantity: Math.min(99, (it.quantity || 1) + 1) } : it
+        ),
+      });
+      return;
+    }
+
+    setDraft({
+      ...draft,
+      items: [
+        ...draft.items,
+        {
+          productId: p.id,
+          name: p.name,
+          quantity: 1,
+          price: Number(p.sellingPrice || 0),
+          notes: '',
+        },
+      ],
+    });
+  };
+
+  const updateDraftItem = (index: number, patch: Partial<ManualOrderDraft['items'][number]>) => {
+    setDraft({
+      ...draft,
+      items: draft.items.map((it, i) => (i === index ? { ...it, ...patch } : it)),
+    });
+  };
+
+  const removeDraftItem = (index: number) => {
+    setDraft({ ...draft, items: draft.items.filter((_, i) => i !== index) });
+  };
+
+  const resetDraft = () => setDraft(defaultDraft());
+
+  const saveManualOrder = async () => {
+    if (draft.items.length === 0) {
+      alert('Add at least 1 item.');
+      return;
+    }
+
+    setSavingManual(true);
+    try {
+      const orderType = draft.orderType;
+      const isPickup = orderType === 'pickup';
+
+      const payload = {
+        source: 'manual' as const,
+        paymentStatus: draft.paymentStatus,
+        kitchenStatus: 'pending' as const,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+
+        orderType,
+        customerInfo: {
+          name: draft.customerName || 'Walk-in',
+          phone: draft.customerPhone || '',
+          address: isPickup ? 'Pickup' : (draft.address || ''),
+          specialInstructions: draft.specialInstructions || '',
+        },
+
+        items: draft.items.map((it) => ({
+          productId: it.productId,
+          name: it.name,
+          quantity: Math.max(1, Number(it.quantity || 1)),
+          price: Number(it.price || 0),
+          notes: it.notes || '',
+        })),
+      };
+
+      await addDoc(collection(db, 'orders'), payload);
+
+      setManualOpen(false);
+      resetDraft();
+      alert('Manual order created ✅');
+    } catch (e) {
+      console.error(e);
+      alert('Error creating manual order');
+    } finally {
+      setSavingManual(false);
     }
   };
 
@@ -243,7 +335,7 @@ export default function KitchenPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start gap-3">
             <div>
               <h1 className="text-2xl sm:text-3xl font-light text-gray-900 tracking-wide">
                 {t('kitchen.title')}
@@ -252,14 +344,28 @@ export default function KitchenPage() {
                 {t('kitchen.subtitle')}
               </p>
             </div>
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center text-sm text-gray-600 hover:text-gray-900"
-            >
-              <RefreshCw className={`w-4 h-4 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
-              {t('kitchen.buttons.refresh')}
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  resetDraft();
+                  setManualOpen(true);
+                }}
+                className="inline-flex items-center px-3 py-2 rounded-md bg-gray-900 text-white text-sm hover:bg-gray-800"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Manual Order
+              </button>
+
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex items-center text-sm text-gray-600 hover:text-gray-900"
+              >
+                <RefreshCw className={`w-4 h-4 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
+                {t('kitchen.buttons.refresh')}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -276,7 +382,7 @@ export default function KitchenPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -288,7 +394,7 @@ export default function KitchenPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -341,44 +447,43 @@ export default function KitchenPage() {
             <nav className="-mb-px flex space-x-2 sm:space-x-4 lg:space-x-8 px-3 sm:px-6 overflow-x-auto">
               <button
                 onClick={() => setActiveTab('queue')}
-                className={`py-3 sm:py-4 px-1 sm:px-2 border-b-2 font-light text-sm tracking-wide transition-all duration-300 whitespace-nowrap ${
-                  activeTab === 'queue'
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-3 sm:py-4 px-1 sm:px-2 border-b-2 font-light text-sm tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'queue'
+                  ? 'border-gray-900 text-gray-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 {t('kitchen.tabs.queue')} ({stats.queueCount})
               </button>
+
               <button
                 onClick={() => setActiveTab('preparation')}
-                className={`py-3 sm:py-4 px-1 sm:px-2 border-b-2 font-light text-sm tracking-wide transition-all duration-300 whitespace-nowrap ${
-                  activeTab === 'preparation'
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-3 sm:py-4 px-1 sm:px-2 border-b-2 font-light text-sm tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'preparation'
+                  ? 'border-gray-900 text-gray-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
                 disabled={!selectedOrder}
               >
-                {selectedOrder 
-                  ? `${t('kitchen.orderPreparation.preparingOrder')} #${selectedOrder.id?.slice(-4)}` 
+                {selectedOrder
+                  ? `${t('kitchen.orderPreparation.preparingOrder')} #${selectedOrder.id?.slice(-4)}`
                   : t('kitchen.tabs.preparation')}
               </button>
+
               <button
                 onClick={() => setActiveTab('completed')}
-                className={`py-3 sm:py-4 px-1 sm:px-2 border-b-2 font-light text-sm tracking-wide transition-all duration-300 whitespace-nowrap ${
-                  activeTab === 'completed'
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-3 sm:py-4 px-1 sm:px-2 border-b-2 font-light text-sm tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'completed'
+                  ? 'border-gray-900 text-gray-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 {t('kitchen.tabs.completed')} ({stats.completedCount})
               </button>
+
               <button
                 onClick={() => setActiveTab('all')}
-                className={`py-3 sm:py-4 px-1 sm:px-2 border-b-2 font-light text-sm tracking-wide transition-all duration-300 whitespace-nowrap ${
-                  activeTab === 'all'
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-3 sm:py-4 px-1 sm:px-2 border-b-2 font-light text-sm tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'all'
+                  ? 'border-gray-900 text-gray-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 {t('kitchen.tabs.all')} ({orders.length})
               </button>
@@ -387,32 +492,241 @@ export default function KitchenPage() {
 
           {/* Tab Content */}
           <div className="p-4 sm:p-6">
-            {activeTab === 'queue' || activeTab === 'preparation' || activeTab === 'all' || activeTab === 'completed' ? (
-              activeTab === 'preparation' && selectedOrder ? (
-                <OrderPreparation
-                  order={selectedOrder}
-                  products={products as Product[]}
-                  onComplete={() => completeOrder(selectedOrder.id)}
-                  onCancel={() => {
-                    setSelectedOrder(null);
-                    setActiveTab('queue');
-                  }}
-                />
-              ) : (
-                <OrderQueue
-                  orders={filteredOrders()}
-                  onSelectOrder={startOrderPreparation}
-                  activeTab={activeTab}
-                />
-              )
+            {activeTab === 'preparation' && selectedOrder ? (
+              <OrderPreparation
+                order={selectedOrder}
+                products={products as Product[]}
+                onComplete={() => completeOrder(selectedOrder.id)}
+                onCancel={() => {
+                  setSelectedOrder(null);
+                  setActiveTab('queue');
+                }}
+              />
             ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500">{t('kitchen.messages.selectOrder')}</p>
-              </div>
+              <OrderQueue
+                orders={filteredOrders}
+                onSelectOrder={startOrderPreparation}
+                activeTab={activeTab}
+              />
             )}
           </div>
         </div>
       </div>
+
+      {/* Manual Order Modal */}
+      {manualOpen && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-4xl rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <div>
+                <div className="text-lg font-medium text-gray-900">Create Manual Order</div>
+                <div className="text-sm text-gray-500">This goes into the same kitchen queue.</div>
+              </div>
+              <button
+                onClick={() => setManualOpen(false)}
+                className="p-2 rounded hover:bg-gray-100 text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-0">
+              {/* Left: order info */}
+              <div className="p-5 border-b md:border-b-0 md:border-r">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500">Order Type</label>
+                    <select
+                      className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                      value={draft.orderType}
+                      onChange={(e) => {
+                        const v = e.target.value as 'pickup' | 'delivery';
+                        setDraft({
+                          ...draft,
+                          orderType: v,
+                          address: v === 'pickup' ? 'Pickup' : draft.address,
+                        });
+                      }}
+                    >
+                      <option value="pickup">Pickup</option>
+                      <option value="delivery">Delivery</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500">Payment</label>
+                    <select
+                      className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                      value={draft.paymentStatus}
+                      onChange={(e) => setDraft({ ...draft, paymentStatus: e.target.value as any })}
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="paid">Paid</option>
+                      <option value="unpaid">Unpaid</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="text-xs text-gray-500">Customer Name</label>
+                    <input
+                      className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                      value={draft.customerName}
+                      onChange={(e) => setDraft({ ...draft, customerName: e.target.value })}
+                      placeholder="Walk-in (optional)"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500">Phone</label>
+                    <input
+                      className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                      value={draft.customerPhone}
+                      onChange={(e) => setDraft({ ...draft, customerPhone: e.target.value })}
+                      placeholder="optional"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500">Address</label>
+                    <input
+                      className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                      value={draft.orderType === 'pickup' ? 'Pickup' : draft.address}
+                      disabled={draft.orderType === 'pickup'}
+                      onChange={(e) => setDraft({ ...draft, address: e.target.value })}
+                      placeholder="delivery address"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="text-xs text-gray-500">Special Instructions</label>
+                    <textarea
+                      className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                      rows={3}
+                      value={draft.specialInstructions}
+                      onChange={(e) => setDraft({ ...draft, specialInstructions: e.target.value })}
+                      placeholder="Allergy, no mayo, etc..."
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5">
+                  <div className="text-sm font-medium text-gray-900 mb-2">Items</div>
+
+                  {draft.items.length === 0 ? (
+                    <div className="text-sm text-gray-500 bg-gray-50 border rounded-md p-3">
+                      No items yet. Add products from the right panel.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {draft.items.map((it, idx) => (
+                        <div key={`${it.productId}-${idx}`} className="border rounded-md p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="font-medium text-gray-900 truncate">{it.name}</div>
+                              <div className="text-xs text-gray-500">ID: {it.productId.slice(-6)}</div>
+                            </div>
+
+                            <button
+                              className="text-xs text-red-600 hover:underline"
+                              onClick={() => removeDraftItem(idx)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 mt-3">
+                            <div>
+                              <label className="text-xs text-gray-500">Qty</label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={99}
+                                className="mt-1 w-full border rounded-md px-2 py-1 text-sm"
+                                value={it.quantity}
+                                onChange={(e) => updateDraftItem(idx, { quantity: Number(e.target.value) })}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs text-gray-500">Price</label>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                className="mt-1 w-full border rounded-md px-2 py-1 text-sm"
+                                value={it.price}
+                                onChange={(e) => updateDraftItem(idx, { price: Number(e.target.value) })}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs text-gray-500">Notes</label>
+                              <input
+                                className="mt-1 w-full border rounded-md px-2 py-1 text-sm"
+                                value={it.notes}
+                                onChange={(e) => updateDraftItem(idx, { notes: e.target.value })}
+                                placeholder="no sauce..."
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: product picker */}
+              <div className="p-5">
+                <div className="text-sm font-medium text-gray-900 mb-2">Add Products</div>
+                <div className="text-xs text-gray-500 mb-3">
+                  Click a product to add it. You can adjust qty/notes on the left.
+                </div>
+
+                <div className="max-h-[420px] overflow-auto border rounded-md">
+                  {(products as Product[]).map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => addProductToDraft(p.id)}
+                      className="w-full text-left px-3 py-3 border-b hover:bg-gray-50"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900 truncate">{p.name}</div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {p.kitchen?.priorityNotes ? `⚠️ ${p.kitchen.priorityNotes}` : p.category || ''}
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-700">${Number(p.sellingPrice || 0).toFixed(2)}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between gap-2 mt-4">
+                  <button
+                    onClick={() => {
+                      resetDraft();
+                    }}
+                    className="px-3 py-2 rounded-md border text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Reset
+                  </button>
+
+                  <button
+                    disabled={savingManual}
+                    onClick={saveManualOrder}
+                    className="px-4 py-2 rounded-md bg-gray-900 text-white text-sm hover:bg-gray-800 disabled:opacity-60"
+                  >
+                    {savingManual ? 'Saving...' : 'Create Order'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

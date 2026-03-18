@@ -640,6 +640,7 @@ export default function SalesEntryForm({ isMobile = false }: SalesEntryFormProps
             Add Products
           </h3>
 
+
           <div className={`grid gap-3 mb-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
             <div>
               <label className={`block font-medium text-gray-700 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>

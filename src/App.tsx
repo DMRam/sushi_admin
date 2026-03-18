@@ -15,8 +15,8 @@ import { CateringPage } from './pages/catering/CateringPage'
 import { TermsConditions } from './pages/legal/TermsConditions'
 import { PrivacyPolicy } from './pages/legal/PrivacyPolicy'
 import { CookiesPolicy } from './pages/legal/CookiesPolicy'
+import { EULA } from './components/web/EULAPolicies'
 
-// Lazy load all admin components (assuming default exports)
 const SalesTrackingPage = lazy(() => import('./pages/admin/SalesTrackingPage'))
 const PurchasesPage = lazy(() => import('./pages/admin/PurchasesPage'))
 const StockPage = lazy(() => import('./pages/admin/StockPage'))
@@ -26,24 +26,19 @@ const BusinessAnalyticsPage = lazy(() => import('./pages/admin/BusinessAnalytics
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const ProfilePage = lazy(() => import('./pages/admin/ProfilePage'))
 const NavBar = lazy(() => import('./components/web/NavBar'))
-const KitchenPage = lazy(() => import('./pages/admin/kitchen/KitchenPage'))
-
-// Lazy load context providers
+const KitchenPage = lazy(() => import('./pages/kitchen/KitchenPage'))
 const AdminProviders = lazy(() => import('./components/AdminProviders'))
-
-// Lazy load client auth pages
 const ClientLogin = lazy(() => import('./pages/client_hub/ClientLoginPage'))
 const ClientRegistration = lazy(() => import('./pages/client_hub/ClientRegistrationPage'))
 const ClientDashboard = lazy(() => import('./pages/client_hub/ClientDashboard'))
+const PayrollPage = lazy(() => import('./pages/admin/PayrollPage'))
 
-// Loading component
 const LoadingSpinner = () => (
-  <div className="flex justify-center items-center h-64">
-    <div className="text-lg text-gray-600 font-light">Loading...</div>
+  <div className="flex h-64 items-center justify-center">
+    <div className="text-lg font-light text-gray-600">Loading...</div>
   </div>
 )
 
-// Main app content that requires authentication
 function AppContent() {
   const { user } = useAuth()
 
@@ -54,6 +49,7 @@ function AppContent() {
           <NavBar />
         </Suspense>
       )}
+
       <main className="container mx-auto p-4">
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
@@ -64,6 +60,7 @@ function AppContent() {
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/cost-analysis" element={<CostAnalysisPage />} />
             <Route path="/business-analytics" element={<BusinessAnalyticsPage />} />
+            <Route path="/payroll" element={<PayrollPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/" element={<Navigate to="/sales-tracking" replace />} />
@@ -74,7 +71,6 @@ function AppContent() {
   )
 }
 
-// Public routes component
 function PublicRoutes() {
   return (
     <Routes>
@@ -86,8 +82,10 @@ function PublicRoutes() {
       <Route path="/checkout/success" element={<SuccessPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/catering" element={<CateringPage />} />
+      <Route path="/eula" element={<EULA />} />
+      <Route path="/policies" element={<PrivacyPolicy />} />
+      <Route path="/kitchen" element={<KitchenPage />} />
 
-      {/* Legal Pages */}
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/cookies" element={<CookiesPolicy />} />
@@ -95,34 +93,44 @@ function PublicRoutes() {
       <Route path="/terms" element={<TermsConditions />} />
       <Route path="/terms-conditions" element={<TermsConditions />} />
 
-      {/* Client Auth Routes */}
-      <Route path="/client-login" element={
-        <Suspense fallback={<LoadingSpinner />}>
-          <ClientLogin />
-        </Suspense>
-      } />
-      <Route path="/client-register" element={
-        <Suspense fallback={<LoadingSpinner />}>
-          <ClientRegistration />
-        </Suspense>
-      } />
-      <Route path="/client-dashboard" element={
-        <Suspense fallback={<LoadingSpinner />}>
-          <ClientDashboard />
-        </Suspense>
-      } />
-
-      <Route path="/admin/*" element={
-        <ProtectedRoute>
+      <Route
+        path="/client-login"
+        element={
           <Suspense fallback={<LoadingSpinner />}>
-            <AdminProviders>
-              <AppContent />
-            </AdminProviders>
+            <ClientLogin />
           </Suspense>
-        </ProtectedRoute>
-      } />
+        }
+      />
+      <Route
+        path="/client-register"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <ClientRegistration />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/client-dashboard"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <ClientDashboard />
+          </Suspense>
+        }
+      />
 
-      {/* Catch all route - redirect to home */}
+      <Route
+        path="/admin/*"
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={<LoadingSpinner />}>
+              <AdminProviders>
+                <AppContent />
+              </AdminProviders>
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
@@ -138,5 +146,5 @@ export default function App() {
         </UserProfileProvider>
       </InvitationProvider>
     </AuthProvider>
-  );
+  )
 }

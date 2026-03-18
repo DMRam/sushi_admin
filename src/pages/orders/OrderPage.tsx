@@ -1,930 +1,1080 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
-import { collection, getDocs, onSnapshot } from 'firebase/firestore'
-import { useTranslation } from 'react-i18next'
-import { Search, ChevronRight, Clock, Star, Sparkles, ChefHat, X, Filter, Plus } from 'lucide-react'
-import { useCartStore } from '../../stores/cartStore'
-import type { MenuItem, Product, ProductIngredient } from '../../types/types'
-import { db } from '../../firebase/firebase'
-import { LandingHeader } from '../landing/components/LandingHeader'
-import MenuItemCard from '../../components/web/MenuItemCard'
-import { LandingCTAFooter } from '../landing/components/LandingCTAFooter'
-import BuildYourSushi from './components/BuildYourSushi'
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { collection, getDocs, onSnapshot } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
+import {
+    Search,
+    ChevronRight,
+    Clock,
+    Star,
+    Sparkles,
+    ChefHat,
+    X,
+    Filter,
+    Plus,
+    Check,
+    Info,
+    AlertCircle,
+    ShoppingBag,
+    Heart,
+    Leaf,
+    Flame,
+    DollarSign,
+    ArrowUpDown,
+    ChevronDown,
+    ChevronUp,
+} from 'lucide-react';
+import { useCartStore } from '../../stores/cartStore';
+import type { MenuItem, Product } from '../../types/types';
+import { db } from '../../firebase/firebase';
+import { LandingHeader } from '../landing/components/LandingHeader';
+import { LandingCTAFooter } from '../landing/components/LandingCTAFooter';
+import BuildYourSushi from './components/BuildYourSushi';
 
 interface FilterState {
     dietary: {
-        vegetarian: boolean
-        vegan: boolean
-        glutenFree: boolean
-    }
-    spicyLevel: number
-    maxPrice: number
+        vegetarian: boolean;
+        vegan: boolean;
+        glutenFree: boolean;
+    };
+    spicyLevel: number;
+    maxPrice: number;
 }
 
-// Helper function to check dietary preferences from tags
+type SortBy = 'popular' | 'price-low' | 'price-high' | 'name';
+type ModalTab = 'details' | 'ingredients' | 'allergens';
+
+const DEFAULT_MAX_PRICE = 200;
+
 const getDietaryFromTags = (tags: string[] = []) => {
-    const tagSet = new Set(tags.map(tag => tag.toLowerCase()))
+    const tagSet = new Set(tags.map((tag) => tag.toLowerCase()));
     return {
         vegetarian: tagSet.has('vegetarian') || tagSet.has('veg'),
         vegan: tagSet.has('vegan'),
-        glutenFree: tagSet.has('gluten-free') || tagSet.has('gluten free')
-    }
-}
+        glutenFree: tagSet.has('gluten-free') || tagSet.has('gluten free'),
+    };
+};
 
-// Clean version without the hint
+const formatIngredientLabel = (value: string, language: string = 'en') => {
+    const translations: Record<string, { en: string; fr: string; es: string }> = {
+        crevette: { en: 'Shrimp', fr: 'Crevette', es: 'Camarón' },
+        avocat: { en: 'Avocado', fr: 'Avocat', es: 'Palta' },
+        saumon: { en: 'Salmon', fr: 'Saumon', es: 'Salmón' },
+        tuna: { en: 'Tuna', fr: 'Thon', es: 'Atún' },
+        concombre: { en: 'Cucumber', fr: 'Concombre', es: 'Pepino' },
+        oignon_vert: { en: 'Green onion', fr: 'Oignon vert', es: 'Cebollín' },
+        fromage_creme: { en: 'Cream cheese', fr: 'Fromage à la crème', es: 'Queso crema' },
+        sauce_maison: { en: 'House sauce', fr: 'Sauce maison', es: 'Salsa de la casa' },
+        riz_sushi: { en: 'Sushi rice', fr: 'Riz à sushi', es: 'Arroz sushi' },
+        sesame: { en: 'Sesame', fr: 'Sésame', es: 'Sésamo' },
+        massago: { en: 'Massago', fr: 'Massago', es: 'Massago' },
+        edamame: { en: 'Edamame', fr: 'Edamame', es: 'Edamame' },
+        carotte: { en: 'Carrot', fr: 'Carotte', es: 'Zanahoria' },
+    };
+
+    const normalizedLanguage = language.startsWith('fr')
+        ? 'fr'
+        : language.startsWith('es')
+            ? 'es'
+            : 'en';
+
+    const cleaned = value.trim().toLowerCase();
+
+    if (translations[cleaned]?.[normalizedLanguage]) {
+        return translations[cleaned][normalizedLanguage];
+    }
+
+    return cleaned.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+const normalizeIngredients = (rawIngredients: unknown, language: string): string[] => {
+    if (!rawIngredients) return [];
+
+    if (typeof rawIngredients === 'string') {
+        return rawIngredients
+            .split('|')
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .map((part) => formatIngredientLabel(part, language));
+    }
+
+    if (Array.isArray(rawIngredients)) {
+        return rawIngredients
+            .map((ing: unknown) => {
+                if (typeof ing === 'string') return formatIngredientLabel(ing.trim(), language);
+
+                if (
+                    ing &&
+                    typeof ing === 'object' &&
+                    'name' in ing &&
+                    typeof (ing as { name?: unknown }).name === 'string'
+                ) {
+                    return formatIngredientLabel((ing as { name: string }).name.trim(), language);
+                }
+
+                return null;
+            })
+            .filter((value): value is string => Boolean(value));
+    }
+
+    return [];
+};
+
 const ImageModal = ({
     item,
     isOpen,
     onClose,
-    onAddToCart
+    onAddToCart,
 }: {
-    item: MenuItem
-    isOpen: boolean
-    onClose: () => void
-    onAddToCart: (item: MenuItem) => void
+    item: MenuItem;
+    isOpen: boolean;
+    onClose: () => void;
+    onAddToCart: (item: MenuItem) => void;
 }) => {
-    const { t, i18n } = useTranslation()
-    const [isAddingToCart, setIsAddingToCart] = useState(false)
+    const { t, i18n } = useTranslation();
+    const [isAddingToCart, setIsAddingToCart] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [quantity, setQuantity] = useState(1);
+    const [activeTab, setActiveTab] = useState<ModalTab>('details');
 
-    // Handle scroll locking and unlocking
     useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden'
-        } else {
-            document.body.style.overflow = 'unset'
-        }
-
+        if (isOpen) document.body.style.overflow = 'hidden';
         return () => {
-            document.body.style.overflow = 'unset'
-        }
-    }, [isOpen])
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen]);
 
-    // Enhanced escape key handling
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && isOpen) {
-                onClose()
-            }
-        }
+            if (e.key === 'Escape' && isOpen) onClose();
+        };
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [isOpen, onClose]);
 
-        if (isOpen) {
-            document.addEventListener('keydown', handleEscape)
-            return () => {
-                document.removeEventListener('keydown', handleEscape)
-            }
-        }
-    }, [isOpen, onClose])
+    useEffect(() => {
+        if (!item.ingredients?.length && activeTab === 'ingredients') setActiveTab('details');
+        if (!item.allergens?.length && activeTab === 'allergens') setActiveTab('details');
+    }, [item, activeTab]);
 
-    // Enhanced add to cart with beautiful animation
     const handleAddToCart = () => {
-        setIsAddingToCart(true)
-        onAddToCart(item)
-
-        // Close modal after animation completes
+        setIsAddingToCart(true);
+        for (let i = 0; i < quantity; i += 1) onAddToCart(item);
         setTimeout(() => {
-            onClose()
-            setIsAddingToCart(false)
-        }, 800)
-    }
+            setIsAddingToCart(false);
+            onClose();
+            setQuantity(1);
+        }, 800);
+    };
 
-    if (!isOpen) return null
+    if (!isOpen) return null;
 
-    const getCurrentLanguageDescription = (description: { es: string; fr: string; en: string }) => {
-        const currentLanguage = i18n.language
-        switch (currentLanguage) {
-            case 'es':
-                return description.es
-            case 'fr':
-                return description.fr
-            case 'en':
-            default:
-                return description.en
-        }
-    }
+    const getCurrentLanguageDescription = (description: { es: string; fr: string; en: string }) =>
+        description[i18n.language as keyof typeof description] || description.en;
 
-    const descriptionText = getCurrentLanguageDescription(item.description)
+    const descriptionText = getCurrentLanguageDescription(item.description);
+
+    const tabs = [
+        { id: 'details' as const, label: 'Details', icon: Info, visible: true },
+        { id: 'ingredients' as const, label: 'Ingredients', icon: Leaf, visible: Boolean(item.ingredients?.length) },
+        { id: 'allergens' as const, label: 'Allergens', icon: AlertCircle, visible: Boolean(item.allergens?.length) },
+    ].filter((tab) => tab.visible);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-lg">
+        <div
+            className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/95 backdrop-blur-sm"
+            onClick={onClose}
+        >
             <div
-                className="relative bg-white/10 border border-white/20 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden backdrop-blur-xl"
+                className="relative bg-gradient-to-b from-gray-900 to-black w-full max-w-4xl max-h-[95vh] sm:rounded-2xl overflow-hidden shadow-2xl border border-white/10"
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Close Button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-2 right-4 z-20 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white transition-all duration-300 backdrop-blur-sm border border-white/10 hover:border-white/20 hover:scale-110 mb-4"
+                    className="absolute top-4 right-4 z-20 w-10 h-10 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center text-white/80 hover:text-white transition-all border border-white/20 hover:border-white/40"
                 >
                     <X className="w-5 h-5" />
                 </button>
 
                 <div className="flex flex-col lg:flex-row h-full">
-                    {/* Image Section - Enhanced with beautiful + button */}
-                    <div className="lg:w-1/2 relative overflow-hidden">
-                        <div className="aspect-square w-full relative">
-                            <img
-                                src={item.image}
-                                alt={item.name}
-                                className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
-                            />
-                            {/* Gradient Overlay */}
-                            <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
-
-                            {/* Beautiful Floating + Button */}
-                            <button
-                                onClick={handleAddToCart}
-                                className={`absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center text-white transition-all duration-500 group ${isAddingToCart
-                                    ? 'bg-green-500 scale-110 shadow-2xl shadow-green-500/50'
-                                    : 'bg-[#E62B2B] hover:bg-[#ff4444] shadow-2xl shadow-[#E62B2B]/40 hover:shadow-2xl hover:shadow-[#ff4444]/50'
-                                    }`}
-                            >
-                                {/* Success Checkmark Animation */}
-                                {isAddingToCart ? (
-                                    <>
-                                        <div className="absolute inset-0 bg-green-500 rounded-full animate-ping"></div>
-                                        <svg
-                                            className="w-7 h-7 text-white animate-bounce-in"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={3}
-                                                d="M5 13l4 4L19 7"
-                                            />
-                                        </svg>
-                                    </>
-                                ) : (
-                                    <>
-                                        {/* Pulse ring on hover */}
-                                        <div className="absolute inset-0 border-2 border-white/30 rounded-full animate-pulse group-hover:animate-none group-hover:scale-125 group-hover:border-white/50 transition-all duration-300"></div>
-
-                                        {/* Plus icon with rotation */}
-                                        <Plus className="w-6 h-6 transition-all duration-500 group-hover:rotate-90 group-hover:scale-110" />
-
-                                        {/* Glow effect */}
-                                        <div className="absolute inset-0 bg-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
-                                    </>
-                                )}
-
-                                {/* Enhanced Tooltip */}
-                                <div className="absolute -top-12 right-0 bg-black/90 text-white px-3 py-2 rounded-lg text-xs font-medium opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap transform group-hover:translate-y-0 translate-y-1 border border-white/20 backdrop-blur-sm">
-                                    {t('common.addToCart')} - ${item.price}
-                                    <div className="absolute -bottom-1 right-5 w-2 h-2 bg-black/90 transform rotate-45 border-r border-b border-white/20"></div>
+                    <div className="lg:w-1/2 relative bg-gray-900">
+                        <div className="aspect-[4/3] lg:aspect-square w-full relative">
+                            {!imageLoaded && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="w-8 h-8 border-2 border-[#E62B2B] rounded-full animate-spin border-t-transparent" />
                                 </div>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Content Section - Smaller font throughout */}
-                    <div className="lg:w-1/2 flex flex-col h-full">
-                        {/* Scrollable Content Area */}
-                        <div className="flex-1 overflow-y-auto p-5 pr-16">
-                            {/* Header - Smaller font */}
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex-1">
-                                    <h2 className="text-xl font-bold text-white mb-2 leading-tight">{item.name}</h2>
+                            )}
+                            <img
+                                src={item.image || '/images/placeholder-food.jpg'}
+                                alt={item.name}
+                                className={`w-full h-full object-cover transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                                onLoad={() => setImageLoaded(true)}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                            <div className="absolute bottom-4 left-4 right-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
+                                        <span className="text-white font-bold text-2xl">${item.price.toFixed(2)}</span>
+                                    </div>
                                     {item.popular && (
-                                        <div className="inline-flex items-center space-x-1 bg-[#E62B2B] text-white px-2 py-1 rounded-full text-xs font-medium">
-                                            <Star className="w-3 h-3" />
-                                            <span>{t('landing.signature')}</span>
+                                        <div className="bg-[#E62B2B] px-4 py-2 rounded-full flex items-center space-x-1">
+                                            <Star className="w-4 h-4 fill-current" />
+                                            <span className="text-white text-sm font-medium">{t('landing.popular', 'Popular')}</span>
                                         </div>
                                     )}
                                 </div>
-                                <div className="text-right pl-3 pt-6">
-                                    <div className="text-xl font-bold text-[#E62B2B]">${item.price}</div>
-                                    <div className="flex items-center space-x-1 text-white/60 text-xs mt-1">
-                                        <Clock className="w-3 h-3" />
-                                        <span>{item.preparationTime}{t('common.min')}</span>
-                                    </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="lg:w-1/2 flex flex-col bg-gray-900/95">
+                        <div className="p-6 pb-2">
+                            <h2 className="text-2xl font-bold text-white mb-2">{item.name}</h2>
+                            <div className="flex items-center space-x-3 text-white/60 text-sm">
+                                <div className="flex items-center">
+                                    <Clock className="w-4 h-4 mr-1 text-[#E62B2B]" />
+                                    <span>{item.preparationTime} min</span>
                                 </div>
-                            </div>
-
-                            {/* Description - Smaller font */}
-                            <div className="mb-5">
-                                <p className="text-white/70 leading-relaxed text-sm">
-                                    {descriptionText}
-                                </p>
-                            </div>
-
-                            {/* Ingredients - Smaller font */}
-                            {item.ingredients && item.ingredients.length > 0 && (
-                                <div className="mb-5">
-                                    <h4 className="font-medium mb-2 text-xs uppercase tracking-wider text-white/60">
-                                        {t('common.ingredients')}
-                                    </h4>
-                                    <div className="flex flex-wrap gap-1">
-                                        {item.ingredients.map((ingredient, index) => (
-                                            <span
-                                                key={index}
-                                                className="px-2 py-1 bg-white/5 rounded text-white/80 text-xs border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors"
-                                            >
-                                                {ingredient}
-                                            </span>
-                                        ))}
+                                {item.spicyLevel > 0 && (
+                                    <div className="flex items-center">
+                                        <Flame className="w-4 h-4 mr-1 text-orange-500" />
+                                        <span>{item.spicyLevel === 1 ? 'Mild' : 'Spicy'}</span>
                                     </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex border-b border-white/10 px-6">
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center space-x-2 ${activeTab === tab.id
+                                            ? 'border-[#E62B2B] text-white'
+                                            : 'border-transparent text-white/40 hover:text-white/60'
+                                        }`}
+                                >
+                                    <tab.icon className="w-4 h-4" />
+                                    <span>{tab.label}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6">
+                            {activeTab === 'details' && (
+                                <p className="text-white/70 leading-relaxed">{descriptionText}</p>
+                            )}
+
+                            {activeTab === 'ingredients' && (
+                                <div className="flex flex-wrap gap-2">
+                                    {item.ingredients?.map((ingredient, index) => (
+                                        <span
+                                            key={index}
+                                            className="px-3 py-1.5 bg-white/5 rounded-full text-white/80 text-sm border border-white/10"
+                                        >
+                                            {ingredient}
+                                        </span>
+                                    ))}
                                 </div>
                             )}
 
-                            {/* Allergens - Smaller font */}
-                            {item.allergens && item.allergens.length > 0 && (
-                                <div className="mb-5">
-                                    <h4 className="font-medium mb-2 text-xs uppercase tracking-wider text-white/60">
-                                        {t('common.allergens')}
-                                    </h4>
-                                    <div className="flex flex-wrap gap-1">
-                                        {item.allergens.map((allergen, index) => (
-                                            <span
-                                                key={index}
-                                                className="px-2 py-1 bg-red-500/10 rounded text-red-300 text-xs border border-red-500/20"
-                                            >
-                                                {allergen}
-                                            </span>
-                                        ))}
-                                    </div>
+                            {activeTab === 'allergens' && (
+                                <div className="flex flex-wrap gap-2">
+                                    {item.allergens?.map((allergen, index) => (
+                                        <span
+                                            key={index}
+                                            className="px-3 py-1.5 bg-red-500/10 rounded-full text-red-300 text-sm border border-red-500/20"
+                                        >
+                                            {allergen}
+                                        </span>
+                                    ))}
                                 </div>
                             )}
                         </div>
 
-                        {/* Simple visual separator (optional) */}
-                        <div className="shrink-0 border-t border-white/10"></div>
+                        <div className="p-6 border-t border-white/10 bg-black/30">
+                            <div className="flex items-center space-x-4">
+                                <div className="flex items-center bg-white/5 rounded-xl border border-white/10">
+                                    <button
+                                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                        className="w-10 h-10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/5 rounded-l-xl transition-colors"
+                                    >
+                                        −
+                                    </button>
+                                    <span className="w-12 text-center text-white font-medium">{quantity}</span>
+                                    <button
+                                        onClick={() => setQuantity(quantity + 1)}
+                                        className="w-10 h-10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/5 rounded-r-xl transition-colors"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+
+                                <button
+                                    onClick={handleAddToCart}
+                                    disabled={isAddingToCart}
+                                    className={`flex-1 py-3 rounded-xl font-medium transition-all duration-300 flex items-center justify-center space-x-2 ${isAddingToCart
+                                            ? 'bg-green-500 text-white'
+                                            : 'bg-[#E62B2B] text-white hover:bg-[#ff4444] active:scale-95'
+                                        }`}
+                                >
+                                    {isAddingToCart ? (
+                                        <>
+                                            <Check className="w-5 h-5" />
+                                            <span>Added!</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus className="w-5 h-5" />
+                                            <span>Add to Cart · ${(item.price * quantity).toFixed(2)}</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    )
+    );
+};
+
+function ListItemCard({
+    item,
+    isFavorite,
+    onToggleFavorite,
+    onOpen,
+    onAddToCart,
+    getCurrentLanguageDescription,
+}: {
+    item: MenuItem;
+    isFavorite: boolean;
+    onToggleFavorite: (id: string) => void;
+    onOpen: (item: MenuItem) => void;
+    onAddToCart: (item: MenuItem) => void;
+    getCurrentLanguageDescription: (description: { es: string; fr: string; en: string }) => string;
+}) {
+    return (
+        <div
+            className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden hover:border-white/20 transition-all cursor-pointer"
+            onClick={() => onOpen(item)}
+        >
+            <div className="flex">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 relative">
+                    <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                    />
+                    {item.popular && (
+                        <div className="absolute top-2 right-2 z-10">
+                            <div className="bg-[#E62B2B] px-2 py-1 rounded-full text-[10px] font-medium flex items-center space-x-1">
+                                <Star className="w-3 h-3 fill-current" />
+                                <span>Popular</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+                    <div>
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <h3 className="text-white font-medium truncate">{item.name}</h3>
+                                <p className="text-white/40 text-sm line-clamp-2 mt-1">
+                                    {getCurrentLanguageDescription(item.description)}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onToggleFavorite(item.id);
+                                    }}
+                                    className="w-9 h-9 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white/60 hover:text-white transition-all border border-white/10"
+                                >
+                                    <Heart className={`w-4 h-4 ${isFavorite ? 'fill-[#E62B2B] text-[#E62B2B]' : ''}`} />
+                                </button>
+                                <span className="text-[#E62B2B] font-bold whitespace-nowrap">${item.price.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-3 gap-3">
+                        <div className="flex items-center space-x-3 text-xs text-white/40 min-w-0">
+                            <span className="flex items-center shrink-0">
+                                <Clock className="w-3 h-3 mr-1" />
+                                {item.preparationTime}min
+                            </span>
+                            {item.spicyLevel > 0 && (
+                                <span className="flex items-center shrink-0">
+                                    <Flame className="w-3 h-3 mr-1 text-orange-500" />
+                                    {item.spicyLevel === 1 ? 'Mild' : 'Spicy'}
+                                </span>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onAddToCart(item);
+                            }}
+                            className="bg-[#E62B2B] text-white px-3 py-1.5 rounded-lg text-sm hover:bg-[#ff4444] transition-colors shrink-0"
+                        >
+                            Add
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 export default function OrderPage() {
     const addToCart = useCartStore((state) => state.addToCart);
-    const cart = useCartStore((state) => state.cart)
-    const [products, setProducts] = useState<Product[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const { t, i18n } = useTranslation()
+    const cart = useCartStore((state) => state.cart);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const { t, i18n } = useTranslation();
+
     const [showSushiBuilder, setShowSushiBuilder] = useState(false);
-    const [showFilters, setShowFilters] = useState(false)
-    const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
+    const [showFilters, setShowFilters] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [sortBy, setSortBy] = useState<SortBy>('popular');
+    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-    const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
-    const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    const [favorites, setFavorites] = useState<string[]>(() => {
+        const saved = localStorage.getItem('favorites');
+        return saved ? JSON.parse(saved) : [];
+    });
 
-    const [activeCategory, setActiveCategory] = useState('all')
-    const [searchTerm, setSearchTerm] = useState('')
-    const [searchInput, setSearchInput] = useState('')
-    const [isModalOpenOP, setIsModalOpenOP] = useState<boolean>(false)
-
-    // Enhanced filter state
+    const [activeCategory, setActiveCategory] = useState('all');
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchInput, setSearchInput] = useState('');
     const [filters, setFilters] = useState<FilterState>({
-        dietary: {
-            vegetarian: false,
-            vegan: false,
-            glutenFree: false
-        },
+        dietary: { vegetarian: false, vegan: false, glutenFree: false },
         spicyLevel: 0,
-        maxPrice: 100
-    })
+        maxPrice: DEFAULT_MAX_PRICE,
+    });
 
-    // Function to get localized description
-    const getLocalizedDescription = useCallback((description: { es: string; fr: string; en: string } | string) => {
-        if (typeof description === 'string') {
-            // Convert string to multilingual object format
-            return {
-                en: description,
-                es: description,
-                fr: description
-            }
-        }
-        return description
-    }, [])
+    const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    // Function to get current language description for display
-    const getCurrentLanguageDescription = useCallback((description: { es: string; fr: string; en: string }) => {
-        const currentLanguage = i18n.language
-        switch (currentLanguage) {
-            case 'es':
-                return description.es
-            case 'fr':
-                return description.fr
-            case 'en':
-            default:
-                return description.en
-        }
-    }, [i18n.language])
-
-    // Debounce search implementation
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setSearchTerm(searchInput)
-        }, 300)
+        localStorage.setItem('favorites', JSON.stringify(favorites));
+    }, [favorites]);
 
-        return () => clearTimeout(timer)
-    }, [searchInput])
+    useEffect(() => {
+        const timer = setTimeout(() => setSearchTerm(searchInput), 300);
+        return () => clearTimeout(timer);
+    }, [searchInput]);
 
-    // Simplified Firestore query to avoid index requirements
     useEffect(() => {
         let unsubscribe: (() => void) | undefined;
 
         const setupFirestoreListener = async () => {
             try {
-                setLoading(true)
-                // Use simple query without complex ordering to avoid index requirements
-                const snapshot = await getDocs(collection(db, 'products'))
-                const productsData: Product[] = snapshot.docs.map(doc => ({
+                setLoading(true);
+
+                const snapshot = await getDocs(collection(db, 'products'));
+                const productsData: Product[] = snapshot.docs.map((doc) => ({
                     id: doc.id,
-                    ...doc.data()
-                } as Product))
+                    ...doc.data(),
+                } as Product));
 
-                // Filter active products client-side (same as before)
-                const activeProducts = productsData.filter(product => product.isActive !== false)
-
-                // Sort client-side to avoid Firestore index requirements
+                const activeProducts = productsData.filter((p) => p.isActive !== false);
                 const sortedProducts = activeProducts.sort((a, b) => {
-                    // Featured first
-                    if (a.featured && !b.featured) return -1
-                    if (!a.featured && b.featured) return 1
-                    // Then by name
-                    return (a.name || '').localeCompare(b.name || '')
-                })
+                    if (a.featured && !b.featured) return -1;
+                    if (!a.featured && b.featured) return 1;
+                    return (a.name || '').localeCompare(b.name || '');
+                });
 
-                setProducts(sortedProducts)
-                setLoading(false)
+                setProducts(sortedProducts);
+                setLoading(false);
 
-                // Real-time listener with same client-side filtering
                 unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
-                    const updatedProducts: Product[] = snapshot.docs.map(doc => ({
+                    const updatedProducts = snapshot.docs.map((doc) => ({
                         id: doc.id,
-                        ...doc.data()
-                    } as Product))
+                        ...doc.data(),
+                    } as Product));
 
-                    const activeProducts = updatedProducts.filter(product => product.isActive !== false)
+                    const activeProducts = updatedProducts.filter((p) => p.isActive !== false);
                     const sortedProducts = activeProducts.sort((a, b) => {
-                        if (a.featured && !b.featured) return -1
-                        if (!a.featured && b.featured) return 1
-                        return (a.name || '').localeCompare(b.name || '')
-                    })
-                    setProducts(sortedProducts)
-                })
+                        if (a.featured && !b.featured) return -1;
+                        if (!a.featured && b.featured) return 1;
+                        return (a.name || '').localeCompare(b.name || '');
+                    });
 
+                    setProducts(sortedProducts);
+                });
             } catch (err) {
-                console.error('Error setting up Firestore listener:', err)
-                setError(t('orderPage.failedToLoad'))
-                setLoading(false)
+                console.error('Error:', err);
+                setError(t('orderPage.failedToLoad'));
+                setLoading(false);
             }
+        };
+
+        setupFirestoreListener();
+        return () => unsubscribe?.();
+    }, [t]);
+
+    const getLocalizedDescription = useCallback((description: unknown) => {
+        if (typeof description === 'string') {
+            return { en: description, es: description, fr: description };
         }
-
-        setupFirestoreListener()
-
-        return () => {
-            if (unsubscribe) {
-                unsubscribe()
-            }
+        if (
+            description &&
+            typeof description === 'object' &&
+            'en' in description &&
+            'es' in description &&
+            'fr' in description
+        ) {
+            return description as { en: string; es: string; fr: string };
         }
-    }, [t])
+        return { en: '', es: '', fr: '' };
+    }, []);
 
-    // Enhanced menu items with safe data transformation
+    const getCurrentLanguageDescription = useCallback(
+        (description: { es: string; fr: string; en: string }) => {
+            return description[i18n.language as keyof typeof description] || description.en;
+        },
+        [i18n.language]
+    );
+
     const menuItems: MenuItem[] = useMemo(() => {
-        return products.map(product => {
-            // Safe ingredient handling
-            const ingredientNames = (product.ingredients || []).map((ing: ProductIngredient) =>
-                ing?.name || 'Unknown Ingredient'
-            )
+        return products.map((product) => ({
+            id: product.id,
+            name: product.name || 'Unnamed Product',
+            description: getLocalizedDescription(product.description || ''),
+            preparation: product.preparation || '',
+            price: product.sellingPrice || 0,
+            image:
+                Array.isArray(product.imageUrls) && product.imageUrls.length > 0
+                    ? product.imageUrls[0]
+                    : '/images/placeholder-food.jpg',
+            category: product.category || 'uncategorized',
+            videoUrl: product.preparationVideoUrl,
+            ingredients: normalizeIngredients(product.ingredients, i18n.language),
+            allergens: Array.isArray(product.allergens) ? product.allergens : [],
+            preparationTime: product.preparationTime || 15,
+            spicyLevel: product.tags?.some((tag) => tag.toLowerCase().includes('spicy')) ? 2 : 0,
+            popular: product.featured || false,
+            quantity: product.quantity || 0,
+        }));
+    }, [products, getLocalizedDescription, i18n.language]);
 
-            // Convert description to multilingual object format
-            const multilingualDescription = getLocalizedDescription(product.description || '')
-
-            const menuItem: MenuItem = {
-                id: product.id,
-                name: product.name || 'Unnamed Product',
-                description: multilingualDescription, // This now matches the MenuItem interface
-                preparation: product.preparation || '',
-                price: product.sellingPrice || 0,
-                image: product.imageUrls?.[0] || '/images/placeholder-food.jpg',
-                category: product.category || 'uncategorized',
-                videoUrl: product.preparationVideoUrl,
-                ingredients: ingredientNames,
-                allergens: product.allergens || [],
-                preparationTime: product.preparationTime || 15,
-                spicyLevel: product.tags?.includes('spicy') || product.tags?.includes('Spicy') ? 2 : 0,
-                popular: product.featured || false,
-                quantity: product.quantity || 0
-            }
-            return menuItem
-        })
-    }, [products, getLocalizedDescription])
-
-    // Enhanced categories with counts
     const categories = useMemo(() => {
-        const categoryCounts = menuItems.reduce((acc, item) => {
-            const category = item.category || 'uncategorized'
-            acc[category] = (acc[category] || 0) + 1
-            return acc
-        }, {} as Record<string, number>)
+        const cats = Array.from(new Set(menuItems.map((item) => item.category).filter(Boolean)));
+        return cats.sort((a, b) => a.localeCompare(b));
+    }, [menuItems]);
 
-        const allCategories = [
-            { id: 'all', name: t('orderPage.allItems'), count: menuItems.length },
-            ...Object.entries(categoryCounts)
-                .filter(([category]) => category !== 'uncategorized')
-                .map(([category, count]) => ({
-                    id: category,
-                    name: category.replace(/-/g, ' '),
-                    count
-                }))
-        ]
-
-        return allCategories
-    }, [menuItems, t])
-
-    const featuredItems = useMemo(() => {
-        return menuItems.filter(item => item.popular)
-    }, [menuItems])
-
-    // Enhanced filtering with additional criteria
     const filteredItems = useMemo(() => {
-        return menuItems.filter(item => {
-            const matchesCategory = activeCategory === 'all' || item.category === activeCategory
+        let items = [...menuItems];
 
-            // Use localized description for search
-            const descriptionText = getCurrentLanguageDescription(item.description)
+        if (!showFavoritesOnly && activeCategory !== 'all') {
+            items = items.filter((item) => item.category === activeCategory);
+        }
 
-            const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                descriptionText.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                item.ingredients.some(ing => ing.toLowerCase().includes(searchTerm.toLowerCase()))
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            items = items.filter(
+                (item) =>
+                    item.name.toLowerCase().includes(term) ||
+                    getCurrentLanguageDescription(item.description).toLowerCase().includes(term) ||
+                    item.ingredients.some((i) => i.toLowerCase().includes(term))
+            );
+        }
 
-            // Get dietary info from product tags for filtering
-            const product = products.find(p => p.id === item.id)
-            const dietary = getDietaryFromTags(product?.tags || [])
+        const activeDietary = Object.entries(filters.dietary)
+            .filter(([, value]) => value)
+            .map(([key]) => key);
 
-            // Enhanced filter matching (safe with fallbacks)
-            const matchesDietary = (
-                (!filters.dietary.vegetarian || dietary.vegetarian) &&
-                (!filters.dietary.vegan || dietary.vegan) &&
-                (!filters.dietary.glutenFree || dietary.glutenFree)
-            )
+        if (activeDietary.length > 0) {
+            items = items.filter((item) => {
+                const product = products.find((p) => p.id === item.id);
+                const dietary = getDietaryFromTags(product?.tags || []);
+                return activeDietary.every((key) => dietary[key as keyof typeof dietary]);
+            });
+        }
 
-            const matchesSpicyLevel = item.spicyLevel <= filters.spicyLevel
-            const matchesPrice = item.price <= filters.maxPrice
+        if (filters.spicyLevel > 0) {
+            items = items.filter((item) => item.spicyLevel <= filters.spicyLevel);
+        }
 
-            return matchesCategory && matchesSearch && matchesDietary && matchesSpicyLevel && matchesPrice
-        })
-    }, [activeCategory, searchTerm, menuItems, filters, products, getCurrentLanguageDescription])
+        items = items.filter((item) => item.price <= filters.maxPrice);
 
-    // Reset filters when category changes
+        if (showFavoritesOnly) {
+            items = items.filter((item) => favorites.includes(item.id));
+        }
+
+        switch (sortBy) {
+            case 'popular':
+                items.sort((a, b) => Number(b.popular) - Number(a.popular));
+                break;
+            case 'price-low':
+                items.sort((a, b) => a.price - b.price);
+                break;
+            case 'price-high':
+                items.sort((a, b) => b.price - a.price);
+                break;
+            case 'name':
+                items.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+        }
+
+        return items;
+    }, [
+        menuItems,
+        activeCategory,
+        showFavoritesOnly,
+        searchTerm,
+        filters,
+        favorites,
+        products,
+        getCurrentLanguageDescription,
+        sortBy,
+    ]);
+
+    const itemsByCategory = useMemo(() => {
+        if (showFavoritesOnly) {
+            return {
+                Favorites: filteredItems,
+            };
+        }
+
+        if (activeCategory !== 'all') {
+            return {
+                [activeCategory]: filteredItems,
+            };
+        }
+
+        return categories.reduce<Record<string, MenuItem[]>>((acc, category) => {
+            const categoryItems = filteredItems.filter((item) => item.category === category);
+            if (categoryItems.length > 0) acc[category] = categoryItems;
+            return acc;
+        }, {});
+    }, [showFavoritesOnly, activeCategory, categories, filteredItems]);
+
     useEffect(() => {
-        setFilters({
-            dietary: {
-                vegetarian: false,
-                vegan: false,
-                glutenFree: false
-            },
-            spicyLevel: 0,
-            maxPrice: 100
-        })
-    }, [activeCategory])
+        const nextSections: Record<string, boolean> = {};
+        Object.keys(itemsByCategory).forEach((key) => {
+            nextSections[key] = false;
+        });
+        setOpenSections(nextSections);
+    }, [showFavoritesOnly, activeCategory, searchTerm, filteredItems.length]);
 
-    const handleAddToCart = useCallback((item: MenuItem) => {
-        console.log('Adding to cart:', item.name)
-        addToCart(item)
-    }, [addToCart])
-
-    const handleItemSelect = useCallback((item: MenuItem) => {
-        setSelectedItem(item)
-        setIsModalOpenOP(true)
-    }, [])
-
-    const handleCloseModal = useCallback(() => {
-        setSelectedItem(null)
-        setIsModalOpenOP(false)
-    }, [])
-
-    const clearAllFilters = useCallback(() => {
-        setFilters({
-            dietary: {
-                vegetarian: false,
-                vegan: false,
-                glutenFree: false
-            },
-            spicyLevel: 0,
-            maxPrice: 100
-        })
-        setSearchInput('')
-        setSearchTerm('')
-    }, [])
-
-    // Calculate active filter count
-    const activeFiltersCount = Object.values(filters.dietary).filter(Boolean).length +
+    const activeFiltersCount =
+        Object.values(filters.dietary).filter(Boolean).length +
         (filters.spicyLevel > 0 ? 1 : 0) +
-        (filters.maxPrice < 100 ? 1 : 0)
+        (filters.maxPrice < DEFAULT_MAX_PRICE ? 1 : 0);
+
+    const toggleFavorite = (itemId: string) => {
+        setFavorites((prev) =>
+            prev.includes(itemId)
+                ? prev.filter((id) => id !== itemId)
+                : [...prev, itemId]
+        );
+    };
+
+    const clearAllFilters = () => {
+        setFilters({
+            dietary: { vegetarian: false, vegan: false, glutenFree: false },
+            spicyLevel: 0,
+            maxPrice: DEFAULT_MAX_PRICE,
+        });
+        setSearchInput('');
+        setSearchTerm('');
+        setActiveCategory('all');
+        setShowFavoritesOnly(false);
+    };
+
+    const toggleSection = (section: string) => {
+        setOpenSections((prev) => ({
+            ...prev,
+            [section]: !prev[section],
+        }));
+    };
 
     if (loading) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-16 h-16 border-2 border-[#E62B2B] rounded-full animate-spin mx-auto mb-4 border-t-transparent"></div>
-                    <div className="flex items-center justify-center space-x-2 text-white/60">
-                        <Sparkles className="w-4 h-4 text-[#E62B2B]" />
-                        <p className="font-light text-sm">{t('orderPage.loadingMenu')}</p>
+                    <div className="relative">
+                        <div className="w-16 h-16 border-2 border-[#E62B2B] rounded-full animate-spin border-t-transparent mx-auto" />
+                        <Sparkles className="w-6 h-6 text-[#E62B2B] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
                     </div>
+                    <p className="text-white/60 mt-4">{t('orderPage.loadingMenu')}</p>
                 </div>
             </div>
-        )
+        );
     }
 
     if (error) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
                 <div className="text-center max-w-md mx-4">
-                    <div className="w-12 h-12 border border-[#E62B2B]/30 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <Sparkles className="w-6 h-6 text-[#E62B2B]" />
+                    <div className="w-20 h-20 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+                        <AlertCircle className="w-8 h-8 text-red-500" />
                     </div>
-                    <h3 className="text-lg font-light text-white mb-2">{t('orderPage.failedToLoad')}</h3>
-                    <p className="text-white/40 text-sm mb-4">{error}</p>
+                    <h3 className="text-xl text-white mb-2">{t('orderPage.failedToLoad')}</h3>
+                    <p className="text-white/40 text-sm mb-8">{error}</p>
                     <button
                         onClick={() => window.location.reload()}
-                        className="bg-[#E62B2B] text-white px-6 py-2 rounded-lg hover:bg-[#ff4444] transition-colors font-light"
+                        className="bg-[#E62B2B] text-white px-8 py-3 rounded-xl hover:bg-[#ff4444] transition-colors"
                     >
                         {t('orderPage.tryAgain')}
                     </button>
                 </div>
             </div>
-        )
+        );
     }
 
     return (
-        <div className="min-h-screen bg-black relative">
-            {/* Image Modal */}
+        <div className="min-h-screen bg-black">
             {selectedItem && (
                 <ImageModal
                     item={selectedItem}
-                    isOpen={isModalOpenOP}
-                    onClose={handleCloseModal}
-                    onAddToCart={handleAddToCart}
+                    isOpen={isModalOpen}
+                    onClose={() => {
+                        setSelectedItem(null);
+                        setIsModalOpen(false);
+                    }}
+                    onAddToCart={addToCart}
                 />
             )}
 
-            {
-                !isModalOpenOP && (
-                    <>
-                        <div className="relative z-40">
-                            <LandingHeader />
+            <div className="relative z-40">
+                <LandingHeader />
+            </div>
+
+            <div className="h-20" />
+
+            <div className="sticky top-0 z-30 bg-black/95 backdrop-blur-xl border-b border-white/10">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                    <div className="py-4">
+                        <div className="relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                            <input
+                                type="text"
+                                placeholder={t('orderPage.searchPlaceholder')}
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all"
+                            />
+                            {searchInput && (
+                                <button
+                                    onClick={() => setSearchInput('')}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pb-4">
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={`px-4 py-2 rounded-lg border transition-all flex items-center space-x-2 ${showFilters || activeFiltersCount > 0
+                                    ? 'bg-[#E62B2B] border-[#E62B2B] text-white'
+                                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
+                                }`}
+                        >
+                            <Filter className="w-4 h-4" />
+                            <span className="text-sm">Filters</span>
+                            {activeFiltersCount > 0 && (
+                                <span className="bg-white text-[#E62B2B] text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                    {activeFiltersCount}
+                                </span>
+                            )}
+                        </button>
+
+                        <button
+                            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                            className={`px-4 py-2 rounded-lg border transition-all flex items-center space-x-2 ${showFavoritesOnly
+                                    ? 'bg-[#E62B2B] border-[#E62B2B] text-white'
+                                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
+                                }`}
+                        >
+                            <Heart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
+                            <span className="text-sm">Favorites</span>
+                        </button>
+
+                        <div className="relative">
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value as SortBy)}
+                                className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white appearance-none pr-10 text-sm cursor-pointer"
+                            >
+                                <option value="popular">Popular</option>
+                                <option value="price-low">Price: Low to High</option>
+                                <option value="price-high">Price: High to Low</option>
+                                <option value="name">Name</option>
+                            </select>
+                            <ArrowUpDown className="w-4 h-4 text-white/40 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                         </div>
 
-                        <div className="h-22"></div>
+                        <div className="flex-1" />
 
-                        {/* Unified Sticky Header with Search and Filters - Increased z-index */}
-                        <div className="sticky top-0 z-30 bg-black/95 backdrop-blur-xl border-b border-white/10 shadow-lg">
-                            <div className="w-full px-4 sm:px-6">
-                                <div className="max-w-7xl mx-auto">
-                                    {/* Search and Filter Bar */}
-                                    <div className="flex flex-col md:flex-row gap-4 py-6">
-                                        {/* Enhanced Search */}
-                                        <div className="flex-1 relative">
-                                            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
-                                            <input
-                                                type="text"
-                                                placeholder={t('orderPage.searchPlaceholder')}
-                                                value={searchInput}
-                                                onChange={(e) => setSearchInput(e.target.value)}
-                                                className="w-full pl-12 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300 text-sm backdrop-blur-sm"
-                                            />
-                                            {searchInput && (
-                                                <button
-                                                    onClick={() => setSearchInput('')}
-                                                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white/40 hover:text-white transition-colors"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                        </div>
+                        <button
+                            onClick={() => setShowSushiBuilder(true)}
+                            className="bg-[#E62B2B] text-white px-4 py-2 rounded-lg hover:bg-[#ff4444] transition-all flex items-center space-x-2"
+                        >
+                            <ChefHat className="w-4 h-4" />
+                            <span className="text-sm hidden sm:inline">{t('buildYourSushi.title')}</span>
+                        </button>
+                    </div>
 
-                                        {/* Filter Controls */}
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={() => setShowFilters(!showFilters)}
-                                                className={`px-5 py-3 rounded-xl border transition-all duration-300 flex items-center space-x-2 ${showFilters || activeFiltersCount > 0
-                                                    ? 'bg-[#E62B2B] border-[#E62B2B] text-white shadow-lg shadow-[#E62B2B]/25'
-                                                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20'
-                                                    }`}
-                                            >
-                                                <Filter className="w-4 h-4" />
-                                                <span className="text-sm font-medium">Filters</span>
-                                                {activeFiltersCount > 0 && (
-                                                    <span className="bg-white text-[#E62B2B] text-xs rounded-full w-6 h-6 flex items-center justify-center font-medium">
-                                                        {activeFiltersCount}
-                                                    </span>
-                                                )}
-                                            </button>
+                    {showFilters && (
+                        <div className="pb-6">
+                            <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-white font-medium">All Filters</h3>
+                                    <button
+                                        onClick={clearAllFilters}
+                                        className="text-sm text-[#E62B2B] hover:text-[#ff4444] transition-colors"
+                                    >
+                                        Clear all
+                                    </button>
+                                </div>
 
-                                            <button
-                                                onClick={() => setShowSushiBuilder(true)}
-                                                className="bg-[#E62B2B] text-white px-5 py-3 rounded-xl hover:bg-[#ff4444] transition-all duration-300 flex items-center space-x-2 shadow-lg shadow-[#E62B2B]/25 hover:shadow-[#E62B2B]/40"
-                                            >
-                                                <ChefHat className="w-4 h-4" />
-                                                <span className="text-sm font-medium">{t('buildYourSushi.title')}</span>
-                                            </button>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <div>
+                                        <h4 className="text-white/80 text-sm font-medium mb-3 flex items-center">
+                                            <Leaf className="w-4 h-4 mr-2 text-[#E62B2B]" />
+                                            Dietary
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {[
+                                                { key: 'vegetarian', label: 'Vegetarian' },
+                                                { key: 'vegan', label: 'Vegan' },
+                                                { key: 'glutenFree', label: 'Gluten Free' },
+                                            ].map(({ key, label }) => (
+                                                <label key={key} className="flex items-center space-x-3 text-white/60">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={filters.dietary[key as keyof typeof filters.dietary]}
+                                                        onChange={(e) =>
+                                                            setFilters((prev) => ({
+                                                                ...prev,
+                                                                dietary: { ...prev.dietary, [key]: e.target.checked },
+                                                            }))
+                                                        }
+                                                        className="rounded border-white/20 bg-white/5 text-[#E62B2B] focus:ring-[#E62B2B]"
+                                                    />
+                                                    <span className="text-sm">{label}</span>
+                                                </label>
+                                            ))}
                                         </div>
                                     </div>
 
-                                    {/* Enhanced Filters Panel */}
-                                    {showFilters && (
-                                        <div className="pb-6">
-                                            <div className="bg-white/5 rounded-2xl p-6 border border-white/10 backdrop-blur-sm">
-                                                <div className="flex items-center justify-between mb-6">
-                                                    <h3 className="text-white font-medium">Filters</h3>
-                                                    <div className="flex items-center gap-3">
-                                                        <button
-                                                            onClick={clearAllFilters}
-                                                            className="text-white/60 hover:text-white text-sm transition-colors font-medium"
-                                                        >
-                                                            Clear all
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setShowFilters(false)}
-                                                            className="text-white/60 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5"
-                                                        >
-                                                            <X className="w-5 h-5" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                    {/* Dietary Filters */}
-                                                    <div>
-                                                        <label className="text-white/80 text-sm font-medium mb-4 block">Dietary</label>
-                                                        <div className="space-y-3">
-                                                            {[
-                                                                { key: 'vegetarian', label: 'Vegetarian' },
-                                                                { key: 'vegan', label: 'Vegan' },
-                                                                { key: 'glutenFree', label: 'Gluten Free' }
-                                                            ].map(({ key, label }) => (
-                                                                <label key={key} className="flex items-center space-x-3 text-white/60 hover:text-white cursor-pointer transition-colors group">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={filters.dietary[key as keyof typeof filters.dietary]}
-                                                                        onChange={(e) => setFilters(prev => ({
-                                                                            ...prev,
-                                                                            dietary: { ...prev.dietary, [key]: e.target.checked }
-                                                                        }))}
-                                                                        className="rounded border-white/20 bg-white/5 text-[#E62B2B] focus:ring-[#E62B2B] focus:ring-2 focus:ring-offset-2 focus:ring-offset-black transition-colors group-hover:border-white/40"
-                                                                    />
-                                                                    <span className="text-sm font-medium">{label}</span>
-                                                                </label>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Spicy Level */}
-                                                    <div>
-                                                        <label className="text-white/80 text-sm font-medium mb-4 block">Spicy Level</label>
-                                                        <div className="space-y-3">
-                                                            {[0, 1, 2].map(level => (
-                                                                <label key={level} className="flex items-center space-x-3 text-white/60 hover:text-white cursor-pointer transition-colors group">
-                                                                    <input
-                                                                        type="radio"
-                                                                        name="spicyLevel"
-                                                                        checked={filters.spicyLevel === level}
-                                                                        onChange={() => setFilters(prev => ({ ...prev, spicyLevel: level }))}
-                                                                        className="border-white/20 bg-white/5 text-[#E62B2B] focus:ring-[#E62B2B] focus:ring-2 focus:ring-offset-2 focus:ring-offset-black transition-colors group-hover:border-white/40"
-                                                                    />
-                                                                    <span className="text-sm font-medium">
-                                                                        {level === 0 ? 'Mild' : level === 1 ? 'Medium' : 'Spicy'}
-                                                                    </span>
-                                                                </label>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Price Range */}
-                                                    <div>
-                                                        <label className="text-white/80 text-sm font-medium mb-4 block">
-                                                            Max Price: <span className="text-[#E62B2B]">${filters.maxPrice}</span>
-                                                        </label>
-                                                        <input
-                                                            type="range"
-                                                            min="0"
-                                                            max="100"
-                                                            step="5"
-                                                            value={filters.maxPrice}
-                                                            onChange={(e) => setFilters(prev => ({
-                                                                ...prev,
-                                                                maxPrice: parseInt(e.target.value)
-                                                            }))}
-                                                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#E62B2B] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg hover:[&::-webkit-slider-thumb]:scale-110 transition-transform"
-                                                        />
-                                                        <div className="flex justify-between text-xs text-white/40 mt-2">
-                                                            <span>$0</span>
-                                                            <span>$100</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                    <div>
+                                        <h4 className="text-white/80 text-sm font-medium mb-3 flex items-center">
+                                            <Flame className="w-4 h-4 mr-2 text-[#E62B2B]" />
+                                            Spice Level
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {[
+                                                { value: 0, label: 'Mild' },
+                                                { value: 1, label: 'Medium' },
+                                                { value: 2, label: 'Spicy' },
+                                            ].map((level) => (
+                                                <label key={level.value} className="flex items-center space-x-3 text-white/60">
+                                                    <input
+                                                        type="radio"
+                                                        name="spicyLevel"
+                                                        checked={filters.spicyLevel === level.value}
+                                                        onChange={() =>
+                                                            setFilters((prev) => ({ ...prev, spicyLevel: level.value }))
+                                                        }
+                                                        className="border-white/20 bg-white/5 text-[#E62B2B] focus:ring-[#E62B2B]"
+                                                    />
+                                                    <span className="text-sm">{level.label}</span>
+                                                </label>
+                                            ))}
                                         </div>
-                                    )}
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-white/80 text-sm font-medium mb-3 flex items-center">
+                                            <DollarSign className="w-4 h-4 mr-2 text-[#E62B2B]" />
+                                            Max Price: <span className="ml-2 text-[#E62B2B]">${filters.maxPrice}</span>
+                                        </h4>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max={DEFAULT_MAX_PRICE}
+                                            step="5"
+                                            value={filters.maxPrice}
+                                            onChange={(e) =>
+                                                setFilters((prev) => ({
+                                                    ...prev,
+                                                    maxPrice: parseInt(e.target.value, 10),
+                                                }))
+                                            }
+                                            className="w-full"
+                                        />
+                                        <div className="flex justify-between text-xs text-white/40 mt-2">
+                                            <span>$0</span>
+                                            <span>${DEFAULT_MAX_PRICE}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </>
-                )
-            }
-
-            {/* Enhanced Hero Section with Better Spacing */}
-            <div className="relative pt-16 pb-12">
-                <div className="relative z-10 w-full px-4 sm:px-6">
-                    <div className="max-w-4xl mx-auto text-center">
-                        {/* Gradient Title */}
-                        <div className="mb-8">
-                            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-light text-white mb-8 tracking-tight leading-none">
-                                <span className="bg-linear-to-r from-white via-white to-[#E62B2B] bg-clip-text text-transparent">
-                                    MAI
-                                </span>
-                                <span className="text-[#E62B2B] mx-3">|</span>
-                                <span className="text-white">MENU</span>
-                            </h1>
-                            <div className="w-32 h-1 bg-linear-to-r from-transparent via-[#E62B2B] to-transparent mx-auto rounded-full shadow-lg shadow-[#E62B2B]/30"></div>
-                        </div>
-
-                        {/* Minimal Description */}
-                        <p className="text-white/60 mb-8 max-w-xl mx-auto text-lg leading-relaxed">
-                            {t('landing.philosophy')}
-                        </p>
-
-                        {/* Enhanced Metrics */}
-                        <div className="flex flex-wrap justify-center gap-6 text-sm">
-                            <div className="flex items-center text-white/60 bg-white/5 rounded-full px-4 py-2 border border-white/10">
-                                <Clock className="w-4 h-4 mr-2 text-[#E62B2B]" />
-                                <span>15-25min</span>
-                            </div>
-                            <div className="flex items-center text-white/60 bg-white/5 rounded-full px-4 py-2 border border-white/10">
-                                <Star className="w-4 h-4 mr-2 text-[#E62B2B]" />
-                                <span>{featuredItems.length} signatures</span>
-                            </div>
-                            <div className="flex items-center text-white/60 bg-white/5 rounded-full px-4 py-2 border border-white/10">
-                                <ChefHat className="w-4 h-4 mr-2 text-[#E62B2B]" />
-                                <span>Custom creations</span>
-                            </div>
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
-            {/* Enhanced Main Content with Better Spacing */}
-            <div id="menu" className="relative z-10 w-full px-4 sm:px-6 pb-20">
-                {/* Enhanced Category Navigation */}
-                <div className="max-w-4xl mx-auto mb-12">
-                    <div className="flex flex-wrap justify-center gap-3">
-                        {categories.map(category => (
+            {/* {!showFavoritesOnly && (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+                    <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
+                        <button
+                            onClick={() => setActiveCategory('all')}
+                            className={`px-4 py-2 rounded-full whitespace-nowrap transition-all text-sm ${activeCategory === 'all'
+                                    ? 'bg-[#E62B2B] text-white'
+                                    : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
+                                }`}
+                        >
+                            All Categories
+                        </button>
+
+                        {categories.map((category) => (
                             <button
-                                key={category.id}
-                                onClick={() => setActiveCategory(category.id)}
-                                className={`px-6 py-3 capitalize transition-all duration-300 rounded-xl border text-sm font-medium flex items-center space-x-2 group ${activeCategory === category.id
-                                    ? 'bg-[#E62B2B] text-white border-[#E62B2B] shadow-lg shadow-[#E62B2B]/25'
-                                    : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white hover:border-white/20'
+                                key={category}
+                                onClick={() => setActiveCategory(category)}
+                                className={`px-4 py-2 rounded-full whitespace-nowrap transition-all text-sm ${activeCategory === category
+                                        ? 'bg-[#E62B2B] text-white'
+                                        : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
                                     }`}
                             >
-                                <span>{category.id === 'all' ? t('orderPage.allItems') : category.name}</span>
-                                <span className={`text-xs px-2 py-1 rounded-full ${activeCategory === category.id
-                                    ? 'bg-white/20 text-white'
-                                    : 'bg-white/10 text-white/40'
-                                    }`}>
-                                    {category.count}
-                                </span>
+                                {category}
                             </button>
                         ))}
                     </div>
                 </div>
+            )} */}
 
-                {/* Enhanced Results Summary */}
-                {filteredItems.length > 0 && (
-                    <div className="max-w-4xl mx-auto mb-8 text-center">
-                        <div className="inline-flex items-center space-x-3 text-white/60 text-sm bg-white/5 rounded-full px-6 py-3 border border-white/10">
-                            {searchTerm ? (
-                                <>
-                                    <Search className="w-4 h-4 text-[#E62B2B]" />
-                                    <span className="font-medium">
-                                        {t('orderPage.foundMatches', {
-                                            count: filteredItems.length,
-                                            term: searchTerm
-                                        })}
-                                    </span>
-                                </>
-                            ) : activeCategory === 'all' ? (
-                                <>
-                                    <Sparkles className="w-4 h-4 text-[#E62B2B]" />
-                                    <span className="font-medium">
-                                        {t('orderPage.showcasingCreations', { count: filteredItems.length })}
-                                    </span>
-                                </>
-                            ) : (
-                                <>
-                                    <Star className="w-4 h-4 text-[#E62B2B]" />
-                                    <span className="font-medium">
-                                        {t('orderPage.categorySelections', {
-                                            count: filteredItems.length,
-                                            category: activeCategory
-                                        })}
-                                    </span>
-                                </>
-                            )}
-                            {activeFiltersCount > 0 && (
-                                <span className="flex items-center space-x-2">
-                                    <span className="w-1 h-1 bg-white/40 rounded-full"></span>
-                                    <span className="text-xs">{activeFiltersCount} filters active</span>
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                )}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-4">
+                <div className="flex items-center justify-between text-sm">
+                    <p className="text-white/60">
+                        <span className="text-white font-medium">{filteredItems.length}</span> items found
+                        {searchTerm && <span> for "{searchTerm}"</span>}
+                        {showFavoritesOnly && <span> in favorites</span>}
+                    </p>
+                    {activeFiltersCount > 0 && (
+                        <button
+                            onClick={clearAllFilters}
+                            className="text-[#E62B2B] hover:text-[#ff4444] transition-colors"
+                        >
+                            Clear filters
+                        </button>
+                    )}
+                </div>
+            </div>
 
-                {/* Enhanced Menu Grid */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-20 space-y-4">
                 {filteredItems.length > 0 ? (
-                    <div className="max-w-6xl mx-auto">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredItems.map(item => (
-                                <div key={item.id} className="relative">
-                                    {item.popular && (
-                                        <div className="absolute -top-2 -right-2 z-10">
-                                            <div className="bg-[#E62B2B] text-white px-3 py-2 rounded-full text-xs font-medium flex items-center space-x-1 shadow-lg">
-                                                <Star className="w-3 h-3" />
-                                                <span>{t('landing.signature')}</span>
-                                            </div>
+                    Object.entries(itemsByCategory).map(([section, items]) => {
+                        const isOpen = openSections[section] ?? true;
+
+                        return (
+                            <div
+                                key={section}
+                                className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
+                            >
+                                <button
+                                    onClick={() => toggleSection(section)}
+                                    className="w-full px-5 py-4 flex items-center justify-between bg-white/5 hover:bg-white/10 transition-colors"
+                                >
+                                    <div className="flex items-center gap-3 text-left">
+                                        <div className="w-8 h-8 rounded-full bg-[#E62B2B]/15 flex items-center justify-center">
+                                            {showFavoritesOnly ? (
+                                                <Heart className="w-4 h-4 text-[#E62B2B] fill-current" />
+                                            ) : (
+                                                <ChefHat className="w-4 h-4 text-[#E62B2B]" />
+                                            )}
                                         </div>
-                                    )}
-                                    <MenuItemCard
-                                        item={item}
-                                        onAddToCart={handleAddToCart}
-                                        isModalOpenOP={isModalOpenOP}
-                                        setIsModalOpenOP={setIsModalOpenOP}
-                                        onItemSelect={handleItemSelect}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                                        <div>
+                                            <h3 className="text-white font-medium">{section}</h3>
+                                            <p className="text-white/40 text-sm">{items.length} item{items.length !== 1 ? 's' : ''}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-white/60">
+                                        {isOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                    </div>
+                                </button>
+
+                                {isOpen && (
+                                    <div className="p-4 space-y-4">
+                                        {items.map((item) => (
+                                            <ListItemCard
+                                                key={item.id}
+                                                item={item}
+                                                isFavorite={favorites.includes(item.id)}
+                                                onToggleFavorite={toggleFavorite}
+                                                onOpen={(selected) => {
+                                                    setSelectedItem(selected);
+                                                    setIsModalOpen(true);
+                                                }}
+                                                onAddToCart={addToCart}
+                                                getCurrentLanguageDescription={getCurrentLanguageDescription}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })
                 ) : (
-                    <div className="max-w-md mx-auto text-center py-16">
+                    <div className="text-center py-16">
                         <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/10">
                             <Search className="w-8 h-8 text-white/30" />
                         </div>
-                        <h3 className="text-xl text-white mb-3 font-light">
-                            {t('orderPage.noItemsFound')}
-                        </h3>
-                        <p className="text-white/50 text-sm mb-8 leading-relaxed">
-                            {t('orderPage.adjustSearch')}
+                        <h3 className="text-xl text-white mb-3 font-light">No items found</h3>
+                        <p className="text-white/50 text-sm mb-8 max-w-md mx-auto">
+                            Try adjusting your search or filters to find what you're looking for.
                         </p>
-                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                            <button
-                                onClick={() => {
-                                    setSearchInput('')
-                                    setSearchTerm('')
-                                    setActiveCategory('all')
-                                    clearAllFilters()
-                                }}
-                                className="bg-[#E62B2B] text-white px-6 py-3 rounded-xl hover:bg-[#ff4444] transition-colors font-medium text-sm flex items-center justify-center space-x-2"
-                            >
-                                <span>{t('orderPage.allItems')}</span>
-                            </button>
-                            <button
-                                onClick={() => setShowSushiBuilder(true)}
-                                className="border border-white/20 text-white px-6 py-3 rounded-xl hover:bg-white/5 transition-colors font-medium text-sm flex items-center justify-center space-x-2"
-                            >
-                                <ChefHat className="w-4 h-4" />
-                                <span>{t('buildYourSushi.title')}</span>
-                            </button>
-                        </div>
+                        <button
+                            onClick={clearAllFilters}
+                            className="bg-[#E62B2B] text-white px-6 py-3 rounded-xl hover:bg-[#ff4444] transition-colors inline-flex items-center space-x-2"
+                        >
+                            <span>Clear all filters</span>
+                            <X className="w-4 h-4" />
+                        </button>
                     </div>
                 )}
             </div>
 
-            {/* Footer */}
-            <div className="relative z-10">
-                <LandingCTAFooter displaySimple={true} />
-            </div>
+            <LandingCTAFooter displaySimple={true} />
 
-            {/* Enhanced Floating Cart */}
             {cart.length > 0 && (
                 <div className="fixed bottom-6 right-6 z-40">
                     <Link
                         to="/checkout"
-                        className="bg-[#E62B2B] text-white px-6 py-4 rounded-xl hover:bg-[#ff4444] transition-all duration-300 shadow-2xl shadow-[#E62B2B]/25 hover:shadow-[#E62B2B]/40 hover:scale-105 flex items-center space-x-4"
+                        className="bg-[#E62B2B] text-white px-6 py-4 rounded-xl hover:bg-[#ff4444] transition-all shadow-2xl shadow-[#E62B2B]/25 hover:shadow-[#E62B2B]/40 hover:scale-105 flex items-center space-x-4"
                     >
+                        <div className="relative">
+                            <ShoppingBag className="w-6 h-6" />
+                            <span className="absolute -top-2 -right-2 bg-white text-[#E62B2B] text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                                {itemCount}
+                            </span>
+                        </div>
                         <div className="text-right">
-                            <div className="font-semibold text-sm">${cartTotal.toFixed(2)}</div>
-                            <div className="text-white/90 text-xs">
-                                {itemCount} {itemCount === 1 ? t('common.item') : t('common.items')}
-                            </div>
+                            <div className="font-semibold">${cartTotal.toFixed(2)}</div>
+                            <div className="text-white/80 text-xs">Checkout</div>
                         </div>
-                        <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                            <ChevronRight className="w-4 h-4" />
-                        </div>
+                        <ChevronRight className="w-5 h-5" />
                     </Link>
                 </div>
             )}
 
-            {/* Build Your Sushi Modal */}
             {showSushiBuilder && (
-                <div className="fixed inset-0 z-50">
+                <div className="fixed inset-0 z-[9998]">
                     <BuildYourSushi
                         isOpen={showSushiBuilder}
                         onClose={() => setShowSushiBuilder(false)}
@@ -932,5 +1082,5 @@ export default function OrderPage() {
                 </div>
             )}
         </div>
-    )
+    );
 }

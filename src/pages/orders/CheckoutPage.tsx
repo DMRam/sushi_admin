@@ -318,37 +318,44 @@ export default function CheckoutPage() {
             if (!validate(formData, deliveryInfo)) {
                 throw new Error("Please complete the required fields.");
             }
+
             if (!safeCart.length) {
                 throw new Error("Your cart is empty.");
             }
 
-            // Subtotal BASE (sin impuestos), desde el carrito
             const calculatedSubtotal = safeCart.reduce((sum, it) => {
                 const qty = Number.isFinite(it.quantity) ? Number(it.quantity) : 1;
-                return sum + (it.price * qty);
+                return sum + it.price * qty;
             }, 0);
 
             if (Math.abs(calculatedSubtotal - subtotal) > 0.01) {
-                console.warn("Subtotal mismatch:", { calculated: calculatedSubtotal, passed: subtotal });
+                console.warn("Subtotal mismatch:", {
+                    calculated: calculatedSubtotal,
+                    passed: subtotal,
+                });
             }
 
-            // ✅ ENVIAR A CLOVER: precios BASE (sin taxes)
             const items = safeCart.map((it, idx) => {
-                if (!it.name?.trim()) throw new Error(`Item ${idx + 1} is missing a name`);
+                if (!it.name?.trim()) {
+                    throw new Error(`Item ${idx + 1} is missing a name`);
+                }
+
                 if (typeof it.price !== "number" || it.price < 0) {
                     throw new Error(`Item "${it.name}" has an invalid price`);
                 }
 
                 const quantity = Number.isFinite(it.quantity) ? Number(it.quantity) : 1;
+
                 if (quantity < 1 || !Number.isInteger(quantity)) {
                     throw new Error(`Item "${it.name}" has an invalid quantity`);
                 }
 
-                const note = getLocalizedDescription(it.description)?.substring(0, 250) ?? "";
+                const note =
+                    getLocalizedDescription(it.description)?.substring(0, 250) ?? "";
 
                 return {
                     name: it.name.trim(),
-                    price: Math.round(it.price * 100), // ✅ cents BASE (sin impuestos)
+                    price: Math.round(it.price * 100), // cents
                     unitQty: quantity,
                     note,
                 };
@@ -360,47 +367,47 @@ export default function CheckoutPage() {
                 phoneNumber: (formData.phone ?? "").trim(),
             };
 
-            if (user) await updateClientProfile();
+            if (user) {
+                await updateClientProfile();
+            }
 
             const url = (import.meta.env.VITE_CLOVER_CHECKOUT_HTTP_URL as string) || "";
             const merchantId = (import.meta.env.VITE_CLOVER_MERCHANT_ID as string) || "";
-            if (!url) throw new Error("Missing VITE_CLOVER_CHECKOUT_HTTP_URL");
-            if (!merchantId) throw new Error("Missing VITE_CLOVER_MERCHANT_ID");
+
+            if (!url) {
+                throw new Error("Missing VITE_CLOVER_CHECKOUT_HTTP_URL");
+            }
+
+            if (!merchantId) {
+                throw new Error("Missing VITE_CLOVER_MERCHANT_ID");
+            }
 
             const payload = {
                 merchantId,
-                tipsEnabled: true,
                 clientUrl: window.location.origin,
                 customer,
                 items,
+                amount: Math.round(finalTotal * 100),
+                currency: "cad",
+                successUrl: `${window.location.origin}/checkout/success`,
+                cancelUrl: `${window.location.origin}/checkout/cancel`,
                 metadata: {
                     userId: user?.id || "guest",
                     pointsEarned: String(user ? pointsEarned ?? 0 : 0),
                     totals: JSON.stringify({
-                        subtotal: calculatedSubtotal,        
-                        gst,                                 
-                        qst,                               
+                        subtotal: calculatedSubtotal,
+                        gst,
+                        qst,
                         deliveryFee: deliveryInfo.fee,
-                        finalTotal,                         
+                        finalTotal,
                     }),
                     deliveryMethod: formData.deliveryMethod,
                 },
             };
 
-             const itemsTotalBase = items.reduce((sum, it) => sum + (it.price * it.unitQty) / 100, 0);
-            const expectedTotal = itemsTotalBase + gst + qst + (deliveryInfo.fee || 0);
-
-            if (Math.abs(expectedTotal - finalTotal) > 0.02) {
-                console.warn("Total mismatch check:", {
-                    itemsTotalBase,
-                    gst,
-                    qst,
-                    deliveryFee: deliveryInfo.fee,
-                    expectedTotal,
-                    finalTotal,
-                    diff: expectedTotal - finalTotal,
-                });
-            }
+            console.log("Clover checkout URL:", url);
+            console.log("Clover merchantId:", merchantId);
+            console.log("Clover payload:", payload);
 
             const resp = await fetch(url, {
                 method: "POST",
@@ -411,6 +418,7 @@ export default function CheckoutPage() {
 
             const raw = await resp.text();
             let data: any = {};
+
             try {
                 data = raw ? JSON.parse(raw) : {};
             } catch {
@@ -419,9 +427,7 @@ export default function CheckoutPage() {
 
             if (!resp.ok) {
                 const details =
-                    data?.data?.errors ||
-                    data?.data?.message ||
-                    data?.data?.details ||
+                    data?.details ||
                     data?.message ||
                     data?.error ||
                     data?.raw ||
@@ -439,12 +445,13 @@ export default function CheckoutPage() {
                 );
             }
 
-            if (!data?.checkoutUrl) throw new Error("Missing checkoutUrl in Clover response");
+            if (!data?.checkoutUrl) {
+                throw new Error("Missing checkoutUrl in Clover response");
+            }
 
             sessionStorage.setItem(
                 "pendingCloverCheckout",
                 JSON.stringify({
-                    orderId: data.orderId,
                     checkoutSessionId: data.checkoutSessionId || null,
                     checkoutUrl: data.checkoutUrl,
                     expirationTime: data.expirationTime || null,

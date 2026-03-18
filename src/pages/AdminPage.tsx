@@ -16,7 +16,7 @@ export default function AdminPage() {
         () => [
             { id: 'invitations' as const, name: 'Invitations' },
             { id: 'users' as const, name: 'Users' },
-            { id: 'web' as const, name: 'Web' }
+            { id: 'web' as const, name: 'Products' }
         ],
         []
     )
@@ -48,7 +48,7 @@ export default function AdminPage() {
                 <div className="mb-4 sm:mb-6 lg:mb-8">
                     <h1 className="text-2xl sm:text-3xl font-light text-gray-900 tracking-wide">Admin Panel</h1>
                     <p className="text-sm sm:text-base text-gray-500 font-light mt-1 sm:mt-2">
-                        Manage invitation codes, users, and website settings
+                        Manage invitation codes and products
                     </p>
                 </div>
 

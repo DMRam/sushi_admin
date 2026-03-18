@@ -1,4 +1,9 @@
-export type Unit = 'kg' | 'g' | 'ml' | 'l' | 'unit'
+export type Unit = 'kg' | 'g' | 'ml' | 'l' | 'unit' | 'oz' |
+  'lb' |
+  'piece' |
+  'slice' |
+  'tbsp' |
+  'tsp'
 
 export type Ingredient = {
   id: string
@@ -46,6 +51,7 @@ export type Product = {
   imageUrls: string[];
   quantity: number
   featured?: boolean
+  kitchen?: KitchenMeta;
 }
 
 export type Purchase = {
@@ -410,3 +416,17 @@ export interface ClientProfile {
   current_tier: string
   avatar_url?: string;
 }
+
+export type KitchenMeta = {
+  rollType?: string; // california | maki | temaki | nigiri | etc
+  wrap?: string;     // rice_outside | nori_outside | soy_paper
+  fried?: boolean;
+  pieces?: number;
+
+  inside?: string[];    // ["shrimp_tempura", "philadelphia"]
+  toppings?: string[];  // ["salmon", "avocado"]
+  sauces?: string[];    // ["teriyaki", "spicy_mayo"]
+
+  assembly?: string[];      // step-by-step
+  priorityNotes?: string;   // "TEMPURA", "TOPPING SALMON", etc
+};
