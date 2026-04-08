@@ -278,16 +278,17 @@ export default function KitchenManualOrderFastFlow({
     const [selectedCategory, setSelectedCategory] = useState('All')
     const [isSaving, setIsSaving] = useState(false)
     const searchRef = useRef<HTMLInputElement | null>(null)
-    const productListRef = useRef<HTMLDivElement | null>(null)
+    const mobileScrollRef = useRef<HTMLDivElement | null>(null)
+    const desktopProductListRef = useRef<HTMLDivElement | null>(null)
 
     useEffect(() => {
         if (!isOpen) return
 
-        const previousOverflow = document.body.style.overflow
-        const previousTouchAction = document.body.style.touchAction
+        const previousHtmlOverflow = document.documentElement.style.overflow
+        const previousBodyOverflow = document.body.style.overflow
 
+        document.documentElement.style.overflow = 'hidden'
         document.body.style.overflow = 'hidden'
-        document.body.style.touchAction = 'none'
 
         const timer = window.setTimeout(() => {
             searchRef.current?.focus()
@@ -311,8 +312,8 @@ export default function KitchenManualOrderFastFlow({
         return () => {
             window.clearTimeout(timer)
             window.removeEventListener('keydown', handleKeyDown)
-            document.body.style.overflow = previousOverflow
-            document.body.style.touchAction = previousTouchAction
+            document.documentElement.style.overflow = previousHtmlOverflow
+            document.body.style.overflow = previousBodyOverflow
         }
     }, [isOpen, onClose])
 
@@ -403,8 +404,8 @@ export default function KitchenManualOrderFastFlow({
         setProductSearch('')
         searchRef.current?.focus()
 
-        if (productListRef.current) {
-            productListRef.current.scrollTop = 0
+        if (desktopProductListRef.current) {
+            desktopProductListRef.current.scrollTop = 0
         }
     }
 
@@ -456,6 +457,7 @@ export default function KitchenManualOrderFastFlow({
         setProductSearch('')
         setSelectedCategory('All')
         searchRef.current?.focus()
+        mobileScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
     const submitOrder = async () => {
@@ -503,21 +505,22 @@ export default function KitchenManualOrderFastFlow({
     if (!isOpen) return null
 
     return createPortal(
-        <div
-            className="fixed inset-0 z-[9999] overflow-hidden bg-black/40 p-2 backdrop-blur-sm md:p-4"
-            onClick={(e) => {
-                if (e.target === e.currentTarget) onClose()
-            }}
-        >
-            <div className="mx-auto flex h-[98vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl md:h-[95vh] lg:flex-row">
-                <section className="flex h-full w-full flex-col border-b border-slate-200 lg:w-[55%] lg:border-b-0 lg:border-r">
-                    <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 md:px-6 md:py-4">
+        <>
+            <div
+                className="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-[2px]"
+                onClick={onClose}
+            />
+
+            <div className="fixed inset-0 z-[9999] lg:p-4">
+                {/* MOBILE / TABLET */}
+                <div className="flex h-[100dvh] flex-col bg-white lg:hidden">
+                    <header className="sticky top-0 z-20 shrink-0 border-b border-slate-200 bg-white px-4 py-3">
                         <div className="flex items-start justify-between gap-4">
                             <div>
-                                <h2 className="text-xl font-bold tracking-tight text-slate-900 md:text-2xl lg:text-3xl">
+                                <h2 className="text-xl font-bold tracking-tight text-slate-900">
                                     New Order
                                 </h2>
-                                <p className="hidden text-sm text-slate-500 md:block">
+                                <p className="text-sm text-slate-500">
                                     Fast entry for busy kitchen
                                 </p>
                             </div>
@@ -532,8 +535,132 @@ export default function KitchenManualOrderFastFlow({
                         </div>
                     </header>
 
-                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 md:px-6">
-                        <div className="space-y-4 pb-6">
+                    <div
+                        ref={mobileScrollRef}
+                        className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
+                        style={{
+                            WebkitOverflowScrolling: 'touch',
+                            overscrollBehavior: 'contain',
+                        }}
+                    >
+                        <div className="space-y-4 pb-24">
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                                <h3 className="mb-3 text-base font-semibold text-slate-900">
+                                    Products
+                                </h3>
+
+                                <div className="relative">
+                                    <input
+                                        ref={searchRef}
+                                        value={productSearch}
+                                        onChange={(e) => setProductSearch(e.target.value)}
+                                        onKeyDown={onProductSearchKeyDown}
+                                        placeholder="Search product"
+                                        className="k-input w-full py-3 pl-10 pr-3"
+                                    />
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                        🔍
+                                    </span>
+                                </div>
+
+                                <div className="mt-3 -mx-1 overflow-x-auto">
+                                    <div className="flex gap-2 px-1 pb-1">
+                                        {categories.map((category) => (
+                                            <button
+                                                key={category}
+                                                onClick={() => setSelectedCategory(category)}
+                                                className={`whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium transition ${selectedCategory === category
+                                                        ? 'bg-slate-900 text-white'
+                                                        : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100'
+                                                    }`}
+                                            >
+                                                {category}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {quickAddProducts.length > 0 && (
+                                    <div className="mt-3">
+                                        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                            Quick Add
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {quickAddProducts.map((product) => (
+                                                <button
+                                                    key={product.id}
+                                                    onClick={() => addProduct(product)}
+                                                    className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-800 transition hover:bg-slate-200"
+                                                >
+                                                    + {product.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="mt-3 space-y-2">
+                                    {filteredProducts.map((product) => {
+                                        const preview = getKitchenPreviewParts(product)
+
+                                        return (
+                                            <button
+                                                key={product.id}
+                                                onClick={() => addProduct(product)}
+                                                className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="truncate text-sm font-semibold text-slate-900">
+                                                        {product.name}
+                                                    </div>
+
+                                                    <div className="mt-0.5 text-xs text-slate-500">
+                                                        {product.category || 'No category'}
+                                                    </div>
+
+                                                    <div className="mt-1 line-clamp-2 text-xs text-slate-600">
+                                                        {getProductKitchenPreview(product)}
+                                                    </div>
+
+                                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                                        {preview.wrap && (
+                                                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700">
+                                                                Wrap: {preview.wrap}
+                                                            </span>
+                                                        )}
+                                                        {product.kitchen?.requiresFrying && (
+                                                            <span className="rounded-full bg-rose-100 px-2 py-1 text-[11px] font-medium text-rose-700">
+                                                                Fry
+                                                            </span>
+                                                        )}
+                                                        {product.kitchen?.containsCheese && (
+                                                            <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-700">
+                                                                Cheese
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="shrink-0 text-right">
+                                                    <div className="text-sm font-bold text-slate-900">
+                                                        {money(Number(product.sellingPrice || 0))}
+                                                    </div>
+                                                    <div className="mt-1 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700">
+                                                        Add
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        )
+                                    })}
+
+                                    {filteredProducts.length === 0 && (
+                                        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
+                                            No products found
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-3">
                                 <Field label="Type">
                                     <select
@@ -542,10 +669,13 @@ export default function KitchenManualOrderFastFlow({
                                             setDraft((prev) => ({
                                                 ...prev,
                                                 orderType: e.target.value as OrderType,
-                                                address: e.target.value === 'pickup' ? 'Pickup' : prev.address,
+                                                address:
+                                                    e.target.value === 'pickup'
+                                                        ? 'Pickup'
+                                                        : prev.address,
                                             }))
                                         }
-                                        className="k-input py-2 md:py-3"
+                                        className="k-input py-3"
                                     >
                                         <option value="pickup">Pickup</option>
                                         <option value="delivery">Delivery</option>
@@ -562,7 +692,7 @@ export default function KitchenManualOrderFastFlow({
                                                 payment: e.target.value as PaymentType,
                                             }))
                                         }
-                                        className="k-input py-2 md:py-3"
+                                        className="k-input py-3"
                                     >
                                         <option value="cash">Cash</option>
                                         <option value="card">Card</option>
@@ -584,7 +714,7 @@ export default function KitchenManualOrderFastFlow({
                                             }))
                                         }
                                         placeholder="Name"
-                                        className="k-input py-2 md:py-3"
+                                        className="k-input py-3"
                                     />
                                 </Field>
 
@@ -598,7 +728,7 @@ export default function KitchenManualOrderFastFlow({
                                             }))
                                         }
                                         placeholder="Phone"
-                                        className="k-input py-2 md:py-3"
+                                        className="k-input py-3"
                                     />
                                 </Field>
                             </div>
@@ -614,7 +744,7 @@ export default function KitchenManualOrderFastFlow({
                                             }))
                                         }
                                         placeholder="Delivery address"
-                                        className="k-input py-2 md:py-3"
+                                        className="k-input py-3"
                                     />
                                 </Field>
                             )}
@@ -629,20 +759,20 @@ export default function KitchenManualOrderFastFlow({
                                         }))
                                     }
                                     placeholder="Allergy, no mayo, etc."
-                                    className="k-input min-h-[60px] resize-none py-2 md:py-3"
+                                    className="k-input min-h-[72px] resize-none py-3"
                                 />
                             </Field>
 
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                                 <div className="mb-2 flex items-center justify-between">
-                                    <h3 className="text-base font-semibold text-slate-900 md:text-lg">
+                                    <h3 className="text-base font-semibold text-slate-900">
                                         Items ({totalItems})
                                     </h3>
                                 </div>
 
                                 {draft.items.length === 0 ? (
                                     <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-4 text-center text-sm text-slate-500">
-                                        No items yet. Search or tap products on the right.
+                                        No items yet. Tap products above.
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
@@ -673,16 +803,16 @@ export default function KitchenManualOrderFastFlow({
                                                     <div className="flex items-center rounded-lg border border-slate-300">
                                                         <button
                                                             onClick={() => decrementItem(item.productId)}
-                                                            className="w-8 px-2 py-1 text-lg font-semibold hover:bg-slate-100"
+                                                            className="w-10 px-2 py-2 text-lg font-semibold hover:bg-slate-100"
                                                         >
                                                             −
                                                         </button>
-                                                        <span className="w-8 border-x border-slate-300 px-2 py-1 text-center text-sm font-semibold">
+                                                        <span className="w-10 border-x border-slate-300 px-2 py-2 text-center text-sm font-semibold">
                                                             {item.qty}
                                                         </span>
                                                         <button
                                                             onClick={() => incrementItem(item.productId)}
-                                                            className="w-8 px-2 py-1 text-lg font-semibold hover:bg-slate-100"
+                                                            className="w-10 px-2 py-2 text-lg font-semibold hover:bg-slate-100"
                                                         >
                                                             +
                                                         </button>
@@ -696,9 +826,11 @@ export default function KitchenManualOrderFastFlow({
                                                 <input
                                                     type="text"
                                                     value={item.notes}
-                                                    onChange={(e) => updateItemNotes(item.productId, e.target.value)}
+                                                    onChange={(e) =>
+                                                        updateItemNotes(item.productId, e.target.value)
+                                                    }
                                                     placeholder="Item note"
-                                                    className="k-input mt-2 min-h-0 py-2 text-sm"
+                                                    className="k-input mt-2 min-h-0 py-3 text-sm"
                                                 />
                                             </div>
                                         ))}
@@ -708,11 +840,11 @@ export default function KitchenManualOrderFastFlow({
                         </div>
                     </div>
 
-                    <footer className="shrink-0 border-t border-slate-200 bg-white px-4 py-3 md:px-6">
-                        <div className="flex items-center justify-between">
+                    <footer className="sticky bottom-0 z-20 shrink-0 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-8px_20px_rgba(0,0,0,0.06)]">
+                        <div className="flex items-center justify-between gap-3">
                             <div>
-                                <div className="text-xs text-slate-500 md:text-sm">Total</div>
-                                <div className="text-xl font-bold text-slate-900 md:text-2xl">
+                                <div className="text-xs text-slate-500">Total</div>
+                                <div className="text-xl font-bold text-slate-900">
                                     {money(subtotal)}
                                 </div>
                             </div>
@@ -720,7 +852,7 @@ export default function KitchenManualOrderFastFlow({
                             <div className="flex gap-2">
                                 <button
                                     onClick={resetForm}
-                                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 md:px-4 md:py-3"
+                                    className="rounded-lg border border-slate-300 px-3 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
                                 >
                                     Clear
                                 </button>
@@ -728,140 +860,388 @@ export default function KitchenManualOrderFastFlow({
                                 <button
                                     onClick={submitOrder}
                                     disabled={draft.items.length === 0 || isSaving}
-                                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 md:px-5 md:py-3"
+                                    className="rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {isSaving ? '...' : 'Create'}
                                 </button>
                             </div>
                         </div>
                     </footer>
-                </section>
+                </div>
 
-                <aside className="flex h-full w-full flex-col bg-slate-50 lg:w-[45%]">
-                    <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 md:px-6">
-                        <h3 className="text-lg font-bold text-slate-900 md:text-xl">Products</h3>
-
-                        <div className="relative mt-2">
-                            <input
-                                ref={searchRef}
-                                value={productSearch}
-                                onChange={(e) => setProductSearch(e.target.value)}
-                                onKeyDown={onProductSearchKeyDown}
-                                placeholder="Search (press Enter to add first)"
-                                className="k-input w-full py-2 pl-8 pr-3 md:py-3"
-                            />
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-                        </div>
-
-                        <div className="mt-3 overflow-x-auto pb-1">
-                            <div className="flex gap-1.5">
-                                {categories.map((category) => (
-                                    <button
-                                        key={category}
-                                        onClick={() => setSelectedCategory(category)}
-                                        className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${selectedCategory === category
-                                                ? 'bg-slate-900 text-white'
-                                                : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100'
-                                            }`}
-                                    >
-                                        {category}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {quickAddProducts.length > 0 && (
-                        <div className="shrink-0 border-b border-slate-200 bg-slate-50/80 px-4 py-3">
-                            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                Quick Add
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                                {quickAddProducts.map((product) => (
-                                    <button
-                                        key={product.id}
-                                        onClick={() => addProduct(product)}
-                                        className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-100 md:px-3 md:py-2 md:text-sm"
-                                    >
-                                        + {product.name}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div
-                        ref={productListRef}
-                        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 md:px-4"
-                    >
-                        <div className="space-y-2 pb-6">
-                            {filteredProducts.map((product) => {
-                                const preview = getKitchenPreviewParts(product)
-
-                                return (
-                                    <button
-                                        key={product.id}
-                                        onClick={() => addProduct(product)}
-                                        className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-300 hover:bg-slate-50 md:p-4"
-                                    >
-                                        <div className="min-w-0 flex-1">
-                                            <div className="truncate text-base font-semibold text-slate-900 md:text-lg">
-                                                {product.name}
-                                            </div>
-
-                                            <div className="mt-0.5 text-xs text-slate-500 md:text-sm">
-                                                {product.category || 'No category'}
-                                            </div>
-
-                                            {preview.kitchenName && preview.kitchenName !== product.name && (
-                                                <div className="mt-1 text-xs font-medium text-slate-700">
-                                                    Kitchen: {preview.kitchenName}
-                                                </div>
-                                            )}
-
-                                            <div className="mt-1 line-clamp-2 text-xs text-slate-600 md:text-sm">
-                                                {getProductKitchenPreview(product)}
-                                            </div>
-
-                                            <div className="mt-2 flex flex-wrap gap-1.5">
-                                                {preview.wrap && (
-                                                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700">
-                                                        Wrap: {preview.wrap}
-                                                    </span>
-                                                )}
-                                                {product.kitchen?.requiresFrying && (
-                                                    <span className="rounded-full bg-rose-100 px-2 py-1 text-[11px] font-medium text-rose-700">
-                                                        Fry
-                                                    </span>
-                                                )}
-                                                {product.kitchen?.containsCheese && (
-                                                    <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-700">
-                                                        Cheese
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="shrink-0 text-right">
-                                            <div className="text-base font-bold text-slate-900 md:text-lg">
-                                                {money(Number(product.sellingPrice || 0))}
-                                            </div>
-                                            <div className="mt-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 md:px-3 md:py-1">
-                                                Add
-                                            </div>
-                                        </div>
-                                    </button>
-                                )
-                            })}
-
-                            {filteredProducts.length === 0 && (
-                                <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
-                                    No products found
+                {/* DESKTOP */}
+                <div className="hidden h-[95vh] max-h-[95vh] w-full max-w-7xl overflow-hidden rounded-2xl bg-white shadow-2xl lg:mx-auto lg:flex">
+                    <section className="flex min-h-0 w-[55%] flex-col border-r border-slate-200">
+                        <header className="shrink-0 border-b border-slate-200 bg-white px-6 py-4">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+                                        New Order
+                                    </h2>
+                                    <p className="text-sm text-slate-500">
+                                        Fast entry for busy kitchen
+                                    </p>
                                 </div>
-                            )}
+
+                                <button
+                                    onClick={onClose}
+                                    className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                                    aria-label="Close modal"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </header>
+
+                        <div
+                            className="min-h-0 flex-1 overflow-y-auto px-6 py-4"
+                            style={{
+                                WebkitOverflowScrolling: 'touch',
+                                overscrollBehavior: 'contain',
+                            }}
+                        >
+                            <div className="space-y-4 pb-6">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Field label="Type">
+                                        <select
+                                            value={draft.orderType}
+                                            onChange={(e) =>
+                                                setDraft((prev) => ({
+                                                    ...prev,
+                                                    orderType: e.target.value as OrderType,
+                                                    address:
+                                                        e.target.value === 'pickup'
+                                                            ? 'Pickup'
+                                                            : prev.address,
+                                                }))
+                                            }
+                                            className="k-input py-3"
+                                        >
+                                            <option value="pickup">Pickup</option>
+                                            <option value="delivery">Delivery</option>
+                                            <option value="dine_in">Dine-in</option>
+                                        </select>
+                                    </Field>
+
+                                    <Field label="Payment">
+                                        <select
+                                            value={draft.payment}
+                                            onChange={(e) =>
+                                                setDraft((prev) => ({
+                                                    ...prev,
+                                                    payment: e.target.value as PaymentType,
+                                                }))
+                                            }
+                                            className="k-input py-3"
+                                        >
+                                            <option value="cash">Cash</option>
+                                            <option value="card">Card</option>
+                                            <option value="online">Online</option>
+                                            <option value="clover">Clover</option>
+                                            <option value="uber">Uber</option>
+                                        </select>
+                                    </Field>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Field label="Name">
+                                        <input
+                                            value={draft.customerName}
+                                            onChange={(e) =>
+                                                setDraft((prev) => ({
+                                                    ...prev,
+                                                    customerName: e.target.value,
+                                                }))
+                                            }
+                                            placeholder="Name"
+                                            className="k-input py-3"
+                                        />
+                                    </Field>
+
+                                    <Field label="Phone">
+                                        <input
+                                            value={draft.phone}
+                                            onChange={(e) =>
+                                                setDraft((prev) => ({
+                                                    ...prev,
+                                                    phone: e.target.value,
+                                                }))
+                                            }
+                                            placeholder="Phone"
+                                            className="k-input py-3"
+                                        />
+                                    </Field>
+                                </div>
+
+                                {draft.orderType !== 'pickup' && (
+                                    <Field label="Address">
+                                        <input
+                                            value={draft.address}
+                                            onChange={(e) =>
+                                                setDraft((prev) => ({
+                                                    ...prev,
+                                                    address: e.target.value,
+                                                }))
+                                            }
+                                            placeholder="Delivery address"
+                                            className="k-input py-3"
+                                        />
+                                    </Field>
+                                )}
+
+                                <Field label="Instructions">
+                                    <textarea
+                                        value={draft.specialInstructions}
+                                        onChange={(e) =>
+                                            setDraft((prev) => ({
+                                                ...prev,
+                                                specialInstructions: e.target.value,
+                                            }))
+                                        }
+                                        placeholder="Allergy, no mayo, etc."
+                                        className="k-input min-h-[72px] resize-none py-3"
+                                    />
+                                </Field>
+
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <h3 className="text-base font-semibold text-slate-900">
+                                            Items ({totalItems})
+                                        </h3>
+                                    </div>
+
+                                    {draft.items.length === 0 ? (
+                                        <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-4 text-center text-sm text-slate-500">
+                                            No items yet. Search or tap products on the right.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {draft.items.map((item) => (
+                                                <div
+                                                    key={item.productId}
+                                                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="truncate font-semibold text-slate-900">
+                                                                {item.name}
+                                                            </div>
+                                                            <div className="text-xs text-slate-500">
+                                                                {money(item.unitPrice)} each
+                                                            </div>
+                                                        </div>
+
+                                                        <button
+                                                            onClick={() => removeItem(item.productId)}
+                                                            className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="mt-2 flex items-center justify-between">
+                                                        <div className="flex items-center rounded-lg border border-slate-300">
+                                                            <button
+                                                                onClick={() => decrementItem(item.productId)}
+                                                                className="w-10 px-2 py-2 text-lg font-semibold hover:bg-slate-100"
+                                                            >
+                                                                −
+                                                            </button>
+                                                            <span className="w-10 border-x border-slate-300 px-2 py-2 text-center text-sm font-semibold">
+                                                                {item.qty}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => incrementItem(item.productId)}
+                                                                className="w-10 px-2 py-2 text-lg font-semibold hover:bg-slate-100"
+                                                            >
+                                                                +
+                                                            </button>
+                                                        </div>
+
+                                                        <div className="text-sm font-semibold text-slate-900">
+                                                            {money(item.unitPrice * item.qty)}
+                                                        </div>
+                                                    </div>
+
+                                                    <input
+                                                        type="text"
+                                                        value={item.notes}
+                                                        onChange={(e) =>
+                                                            updateItemNotes(item.productId, e.target.value)
+                                                        }
+                                                        placeholder="Item note"
+                                                        className="k-input mt-2 min-h-0 py-3 text-sm"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </aside>
+
+                        <footer className="shrink-0 border-t border-slate-200 bg-white px-6 py-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="text-xs text-slate-500">Total</div>
+                                    <div className="text-2xl font-bold text-slate-900">
+                                        {money(subtotal)}
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={resetForm}
+                                        className="rounded-lg border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                    >
+                                        Clear
+                                    </button>
+
+                                    <button
+                                        onClick={submitOrder}
+                                        disabled={draft.items.length === 0 || isSaving}
+                                        className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {isSaving ? '...' : 'Create'}
+                                    </button>
+                                </div>
+                            </div>
+                        </footer>
+                    </section>
+
+                    <aside className="flex min-h-0 w-[45%] flex-col bg-slate-50">
+                        <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-4">
+                            <h3 className="text-xl font-bold text-slate-900">Products</h3>
+
+                            <div className="relative mt-2">
+                                <input
+                                    ref={searchRef}
+                                    value={productSearch}
+                                    onChange={(e) => setProductSearch(e.target.value)}
+                                    onKeyDown={onProductSearchKeyDown}
+                                    placeholder="Search (press Enter to add first)"
+                                    className="k-input w-full py-3 pl-10 pr-3"
+                                />
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                    🔍
+                                </span>
+                            </div>
+
+                            <div className="mt-3 overflow-x-auto pb-1">
+                                <div className="flex gap-1.5">
+                                    {categories.map((category) => (
+                                        <button
+                                            key={category}
+                                            onClick={() => setSelectedCategory(category)}
+                                            className={`whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium transition ${selectedCategory === category
+                                                    ? 'bg-slate-900 text-white'
+                                                    : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100'
+                                                }`}
+                                        >
+                                            {category}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {quickAddProducts.length > 0 && (
+                            <div className="shrink-0 border-b border-slate-200 bg-slate-50/80 px-4 py-3">
+                                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Quick Add
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {quickAddProducts.map((product) => (
+                                        <button
+                                            key={product.id}
+                                            onClick={() => addProduct(product)}
+                                            className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-100"
+                                        >
+                                            + {product.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div
+                            ref={desktopProductListRef}
+                            className="min-h-0 flex-1 overflow-y-auto px-4 py-3"
+                            style={{
+                                WebkitOverflowScrolling: 'touch',
+                                overscrollBehavior: 'contain',
+                            }}
+                        >
+                            <div className="space-y-2 pb-6">
+                                {filteredProducts.map((product) => {
+                                    const preview = getKitchenPreviewParts(product)
+
+                                    return (
+                                        <button
+                                            key={product.id}
+                                            onClick={() => addProduct(product)}
+                                            className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                                        >
+                                            <div className="min-w-0 flex-1">
+                                                <div className="truncate text-base font-semibold text-slate-900">
+                                                    {product.name}
+                                                </div>
+
+                                                <div className="mt-0.5 text-sm text-slate-500">
+                                                    {product.category || 'No category'}
+                                                </div>
+
+                                                {preview.kitchenName &&
+                                                    preview.kitchenName !== product.name && (
+                                                        <div className="mt-1 text-xs font-medium text-slate-700">
+                                                            Kitchen: {preview.kitchenName}
+                                                        </div>
+                                                    )}
+
+                                                <div className="mt-1 line-clamp-2 text-sm text-slate-600">
+                                                    {getProductKitchenPreview(product)}
+                                                </div>
+
+                                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                                    {preview.wrap && (
+                                                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700">
+                                                            Wrap: {preview.wrap}
+                                                        </span>
+                                                    )}
+                                                    {product.kitchen?.requiresFrying && (
+                                                        <span className="rounded-full bg-rose-100 px-2 py-1 text-[11px] font-medium text-rose-700">
+                                                            Fry
+                                                        </span>
+                                                    )}
+                                                    {product.kitchen?.containsCheese && (
+                                                        <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-700">
+                                                            Cheese
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="shrink-0 text-right">
+                                                <div className="text-lg font-bold text-slate-900">
+                                                    {money(Number(product.sellingPrice || 0))}
+                                                </div>
+                                                <div className="mt-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                                                    Add
+                                                </div>
+                                            </div>
+                                        </button>
+                                    )
+                                })}
+
+                                {filteredProducts.length === 0 && (
+                                    <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
+                                        No products found
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </aside>
+                </div>
             </div>
 
             <style>{`
@@ -874,7 +1254,9 @@ export default function KitchenManualOrderFastFlow({
                     color: rgb(15 23 42);
                     outline: none;
                     transition: all 0.15s ease;
-                    font-size: 0.95rem;
+                    font-size: 16px;
+                    -webkit-appearance: none;
+                    appearance: none;
                 }
 
                 .k-input:focus {
@@ -886,13 +1268,29 @@ export default function KitchenManualOrderFastFlow({
                     color: rgb(148 163 184);
                 }
 
-                @media (max-width: 768px) {
-                    button, .k-input, select {
+                button,
+                .k-input,
+                select,
+                textarea {
+                    touch-action: manipulation;
+                }
+
+                @supports (height: 100dvh) {
+                    .mobile-modal-height {
+                        height: 100dvh;
+                    }
+                }
+
+                @media (max-width: 1023px) {
+                    button,
+                    .k-input,
+                    select,
+                    textarea {
                         min-height: 44px;
                     }
                 }
             `}</style>
-        </div>,
+        </>,
         document.body
     )
 }

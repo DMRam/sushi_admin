@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
     addDoc,
     collection,
     doc,
     getDocs,
+    increment,
+    onSnapshot,
     orderBy,
     query,
     serverTimestamp,
@@ -100,6 +102,10 @@ interface KitchenOrder {
     totalItems?: number
     createdAt?: any
     updatedAt?: any
+    lastReadyAlertAt?: any
+    lastNewAlertAt?: any
+    readyAlertVersion?: number
+    newAlertVersion?: number
     items?: ManualOrderItem[]
 }
 
@@ -225,11 +231,7 @@ function getKitchenSpec(product?: KitchenProduct): KitchenSpec {
 
     const kitchen = product.kitchen || {}
 
-    const wrap =
-        kitchen.outerWrap ||
-        kitchen.wrapper ||
-        parsed.wrapper ||
-        ''
+    const wrap = kitchen.outerWrap || kitchen.wrapper || parsed.wrapper || ''
 
     const inside =
         kitchen.innerIngredients?.length
@@ -287,8 +289,375 @@ export default function KitchenPage() {
     const [activeTab, setActiveTab] = useState<'new' | 'preparing' | 'ready' | 'completed' | 'all'>('new')
     const [debugInfo, setDebugInfo] = useState('')
 
+    const [alertMessage, setAlertMessage] = useState('')
+    const [soundEnabled, setSoundEnabled] = useState(true)
+    const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+    const [audioUnlocked, setAudioUnlocked] = useState(false)
+
+    const seenNewAlertVersionsRef = useRef<Map<string, number>>(new Map())
+    const seenReadyAlertVersionsRef = useRef<Map<string, number>>(new Map())
+    const hasInitializedOrdersRef = useRef(false)
+    const audioContextRef = useRef<AudioContext | null>(null)
+    const alertTimeoutRef = useRef<number | null>(null)
+
+    function ensureAudioContext() {
+        try {
+            const AudioCtx =
+                window.AudioContext ||
+                (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+
+            if (!AudioCtx) return null
+
+            if (!audioContextRef.current) {
+                audioContextRef.current = new AudioCtx()
+            }
+
+            if (audioContextRef.current.state === 'suspended') {
+                void audioContextRef.current.resume()
+            }
+
+            return audioContextRef.current
+        } catch (error) {
+            console.error('Failed to initialize audio context:', error)
+            return null
+        }
+    }
+
+    function playReadyOrderSound() {
+        if (!soundEnabled) return
+
+        try {
+            const ctx = ensureAudioContext()
+            if (!ctx) return
+
+            const pattern = [
+                { time: 0.0, freq: 1046, duration: 0.18 },
+                { time: 0.22, freq: 1318, duration: 0.18 },
+                { time: 0.44, freq: 1567, duration: 0.24 },
+                { time: 0.78, freq: 1567, duration: 0.24 },
+            ]
+
+            pattern.forEach((note) => {
+                const oscillator = ctx.createOscillator()
+                const gain = ctx.createGain()
+
+                oscillator.type = 'square'
+                oscillator.frequency.setValueAtTime(ctx.sampleRate ? note.freq : note.freq, ctx.currentTime + note.time)
+
+                gain.gain.setValueAtTime(0.0001, ctx.currentTime + note.time)
+                gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + note.time + 0.02)
+                gain.gain.exponentialRampToValueAtTime(
+                    0.0001,
+                    ctx.currentTime + note.time + note.duration
+                )
+
+                oscillator.connect(gain)
+                gain.connect(ctx.destination)
+
+                oscillator.start(ctx.currentTime + note.time)
+                oscillator.stop(ctx.currentTime + note.time + note.duration)
+            })
+        } catch (error) {
+            console.error('Failed to play ready order sound:', error)
+        }
+    }
+
+    function playNewOrderSound() {
+        if (!soundEnabled) return
+
+        try {
+            const ctx = ensureAudioContext()
+            if (!ctx) return
+
+            const now = ctx.currentTime
+
+            const oscillator1 = ctx.createOscillator()
+            const gain1 = ctx.createGain()
+            oscillator1.type = 'sine'
+            oscillator1.frequency.setValueAtTime(880, now)
+            gain1.gain.setValueAtTime(0.0001, now)
+            gain1.gain.exponentialRampToValueAtTime(0.12, now + 0.02)
+            gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.22)
+            oscillator1.connect(gain1)
+            gain1.connect(ctx.destination)
+            oscillator1.start(now)
+            oscillator1.stop(now + 0.22)
+
+            const oscillator2 = ctx.createOscillator()
+            const gain2 = ctx.createGain()
+            oscillator2.type = 'sine'
+            oscillator2.frequency.setValueAtTime(1174, now + 0.18)
+            gain2.gain.setValueAtTime(0.0001, now + 0.18)
+            gain2.gain.exponentialRampToValueAtTime(0.12, now + 0.2)
+            gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.42)
+            oscillator2.connect(gain2)
+            gain2.connect(ctx.destination)
+            oscillator2.start(now + 0.18)
+            oscillator2.stop(now + 0.42)
+        } catch (error) {
+            console.error('Failed to play new order sound:', error)
+        }
+    }
+
+    function vibrateDevice() {
+        if ('vibrate' in navigator) {
+            navigator.vibrate([180, 80, 180])
+        }
+    }
+
+    async function unlockDeviceAudio() {
+        const ctx = ensureAudioContext()
+
+        if (!ctx) {
+            setAudioUnlocked(false)
+            return false
+        }
+
+        try {
+            if (ctx.state === 'suspended') {
+                await ctx.resume()
+            }
+
+            const oscillator = ctx.createOscillator()
+            const gain = ctx.createGain()
+
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime)
+            oscillator.connect(gain)
+            gain.connect(ctx.destination)
+            oscillator.start(ctx.currentTime)
+            oscillator.stop(ctx.currentTime + 0.01)
+
+            setAudioUnlocked(ctx.state === 'running')
+            return ctx.state === 'running'
+        } catch (error) {
+            console.error('Failed to unlock device audio:', error)
+            setAudioUnlocked(false)
+            return false
+        }
+    }
+
+    async function requestNotificationPermission() {
+        await unlockDeviceAudio()
+
+        if (!('Notification' in window)) {
+            setNotificationsEnabled(false)
+            return false
+        }
+
+        if (Notification.permission === 'granted') {
+            setNotificationsEnabled(true)
+            return true
+        }
+
+        if (Notification.permission === 'denied') {
+            setNotificationsEnabled(false)
+            return false
+        }
+
+        const permission = await Notification.requestPermission()
+        const granted = permission === 'granted'
+        setNotificationsEnabled(granted)
+        return granted
+    }
+
+    function showReadyBrowserNotification(order: KitchenOrder) {
+        if (!('Notification' in window)) return
+        if (Notification.permission !== 'granted') return
+
+        const title = 'Order ready for pickup / service'
+        const body = `${order.customerName || 'Walk-in'} • ${order.totalItems || 0} item(s) • ${money(order.subtotal || 0)}`
+
+        try {
+            const notification = new Notification(title, {
+                body,
+                tag: `kitchen-ready-${order.id}-${order.readyAlertVersion || 0}`,
+            })
+
+            notification.onclick = () => {
+                window.focus()
+                setActiveTab('ready')
+                notification.close()
+            }
+        } catch (error) {
+            console.error('Failed to show ready notification:', error)
+        }
+    }
+
+    function showBrowserNotification(order: KitchenOrder) {
+        if (!('Notification' in window)) return
+        if (Notification.permission !== 'granted') return
+
+        const title = 'New kitchen order'
+        const body = `${order.customerName || 'Walk-in'} • ${order.totalItems || 0} item(s) • ${money(order.subtotal || 0)}`
+
+        try {
+            const notification = new Notification(title, {
+                body,
+                tag: `kitchen-order-${order.id}-${order.newAlertVersion || 0}`,
+            })
+
+            notification.onclick = () => {
+                window.focus()
+                setActiveTab('new')
+                notification.close()
+            }
+        } catch (error) {
+            console.error('Failed to show notification:', error)
+        }
+    }
+
+    function triggerReadyOrderAlert(order: KitchenOrder, manual = false) {
+        const nextMessage = manual
+            ? `Ready order alert sent again: ${order.customerName || 'Walk-in'} · ${order.totalItems || 0} item(s) · ${money(order.subtotal || 0)}`
+            : `Order ready: ${order.customerName || 'Walk-in'} · ${order.totalItems || 0} item(s) · ${money(order.subtotal || 0)}`
+
+        setAlertMessage(nextMessage)
+        setActiveTab('ready')
+
+        playReadyOrderSound()
+        vibrateDevice()
+        showReadyBrowserNotification(order)
+
+        if (alertTimeoutRef.current) {
+            window.clearTimeout(alertTimeoutRef.current)
+        }
+
+        alertTimeoutRef.current = window.setTimeout(() => {
+            setAlertMessage((current) => (current === nextMessage ? '' : current))
+            alertTimeoutRef.current = null
+        }, 9000)
+    }
+
+    function triggerNewOrderAlert(order: KitchenOrder) {
+        const nextMessage = `New order in queue: ${order.customerName || 'Walk-in'} · ${order.totalItems || 0} item(s) · ${money(order.subtotal || 0)}`
+
+        setAlertMessage(nextMessage)
+        setActiveTab('new')
+        playNewOrderSound()
+        vibrateDevice()
+        showBrowserNotification(order)
+
+        if (alertTimeoutRef.current) {
+            window.clearTimeout(alertTimeoutRef.current)
+        }
+
+        alertTimeoutRef.current = window.setTimeout(() => {
+            setAlertMessage((current) => (current === nextMessage ? '' : current))
+            alertTimeoutRef.current = null
+        }, 7000)
+    }
+
     useEffect(() => {
-        void loadData()
+        void loadInitialProducts()
+
+        const ordersQuery = query(collection(db, 'orders'), orderBy('createdAt', 'desc'))
+
+        const unsubscribe = onSnapshot(
+            ordersQuery,
+            (snapshot) => {
+                const liveOrders = snapshot.docs.map((item) => ({
+                    id: item.id,
+                    ...item.data(),
+                })) as KitchenOrder[]
+
+                setOrders(liveOrders)
+
+                const currentNewVersions = new Map(
+                    liveOrders
+                        .filter((order) => (order.status || 'new') === 'new')
+                        .map((order) => [order.id, Number(order.newAlertVersion || 0)])
+                )
+
+                const currentReadyVersions = new Map(
+                    liveOrders
+                        .filter((order) => order.status === 'ready')
+                        .map((order) => [order.id, Number(order.readyAlertVersion || 0)])
+                )
+
+                if (!hasInitializedOrdersRef.current) {
+                    seenNewAlertVersionsRef.current = new Map(currentNewVersions)
+                    seenReadyAlertVersionsRef.current = new Map(currentReadyVersions)
+                    hasInitializedOrdersRef.current = true
+                    setLoading(false)
+                    return
+                }
+
+                const trulyNewOrders = liveOrders.filter((order) => {
+                    if ((order.status || 'new') !== 'new') return false
+
+                    const currentVersion = Number(order.newAlertVersion || 0)
+                    const seenVersion = seenNewAlertVersionsRef.current.get(order.id) || 0
+
+                    return currentVersion > seenVersion
+                })
+
+                const newlyReadyOrders = liveOrders.filter((order) => {
+                    if (order.status !== 'ready') return false
+
+                    const currentVersion = Number(order.readyAlertVersion || 0)
+                    const seenVersion = seenReadyAlertVersionsRef.current.get(order.id) || 0
+
+                    return currentVersion > seenVersion
+                })
+
+                if (trulyNewOrders.length > 0) {
+                    trulyNewOrders.forEach((order) => {
+                        triggerNewOrderAlert(order)
+                    })
+                }
+
+                if (newlyReadyOrders.length > 0) {
+                    newlyReadyOrders.forEach((order) => {
+                        triggerReadyOrderAlert(order, true)
+                    })
+                }
+
+                seenNewAlertVersionsRef.current = new Map(currentNewVersions)
+                seenReadyAlertVersionsRef.current = new Map(currentReadyVersions)
+
+                setLoading(false)
+            },
+            (error) => {
+                console.error('Orders realtime listener error:', error)
+                setDebugInfo(`Orders listener error: ${error?.message || 'unknown error'}`)
+                setLoading(false)
+            }
+        )
+
+        return () => {
+            unsubscribe()
+
+            if (alertTimeoutRef.current) {
+                window.clearTimeout(alertTimeoutRef.current)
+            }
+
+            if (audioContextRef.current) {
+                void audioContextRef.current.close().catch(() => undefined)
+            }
+        }
+    }, [])
+
+
+    useEffect(() => {
+        const tryUnlockAudio = () => {
+            void unlockDeviceAudio()
+        }
+
+        window.addEventListener('pointerdown', tryUnlockAudio)
+        window.addEventListener('touchstart', tryUnlockAudio)
+        window.addEventListener('keydown', tryUnlockAudio)
+
+        return () => {
+            window.removeEventListener('pointerdown', tryUnlockAudio)
+            window.removeEventListener('touchstart', tryUnlockAudio)
+            window.removeEventListener('keydown', tryUnlockAudio)
+        }
+    }, [])
+
+    useEffect(() => {
+        if ('Notification' in window) {
+            setNotificationsEnabled(Notification.permission === 'granted')
+        }
     }, [])
 
     async function loadProductsFromKnownCollections() {
@@ -326,31 +695,12 @@ export default function KitchenPage() {
         }
     }
 
-    async function loadOrdersSafe() {
-        try {
-            const ordersSnap = await getDocs(
-                query(collection(db, 'orders'), orderBy('createdAt', 'desc'))
-            )
-
-            return ordersSnap.docs.map((item) => ({
-                id: item.id,
-                ...item.data(),
-            })) as KitchenOrder[]
-        } catch {
-            const ordersSnap = await getDocs(collection(db, 'orders'))
-            return ordersSnap.docs.map((item) => ({
-                id: item.id,
-                ...item.data(),
-            })) as KitchenOrder[]
-        }
-    }
-
-    async function loadData() {
+    async function loadInitialProducts() {
         try {
             setLoading(true)
 
-            const [{ products: loadedProducts, logs, source }, loadedOrders] =
-                await Promise.all([loadProductsFromKnownCollections(), loadOrdersSafe()])
+            const { products: loadedProducts, logs, source } =
+                await loadProductsFromKnownCollections()
 
             const sortedProducts = [...loadedProducts].sort((a, b) => {
                 const byCategory = (a.category || '').localeCompare(b.category || '')
@@ -359,13 +709,31 @@ export default function KitchenPage() {
             })
 
             setProducts(sortedProducts)
-            setOrders(loadedOrders)
             setDebugInfo(`Products source: ${source || 'none'} | ${logs.join(' | ')}`)
         } catch (error) {
-            console.error('Kitchen loadData error:', error)
+            console.error('Kitchen loadInitialProducts error:', error)
             setDebugInfo(`Load error: ${(error as Error)?.message || 'unknown error'}`)
         } finally {
             setLoading(false)
+        }
+    }
+
+    async function refreshProductsOnly() {
+        try {
+            const { products: loadedProducts, logs, source } =
+                await loadProductsFromKnownCollections()
+
+            const sortedProducts = [...loadedProducts].sort((a, b) => {
+                const byCategory = (a.category || '').localeCompare(b.category || '')
+                if (byCategory !== 0) return byCategory
+                return (a.sortOrder || 0) - (b.sortOrder || 0)
+            })
+
+            setProducts(sortedProducts)
+            setDebugInfo(`Products source: ${source || 'none'} | ${logs.join(' | ')}`)
+        } catch (error) {
+            console.error('Kitchen refreshProductsOnly error:', error)
+            setDebugInfo(`Load error: ${(error as Error)?.message || 'unknown error'}`)
         }
     }
 
@@ -404,6 +772,9 @@ export default function KitchenPage() {
             items: cleanedItems,
             subtotal: Number(payload.subtotal || 0),
             totalItems: Number(payload.totalItems || 0),
+            newAlertVersion: 1,
+            readyAlertVersion: 0,
+            lastNewAlertAt: serverTimestamp(),
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         }
@@ -411,19 +782,36 @@ export default function KitchenPage() {
         console.log('Saving order:', safeOrder)
 
         await addDoc(collection(db, 'orders'), safeOrder)
-        await loadData()
     }
 
     async function updateOrderStatus(
         orderId: string,
         nextStatus: 'new' | 'preparing' | 'ready' | 'completed'
     ) {
-        await updateDoc(doc(db, 'orders', orderId), {
+        const payload: Record<string, unknown> = {
             status: nextStatus,
             updatedAt: serverTimestamp(),
-        })
+        }
 
-        await loadData()
+        if (nextStatus === 'new') {
+            payload.newAlertVersion = increment(1)
+            payload.lastNewAlertAt = serverTimestamp()
+        }
+
+        if (nextStatus === 'ready') {
+            payload.readyAlertVersion = increment(1)
+            payload.lastReadyAlertAt = serverTimestamp()
+        }
+
+        await updateDoc(doc(db, 'orders', orderId), payload)
+    }
+
+    async function alertReadyAgain(orderId: string) {
+        await updateDoc(doc(db, 'orders', orderId), {
+            readyAlertVersion: increment(1),
+            lastReadyAlertAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        })
     }
 
     const productMap = useMemo(() => {
@@ -451,21 +839,53 @@ export default function KitchenPage() {
     })()
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="min-h-0 space-y-6 p-4 md:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-4xl font-bold text-slate-900">Kitchen Management</h1>
-                    <p className="mt-2 text-lg text-slate-500">
+                    <h1 className="text-3xl font-bold text-slate-900 md:text-4xl">
+                        Kitchen Management
+                    </h1>
+                    <p className="mt-2 text-base text-slate-500 md:text-lg">
                         Fast manual orders plus a clear kitchen queue.
                     </p>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
                     <button
-                        onClick={() => void loadData()}
+                        onClick={() => void refreshProductsOnly()}
                         className="rounded-xl border border-slate-300 px-4 py-3 font-medium text-slate-700 hover:bg-slate-50"
                     >
-                        Refresh Orders
+                        Refresh Products
+                    </button>
+
+                    <button
+                        onClick={() => void requestNotificationPermission()}
+                        className="rounded-xl border border-slate-300 px-4 py-3 font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                        {notificationsEnabled ? 'Notifications On' : 'Enable Alerts'}
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            void unlockDeviceAudio()
+                            setSoundEnabled((prev) => !prev)
+                        }}
+                        className={`rounded-xl px-4 py-3 font-medium ${soundEnabled
+                            ? 'border border-emerald-300 bg-emerald-50 text-emerald-800'
+                            : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+                            }`}
+                    >
+                        {soundEnabled ? 'Sound On' : 'Sound Off'}
+                    </button>
+
+                    <button
+                        onClick={() => void unlockDeviceAudio()}
+                        className={`rounded-xl px-4 py-3 font-medium ${audioUnlocked
+                            ? 'border border-emerald-300 bg-emerald-50 text-emerald-800'
+                            : 'border border-amber-300 bg-amber-50 text-amber-900'
+                            }`}
+                    >
+                        {audioUnlocked ? 'Audio Unlocked' : 'Unlock Device Audio'}
                     </button>
 
                     <button
@@ -476,6 +896,18 @@ export default function KitchenPage() {
                     </button>
                 </div>
             </div>
+
+            {alertMessage && (
+                <div className="animate-pulse rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-900 shadow-sm">
+                    🔔 {alertMessage}
+                </div>
+            )}
+
+            {!audioUnlocked && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    Tap <span className="font-semibold">Unlock Device Audio</span> once on each tablet or phone so browser sound can play for realtime kitchen alerts.
+                </div>
+            )}
 
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 <span className="font-semibold">Debug:</span> {debugInfo || 'Loading debug info...'}
@@ -491,11 +923,31 @@ export default function KitchenPage() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-3">
                 <div className="flex flex-wrap gap-2">
-                    <TabButton label={`Queue (${newOrders.length})`} active={activeTab === 'new'} onClick={() => setActiveTab('new')} />
-                    <TabButton label={`Preparing (${preparingOrders.length})`} active={activeTab === 'preparing'} onClick={() => setActiveTab('preparing')} />
-                    <TabButton label={`Ready (${readyOrders.length})`} active={activeTab === 'ready'} onClick={() => setActiveTab('ready')} />
-                    <TabButton label={`Completed (${completedOrders.length})`} active={activeTab === 'completed'} onClick={() => setActiveTab('completed')} />
-                    <TabButton label={`All (${orders.length})`} active={activeTab === 'all'} onClick={() => setActiveTab('all')} />
+                    <TabButton
+                        label={`Queue (${newOrders.length})`}
+                        active={activeTab === 'new'}
+                        onClick={() => setActiveTab('new')}
+                    />
+                    <TabButton
+                        label={`Preparing (${preparingOrders.length})`}
+                        active={activeTab === 'preparing'}
+                        onClick={() => setActiveTab('preparing')}
+                    />
+                    <TabButton
+                        label={`Ready (${readyOrders.length})`}
+                        active={activeTab === 'ready'}
+                        onClick={() => setActiveTab('ready')}
+                    />
+                    <TabButton
+                        label={`Completed (${completedOrders.length})`}
+                        active={activeTab === 'completed'}
+                        onClick={() => setActiveTab('completed')}
+                    />
+                    <TabButton
+                        label={`All (${orders.length})`}
+                        active={activeTab === 'all'}
+                        onClick={() => setActiveTab('all')}
+                    />
                 </div>
             </div>
 
@@ -518,6 +970,7 @@ export default function KitchenPage() {
                             onMoveToReady={() => void updateOrderStatus(order.id, 'ready')}
                             onMoveToCompleted={() => void updateOrderStatus(order.id, 'completed')}
                             onMoveToQueue={() => void updateOrderStatus(order.id, 'new')}
+                            onAlertReadyAgain={() => void alertReadyAgain(order.id)}
                         />
                     ))}
                 </div>
@@ -555,8 +1008,8 @@ function TabButton({
         <button
             onClick={onClick}
             className={`rounded-xl px-4 py-2 text-sm font-medium transition ${active
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
         >
             {label}
@@ -571,6 +1024,7 @@ function OrderCard({
     onMoveToReady,
     onMoveToCompleted,
     onMoveToQueue,
+    onAlertReadyAgain,
 }: {
     order: KitchenOrder
     productMap: Map<string, KitchenProduct>
@@ -578,21 +1032,36 @@ function OrderCard({
     onMoveToReady: () => void
     onMoveToCompleted: () => void
     onMoveToQueue: () => void
+    onAlertReadyAgain: () => void
 }) {
     const status = order.status || 'new'
 
     return (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
             <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Order #{order.id.slice(-6)}</h2>
+                    <h2 className="text-xl font-bold text-slate-900 md:text-2xl">
+                        Order #{order.id.slice(-6)}
+                    </h2>
 
                     <div className="mt-3 grid gap-1 text-sm text-slate-600">
-                        <div><span className="font-semibold">Customer:</span> {order.customerName || 'Walk-in'}</div>
-                        <div><span className="font-semibold">Type:</span> {order.orderType || 'pickup'}</div>
-                        <div><span className="font-semibold">Source:</span> {order.source || 'manual'}</div>
-                        <div><span className="font-semibold">Payment:</span> {order.payment || 'cash'}</div>
-                        <div><span className="font-semibold">Order Time:</span> {formatCreatedAt(order.createdAt)}</div>
+                        <div>
+                            <span className="font-semibold">Customer:</span>{' '}
+                            {order.customerName || 'Walk-in'}
+                        </div>
+                        <div>
+                            <span className="font-semibold">Type:</span> {order.orderType || 'pickup'}
+                        </div>
+                        <div>
+                            <span className="font-semibold">Source:</span> {order.source || 'manual'}
+                        </div>
+                        <div>
+                            <span className="font-semibold">Payment:</span> {order.payment || 'cash'}
+                        </div>
+                        <div>
+                            <span className="font-semibold">Order Time:</span>{' '}
+                            {formatCreatedAt(order.createdAt)}
+                        </div>
                     </div>
                 </div>
 
@@ -602,17 +1071,26 @@ function OrderCard({
                     </div>
 
                     {status === 'new' && (
-                        <button onClick={onMoveToPreparing} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                        <button
+                            onClick={onMoveToPreparing}
+                            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                        >
                             Start Preparing
                         </button>
                     )}
 
                     {status === 'preparing' && (
                         <>
-                            <button onClick={onMoveToQueue} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            <button
+                                onClick={onMoveToQueue}
+                                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                            >
                                 Back to Queue
                             </button>
-                            <button onClick={onMoveToReady} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                            <button
+                                onClick={onMoveToReady}
+                                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                            >
                                 Mark Ready
                             </button>
                         </>
@@ -620,17 +1098,34 @@ function OrderCard({
 
                     {status === 'ready' && (
                         <>
-                            <button onClick={onMoveToPreparing} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            <button
+                                onClick={onAlertReadyAgain}
+                                className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+                            >
+                                Alert Waitress Again
+                            </button>
+
+                            <button
+                                onClick={onMoveToPreparing}
+                                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                            >
                                 Back to Preparing
                             </button>
-                            <button onClick={onMoveToCompleted} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+
+                            <button
+                                onClick={onMoveToCompleted}
+                                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                            >
                                 Complete
                             </button>
                         </>
                     )}
 
                     {status === 'completed' && (
-                        <button onClick={onMoveToReady} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        <button
+                            onClick={onMoveToReady}
+                            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                        >
                             Back to Ready
                         </button>
                     )}
@@ -639,7 +1134,8 @@ function OrderCard({
 
             {order.specialInstructions && (
                 <div className="mb-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
-                    <span className="font-semibold">Special instructions:</span> {order.specialInstructions}
+                    <span className="font-semibold">Special instructions:</span>{' '}
+                    {order.specialInstructions}
                 </div>
             )}
 
@@ -648,10 +1144,13 @@ function OrderCard({
                     const product = productMap.get(item.productId)
 
                     return (
-                        <div key={`${item.productId}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div
+                            key={`${item.productId}-${index}`}
+                            className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                        >
                             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                 <div className="min-w-0 flex-1">
-                                    <div className="text-xl font-semibold text-slate-900">
+                                    <div className="text-lg font-semibold text-slate-900 md:text-xl">
                                         {item.qty}x {item.name}
                                     </div>
 
@@ -670,7 +1169,7 @@ function OrderCard({
 
                                 <div className="text-right">
                                     <div className="text-sm text-slate-500">Price</div>
-                                    <div className="text-2xl font-bold text-slate-900">
+                                    <div className="text-xl font-bold text-slate-900 md:text-2xl">
                                         {money(item.unitPrice * item.qty)}
                                     </div>
                                 </div>
@@ -730,21 +1229,6 @@ function KitchenSpecCard({ product }: { product?: KitchenProduct }) {
                     {spec.sauces.length > 0 ? spec.sauces.join(' · ') : '—'}
                 </div>
             </div>
-
-            {/* {(spec.notes || spec.displayNameKitchen) && (
-                <div className="md:col-span-4 rounded-xl border border-slate-200 bg-slate-100 p-3">
-                    {spec.displayNameKitchen && (
-                        <div className="text-sm font-semibold text-slate-900">
-                            Kitchen Name: {spec.displayNameKitchen}
-                        </div>
-                    )}
-                    {spec.notes && (
-                        <div className="mt-1 text-sm text-slate-700">
-                            Notes: {spec.notes}
-                        </div>
-                    )}
-                </div>
-            )} */}
 
             {(spec.containsCheese || spec.requiresFrying) && (
                 <div className="md:col-span-4 flex flex-wrap gap-2">

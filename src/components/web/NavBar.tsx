@@ -4,7 +4,6 @@ import { Menu, LogOut } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../context/AuthContext";
 import { useUserProfile, UserRole } from "../../context/UserProfileContext";
-import BrandBlock from "./navbar/BrandBlock";
 import DesktopNav from "./navbar/DesktopNav";
 import MobileDrawer from "./navbar/MobileDrawer";
 import { buildNavLinks } from "./navbar/navConfig";
@@ -12,7 +11,7 @@ import { isActivePath, isSuperAdmin } from "./navbar/utils";
 
 export default function NavBar() {
     const { user, logout } = useAuth();
-    const { userProfile, loading } = useUserProfile();
+    const { userProfile } = useUserProfile();
     const loc = useLocation();
     const { t } = useTranslation();
 
@@ -30,7 +29,8 @@ export default function NavBar() {
         return navLinks.filter((link) => link.allowedRoles.includes(userRole));
     }, [navLinks, userRole]);
 
-    const displayName = userProfile?.displayName || user?.email?.split("@")[0] || "User";
+    const displayName =
+        userProfile?.displayName || user?.email?.split("@")[0] || "User";
 
     useEffect(() => {
         setIsMenuOpen(false);
@@ -52,37 +52,38 @@ export default function NavBar() {
     return (
         <>
             <header className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-                <div className="mx-auto max-w-[1700px] px-4 sm:px-6 lg:px-8">
-                    <div className="flex min-h-[76px] items-center justify-between gap-4">
-                        {/* Left side */}
-                        <div className="flex items-center gap-3">
+                <div className="mx-auto max-w-[1700px] px-3 sm:px-5 lg:px-6 xl:px-8">
+                    <div className="flex min-h-[72px] items-center justify-between gap-3 sm:min-h-[76px] sm:gap-4">
+                        <div className="flex min-w-0 items-center gap-3">
                             <button
                                 onClick={() => setIsMenuOpen(true)}
-                                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-all hover:bg-gray-50"
-                                aria-label="Open menu"
+                                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 active:scale-[0.98] xl:hidden"
+                                aria-label={t("nav.openMenu", "Open menu")}
+                                type="button"
                             >
                                 <Menu className="h-5 w-5" />
                             </button>
 
-                            <BrandBlock
-                                userRole={userRole}
-                                hasProfile={!!userProfile}
-                                loading={loading}
+                            {/* Optional brand/title block can go here */}
+                            {/* <BrandBlock userRole={userRole} hasProfile={!!userProfile} /> */}
+                        </div>
+
+                        <div className="hidden min-w-0 flex-1 justify-center xl:flex">
+                            <DesktopNav
+                                links={filteredNavLinks}
+                                isActive={isActive}
                             />
                         </div>
 
-                        {/* Center desktop nav */}
-                        <DesktopNav links={filteredNavLinks} isActive={isActive} />
-
-                        {/* Right side */}
-                        <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                             <button
                                 onClick={handleLogout}
-                                className="hidden md:inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 hover:shadow-md"
+                                className="hidden xl:inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:text-gray-900 hover:shadow-md"
                                 title={t("nav.logout", "Logout")}
+                                type="button"
                             >
                                 <LogOut className="h-4 w-4 text-gray-400" />
-                                <span className="hidden lg:inline">{t("nav.logout", "Logout")}</span>
+                                <span>{t("nav.logout", "Logout")}</span>
                             </button>
                         </div>
                     </div>

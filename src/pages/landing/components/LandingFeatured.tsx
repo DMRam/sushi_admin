@@ -1,16 +1,34 @@
 import { Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { collection, query, where, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../firebase/firebase'
-import type { MenuItem, Product, ProductIngredient } from '../../../types/types'
+import type { MenuItem, Product } from '../../../types/types'
 import { useTranslation } from 'react-i18next'
 
 interface Props {
     handleAddToCart: (item: MenuItem) => void
 }
 
+type LocalizedText = {
+    es: string
+    fr: string
+    en: string
+}
+
+type IngredientLike = {
+    name?: string | LocalizedText
+    ingredientName?: string | LocalizedText
+    label?: string | LocalizedText
+    ingredient?: {
+        name?: string | LocalizedText
+        ingredientName?: string | LocalizedText
+        label?: string | LocalizedText
+    }
+}
+
 export const LandingFeatured = ({ handleAddToCart }: Props) => {
     const { t, i18n } = useTranslation()
+
     const [featuredItems, setFeaturedItems] = useState<MenuItem[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -18,66 +36,128 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [isClosing, setIsClosing] = useState(false)
 
-    // Function to get the description based on current language
-    const getLocalizedDescription = (description: { es: string; fr: string; en: string } | string) => {
-        if (typeof description === 'string') {
-            // If it's a string, convert it to the multilingual object format
-            return {
-                en: description,
-                es: description,
-                fr: description
+    const getLocalizedTextValue = useCallback(
+        (value?: string | LocalizedText | null): string => {
+            if (!value) return ''
+
+            if (typeof value === 'string') {
+                return value.trim()
             }
-        }
 
-        // If it's already an object, return it as is
-        return description
-    }
+            const currentLanguage = i18n.language
+            const localized =
+                value[currentLanguage as keyof LocalizedText] ||
+                value.en ||
+                value.fr ||
+                value.es ||
+                ''
 
-    // Function to get the current language description for display
-    const getCurrentLanguageDescription = (description: { es: string; fr: string; en: string }) => {
-        const currentLanguage = i18n.language
-        switch (currentLanguage) {
-            case 'es':
-                return description.es
-            case 'fr':
-                return description.fr
-            case 'en':
-            default:
-                return description.en
-        }
-    }
+            return typeof localized === 'string' ? localized.trim() : ''
+        },
+        [i18n.language]
+    )
 
-    // Open modal with selected item
+    const getLocalizedDescription = useCallback(
+        (description: LocalizedText | string | undefined | null): LocalizedText => {
+            if (!description) {
+                return {
+                    en: '',
+                    es: '',
+                    fr: ''
+                }
+            }
+
+            if (typeof description === 'string') {
+                const value = description.trim()
+                return {
+                    en: value,
+                    es: value,
+                    fr: value
+                }
+            }
+
+            return {
+                en: (description.en ?? '').trim(),
+                es: (description.es ?? description.en ?? '').trim(),
+                fr: (description.fr ?? description.en ?? '').trim()
+            }
+        },
+        []
+    )
+
+    const getCurrentLanguageDescription = useCallback(
+        (description: LocalizedText) => {
+            return getLocalizedTextValue(description)
+        },
+        [getLocalizedTextValue]
+    )
+
+    const getIngredientDisplayName = useCallback(
+        (ingredient: IngredientLike | string | null | undefined): string => {
+            if (!ingredient) return ''
+
+            if (typeof ingredient === 'string') {
+                return ingredient.trim()
+            }
+
+            const directName = getLocalizedTextValue(ingredient.name)
+            if (directName) return directName
+
+            const ingredientName = getLocalizedTextValue(ingredient.ingredientName)
+            if (ingredientName) return ingredientName
+
+            const label = getLocalizedTextValue(ingredient.label)
+            if (label) return label
+
+            const nestedName = getLocalizedTextValue(ingredient.ingredient?.name)
+            if (nestedName) return nestedName
+
+            const nestedIngredientName = getLocalizedTextValue(ingredient.ingredient?.ingredientName)
+            if (nestedIngredientName) return nestedIngredientName
+
+            const nestedLabel = getLocalizedTextValue(ingredient.ingredient?.label)
+            if (nestedLabel) return nestedLabel
+
+            return ''
+        },
+        [getLocalizedTextValue]
+    )
+
+    const normalizeIngredients = useCallback(
+        (ingredients: unknown): string[] => {
+            if (!Array.isArray(ingredients)) return []
+
+            return ingredients
+                .map((ingredient) => getIngredientDisplayName(ingredient as IngredientLike | string))
+                .filter((name) => typeof name === 'string' && name.trim().length > 0)
+        },
+        [getIngredientDisplayName]
+    )
+
     const openItemModal = (item: MenuItem) => {
         setSelectedItem(item)
         setIsModalOpen(true)
         setIsClosing(false)
-        // Prevent body scroll when modal is open
         document.body.style.overflow = 'hidden'
     }
 
-    // Close modal with animation
-    const closeItemModal = () => {
+    const closeItemModal = useCallback(() => {
         setIsClosing(true)
-        // Wait for animation to complete before removing from DOM
-        setTimeout(() => {
+
+        window.setTimeout(() => {
             setIsModalOpen(false)
             setSelectedItem(null)
             setIsClosing(false)
-            // Restore body scroll
-            document.body.style.overflow = 'unset'
+            document.body.style.overflow = ''
         }, 300)
-    }
+    }, [])
 
-    // Handle add to cart from modal
     const handleAddToCartFromModal = () => {
-        if (selectedItem) {
-            handleAddToCart(selectedItem)
-            closeItemModal()
-        }
+        if (!selectedItem) return
+        handleAddToCart(selectedItem)
+        closeItemModal()
     }
 
-    // Close modal on escape key
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isModalOpen) {
@@ -86,39 +166,39 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
         }
 
         document.addEventListener('keydown', handleEscape)
+
         return () => {
             document.removeEventListener('keydown', handleEscape)
+            document.body.style.overflow = ''
         }
-    }, [isModalOpen])
+    }, [isModalOpen, closeItemModal])
 
     useEffect(() => {
-        const q = query(
-            collection(db, 'products'),
-            where('featured', '==', true),
-        )
+        setLoading(true)
 
-        const unsubscribe = onSnapshot(q,
+        const q = query(collection(db, 'products'), where('featured', '==', true))
+
+        const unsubscribe = onSnapshot(
+            q,
             (snapshot) => {
                 try {
-                    console.log('Featured products updated:', snapshot.docs.length)
+                    const productsData: Product[] = snapshot.docs.map(
+                        (doc) =>
+                            ({
+                                id: doc.id,
+                                ...doc.data()
+                            }) as Product
+                    )
 
-                    const productsData: Product[] = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    } as Product))
+                    const menuItems: MenuItem[] = productsData.map((product) => {
+                        const ingredientNames = normalizeIngredients(product.ingredients)
 
-                    const menuItems: MenuItem[] = productsData.map(product => {
-                        const ingredientNames = (product.ingredients || []).map((ing: ProductIngredient) =>
-                            ing.name || 'Unknown Ingredient'
-                        )
-
-                        // Convert description to multilingual object format
                         const multilingualDescription = getLocalizedDescription(product.description || '')
 
                         return {
                             id: product.id,
                             name: product.name || 'Unnamed Product',
-                            description: multilingualDescription, // This now matches the MenuItem interface
+                            description: multilingualDescription,
                             preparation: product.preparation || '',
                             price: product.sellingPrice || 0,
                             image: product.imageUrls?.[0] || '/images/placeholder-food.jpg',
@@ -127,55 +207,56 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                             ingredients: ingredientNames,
                             allergens: product.allergens || [],
                             preparationTime: product.preparationTime || 15,
-                            spicyLevel: product.tags?.includes('spicy') || product.tags?.includes('Spicy') ? 2 : 0,
-                            popular: product.tags?.includes('popular') || product.tags?.includes('Popular') || false,
+                            spicyLevel:
+                                product.tags?.includes('spicy') || product.tags?.includes('Spicy') ? 2 : 0,
+                            popular:
+                                product.tags?.includes('popular') || product.tags?.includes('Popular') || false,
                             quantity: product.quantity || 0,
                             featured: product.featured || false
                         }
                     })
 
                     setFeaturedItems(menuItems)
-                    setLoading(false)
                     setError(null)
+                    setLoading(false)
                 } catch (err) {
                     console.error('Error processing featured products:', err)
                     setError(t('featured.errorLoading', 'Failed to load featured items'))
                     setLoading(false)
                 }
             },
-            (error) => {
-                console.error('Error fetching featured products:', error)
+            (firebaseError) => {
+                console.error('Error fetching featured products:', firebaseError)
                 setError(t('featured.connectionError', 'Failed to connect to server'))
                 setLoading(false)
             }
         )
 
         return () => unsubscribe()
-    }, [t, i18n.language])
+    }, [t, i18n.language, getLocalizedDescription, normalizeIngredients])
 
-    // Modal Component
     const ItemModal = () => {
         if (!selectedItem) return null
 
         return (
             <div
                 className={`fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-300 ${isClosing
-                        ? 'bg-black bg-opacity-0 backdrop-blur-0'
-                        : 'bg-black bg-opacity-75 backdrop-blur-sm'
+                    ? 'bg-black/0 backdrop-blur-0'
+                    : 'bg-black/75 backdrop-blur-sm'
                     }`}
                 onClick={closeItemModal}
             >
                 <div
                     className={`relative bg-white w-full md:max-w-4xl md:rounded-2xl md:max-h-[90vh] overflow-hidden transform transition-all duration-300 ${isClosing
-                            ? 'translate-y-full md:translate-y-4 md:scale-95 opacity-0'
-                            : 'translate-y-0 md:scale-100 opacity-100'
+                        ? 'translate-y-full md:translate-y-4 md:scale-95 opacity-0'
+                        : 'translate-y-0 md:scale-100 opacity-100'
                         } h-[85vh] md:h-auto flex flex-col`}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* Close Button - Moved to top left to avoid price overlap */}
                     <button
                         onClick={closeItemModal}
-                        className="absolute top-4 left-4 z-20 w-10 h-10 bg-white bg-opacity-90 text-gray-800 rounded-full flex items-center justify-center hover:bg-opacity-100 hover:scale-110 transition-all duration-200 shadow-lg border border-gray-200"
+                        className="absolute top-4 left-4 z-20 w-10 h-10 bg-white/90 text-gray-800 rounded-full flex items-center justify-center hover:bg-white hover:scale-110 transition-all duration-200 shadow-lg border border-gray-200"
+                        aria-label={t('featured.close', 'Close')}
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -183,7 +264,6 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                     </button>
 
                     <div className="flex flex-col md:flex-row h-full overflow-hidden">
-                        {/* Image Section - Fixed height on mobile */}
                         <div className="md:w-1/2 relative h-64 md:h-auto shrink-0">
                             {selectedItem.image && selectedItem.image !== '/images/placeholder-food.jpg' ? (
                                 <img
@@ -194,23 +274,26 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                             ) : (
                                 <div className="w-full h-full bg-linear-to-br from-slate-300 to-slate-400 flex items-center justify-center">
                                     <span className="text-6xl text-slate-600 opacity-50">
-                                        {selectedItem.category === 'ceviche' ? '○' : selectedItem.category === 'signature' ? '◉' : '◎'}
+                                        {selectedItem.category === 'ceviche'
+                                            ? '○'
+                                            : selectedItem.category === 'signature'
+                                                ? '◉'
+                                                : '◎'}
                                     </span>
                                 </div>
                             )}
 
-                            {/* Badge on image - moved to top right since close is now top left */}
                             <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-sm font-medium rounded shadow-lg">
-                                {selectedItem.popular ? t('featured.chefsPick', 'Chef\'s Pick') : t('featured.featured', 'Featured')}
+                                {selectedItem.popular
+                                    ? t('featured.chefsPick', "Chef's Pick")
+                                    : t('featured.featured', 'Featured')}
                             </div>
                         </div>
 
-                        {/* Content Section - Scrollable on mobile */}
                         <div className="md:w-1/2 p-6 md:p-8 flex flex-col h-full overflow-hidden">
-                            {/* Scrollable content */}
                             <div className="flex-1 overflow-y-auto pb-4">
-                                <div className="flex justify-between items-start mb-4">
-                                    <h2 className="text-2xl md:text-3xl font-light text-gray-900 pr-4">
+                                <div className="flex justify-between items-start mb-4 gap-4">
+                                    <h2 className="text-2xl md:text-3xl font-light text-gray-900">
                                         {selectedItem.name}
                                     </h2>
                                     <span className="text-2xl font-light text-red-600 whitespace-nowrap flex-shrink-0">
@@ -218,12 +301,10 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                                     </span>
                                 </div>
 
-                                {/* Description */}
                                 <p className="text-gray-600 mb-6 leading-relaxed">
                                     {getCurrentLanguageDescription(selectedItem.description)}
                                 </p>
 
-                                {/* Ingredients */}
                                 {selectedItem.ingredients && selectedItem.ingredients.length > 0 && (
                                     <div className="mb-6">
                                         <h3 className="text-sm font-medium text-gray-900 mb-2 uppercase tracking-wide">
@@ -232,7 +313,7 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                                         <div className="flex flex-wrap gap-2">
                                             {selectedItem.ingredients.map((ingredient, index) => (
                                                 <span
-                                                    key={index}
+                                                    key={`${ingredient}-${index}`}
                                                     className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm border border-gray-200"
                                                 >
                                                     {ingredient}
@@ -242,7 +323,6 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                                     </div>
                                 )}
 
-                                {/* Allergens */}
                                 {selectedItem.allergens && selectedItem.allergens.length > 0 && (
                                     <div className="mb-6">
                                         <h3 className="text-sm font-medium text-gray-900 mb-2 uppercase tracking-wide">
@@ -251,7 +331,7 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                                         <div className="flex flex-wrap gap-2">
                                             {selectedItem.allergens.map((allergen, index) => (
                                                 <span
-                                                    key={index}
+                                                    key={`${allergen}-${index}`}
                                                     className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm border border-red-200"
                                                 >
                                                     {allergen}
@@ -261,9 +341,8 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                                     </div>
                                 )}
 
-                                {/* Additional Info */}
                                 <div className="grid grid-cols-2 gap-4 mb-6">
-                                    {selectedItem.preparationTime && (
+                                    {selectedItem.preparationTime ? (
                                         <div className="text-center bg-gray-50 rounded-lg p-3 border border-gray-200">
                                             <div className="text-gray-500 text-sm mb-1">
                                                 {t('featured.preparationTime', 'Prep Time')}
@@ -275,8 +354,9 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                                                 {selectedItem.preparationTime} min
                                             </div>
                                         </div>
-                                    )}
-                                    {selectedItem.spicyLevel > 0 && (
+                                    ) : null}
+
+                                    {selectedItem.spicyLevel > 0 ? (
                                         <div className="text-center bg-gray-50 rounded-lg p-3 border border-gray-200">
                                             <div className="text-gray-500 text-sm mb-1">
                                                 {t('featured.spiceLevel', 'Spice Level')}
@@ -285,36 +365,31 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                                                 {Array.from({ length: 3 }).map((_, i) => (
                                                     <span
                                                         key={i}
-                                                        className={`w-2 h-2 rounded-full mx-1 ${i < selectedItem.spicyLevel ? 'bg-red-500' : 'bg-gray-300'}`}
+                                                        className={`w-2 h-2 rounded-full mx-1 ${i < selectedItem.spicyLevel ? 'bg-red-500' : 'bg-gray-300'
+                                                            }`}
                                                     />
                                                 ))}
                                             </div>
                                         </div>
-                                    )}
+                                    ) : null}
                                 </div>
                             </div>
 
-                            {/* Action Buttons - Fixed at bottom on mobile */}
                             <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-gray-200 bg-white sticky bottom-0">
                                 <button
                                     onClick={handleAddToCartFromModal}
-                                    className="flex-1 bg-red-600 text-white py-3 px-4 rounded-md font-medium 
-               hover:bg-red-700 transition-all duration-200 transform 
-               hover:scale-102 active:scale-95 shadow-md text-sm"
+                                    className="flex-1 bg-red-600 text-white py-3 px-4 rounded-md font-medium hover:bg-red-700 transition-all duration-200 active:scale-95 shadow-md text-sm"
                                 >
                                     {t('featured.addToCart', 'Add to Order')}
                                 </button>
 
                                 <button
                                     onClick={closeItemModal}
-                                    className="px-4 py-3 border border-gray-300 text-gray-700 rounded-md font-medium 
-               hover:bg-gray-50 transition-all duration-200 transform 
-               hover:scale-102 active:scale-95 text-sm"
+                                    className="px-4 py-3 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-all duration-200 active:scale-95 text-sm"
                                 >
                                     {t('featured.close', 'Close')}
                                 </button>
                             </div>
-
                         </div>
                     </div>
                 </div>
@@ -330,15 +405,18 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                         <h3 className="text-3xl font-light text-gray-900 mb-4">
                             {t('featured.signatureCreations', 'Signature Creations')}
                         </h3>
-                        <div className="w-20 h-0.5 bg-red-600 mx-auto"></div>
+                        <div className="w-20 h-0.5 bg-red-600 mx-auto" />
                     </div>
 
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                         {[1, 2, 3].map((item) => (
-                            <div key={item} className="bg-slate-50 border border-gray-200 rounded-lg overflow-hidden group hover:shadow-lg transition-all duration-300">
+                            <div
+                                key={item}
+                                className="bg-slate-50 border border-gray-200 rounded-lg overflow-hidden group hover:shadow-lg transition-all duration-300"
+                            >
                                 <div className="h-48 bg-linear-to-br from-slate-300 to-slate-400 relative overflow-hidden">
                                     <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-sm font-medium">
-                                        {t('featured.chefsPick', 'Chef\'s Pick')}
+                                        {t('featured.chefsPick', "Chef's Pick")}
                                     </div>
                                 </div>
                                 <div className="p-6">
@@ -371,7 +449,7 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                         <h3 className="text-3xl font-light text-gray-900 mb-4">
                             {t('featured.signatureCreations', 'Signature Creations')}
                         </h3>
-                        <div className="w-20 h-0.5 bg-red-600 mx-auto"></div>
+                        <div className="w-20 h-0.5 bg-red-600 mx-auto" />
                     </div>
                     <div className="text-center text-red-600">
                         <p>{error}</p>
@@ -395,7 +473,7 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                         <h3 className="text-3xl font-light text-gray-900 mb-4">
                             {t('featured.signatureCreations', 'Signature Creations')}
                         </h3>
-                        <div className="w-20 h-0.5 bg-red-600 mx-auto"></div>
+                        <div className="w-20 h-0.5 bg-red-600 mx-auto" />
                     </div>
                     <div className="text-center text-gray-600">
                         <p>{t('featured.noItems', 'No featured items available')}</p>
@@ -419,7 +497,7 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                         <h3 className="text-3xl font-light text-gray-900 mb-4">
                             {t('featured.signatureCreations', 'Signature Creations')}
                         </h3>
-                        <div className="w-20 h-0.5 bg-red-600 mx-auto"></div>
+                        <div className="w-20 h-0.5 bg-red-600 mx-auto" />
                     </div>
 
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
@@ -428,7 +506,6 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                                 key={item.id}
                                 className="bg-slate-50 border border-gray-200 rounded-lg overflow-hidden group hover:shadow-lg transition-all duration-300 h-full flex flex-col"
                             >
-                                {/* Clickable Image */}
                                 <div
                                     className="h-48 bg-linear-to-br from-slate-300 to-slate-400 relative overflow-hidden cursor-pointer"
                                     onClick={() => openItemModal(item)}
@@ -442,31 +519,40 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                                     ) : (
                                         <div className="w-full h-full bg-linear-to-br from-slate-300 to-slate-400 flex items-center justify-center">
                                             <span className="text-4xl text-slate-600 opacity-50">
-                                                {item.category === 'ceviche' ? '○' : item.category === 'signature' ? '◉' : '◎'}
+                                                {item.category === 'ceviche'
+                                                    ? '○'
+                                                    : item.category === 'signature'
+                                                        ? '◉'
+                                                        : '◎'}
                                             </span>
                                         </div>
                                     )}
 
                                     <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-sm font-medium">
-                                        {item.popular ? t('featured.chefsPick', 'Chef\'s Pick') : t('featured.featured', 'Featured')}
+                                        {item.popular
+                                            ? t('featured.chefsPick', "Chef's Pick")
+                                            : t('featured.featured', 'Featured')}
                                     </div>
 
-                                    {/* Hover overlay with view details text */}
-                                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                        <span className="text-white font-medium bg-black bg-opacity-50 px-4 py-2 rounded-lg">
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                        <span className="text-white font-medium bg-black/50 px-4 py-2 rounded-lg">
                                             {t('featured.viewDetails', 'View Details')}
                                         </span>
                                     </div>
                                 </div>
 
                                 <div className="p-6 flex flex-col grow">
-                                    <div className="flex justify-between items-start mb-2">
+                                    <div className="flex justify-between items-start mb-2 gap-4">
                                         <h4 className="text-xl font-medium text-gray-900">{item.name}</h4>
-                                        <span className="text-lg font-light text-red-600">${item.price.toFixed(2)}</span>
+                                        <span className="text-lg font-light text-red-600 whitespace-nowrap">
+                                            ${item.price.toFixed(2)}
+                                        </span>
                                     </div>
+
                                     <p className="text-gray-600 text-sm font-light mb-4 leading-relaxed">
                                         {getCurrentLanguageDescription(item.description)}
                                     </p>
+
                                     <button
                                         onClick={() => handleAddToCart(item)}
                                         className="w-full bg-gray-900 text-white py-3 text-sm font-medium tracking-wide hover:bg-red-600 transition-colors duration-300 mt-auto"
@@ -480,7 +566,6 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                 </div>
             </section>
 
-            {/* Modal */}
             {isModalOpen && <ItemModal />}
         </>
     )
