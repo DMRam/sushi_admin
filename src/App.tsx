@@ -26,7 +26,7 @@ const BusinessAnalyticsPage = lazy(() => import('./pages/admin/BusinessAnalytics
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const ProfilePage = lazy(() => import('./pages/admin/ProfilePage'))
 const NavBar = lazy(() => import('./components/web/NavBar'))
-const KitchenPage = lazy(() => import('./pages/kitchen/KitchenPage'))
+// const KitchenPage = lazy(() => import('./pages/kitchen/KitchenPage'))
 const AdminProviders = lazy(() => import('./components/AdminProviders'))
 const ClientLogin = lazy(() => import('./pages/client_hub/ClientLoginPage'))
 const ClientRegistration = lazy(() => import('./pages/client_hub/ClientRegistrationPage'))
@@ -54,7 +54,7 @@ function AppContent() {
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
             <Route path="/sales-tracking" element={<SalesTrackingPage />} />
-            <Route path="/kitchen" element={<KitchenPage />} />
+            {/* <Route path="/kitchen" element={<KitchenPage />} /> */}
             <Route path="/purchases" element={<PurchasesPage />} />
             <Route path="/stock" element={<StockPage />} />
             <Route path="/products" element={<ProductsPage />} />
@@ -84,7 +84,7 @@ function PublicRoutes() {
       <Route path="/catering" element={<CateringPage />} />
       <Route path="/eula" element={<EULA />} />
       <Route path="/policies" element={<PrivacyPolicy />} />
-      <Route path="/kitchen" element={<KitchenPage />} />
+      {/* <Route path="/kitchen" element={<KitchenPage />} /> */}
 
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />

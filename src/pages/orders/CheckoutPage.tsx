@@ -335,6 +335,8 @@ export default function CheckoutPage() {
                 });
             }
 
+            const IS_TEST_CHECKOUT = true;
+
             const items = safeCart.map((it, idx) => {
                 if (!it.name?.trim()) {
                     throw new Error(`Item ${idx + 1} is missing a name`);
@@ -350,13 +352,21 @@ export default function CheckoutPage() {
                     throw new Error(`Item "${it.name}" has an invalid quantity`);
                 }
 
-                const note =
-                    getLocalizedDescription(it.description)?.substring(0, 250) ?? "";
+                const note = [
+                    getLocalizedDescription(it.description)?.substring(0, 150) ?? "",
+                    `Pickup: ${formData.pickupTime || "asap"}`,
+                    formData.orderNotes ? `Notes: ${formData.orderNotes}` : "",
+                    IS_TEST_CHECKOUT ? "TEST ORDER - DO NOT PREPARE" : "",
+                ]
+                    .filter(Boolean)
+                    .join(" | ");
 
                 return {
-                    name: it.name.trim(),
-                    price: Math.round(it.price * 100), // cents
-                    unitQty: quantity,
+                    name: IS_TEST_CHECKOUT
+                        ? `TEST - ${it.name.trim()}`
+                        : it.name.trim(),
+                    price: IS_TEST_CHECKOUT ? 100 : Math.round(it.price * 100),
+                    unitQty: IS_TEST_CHECKOUT ? 1 : quantity,
                     note,
                 };
             });
@@ -365,6 +375,20 @@ export default function CheckoutPage() {
                 email: (formData.email ?? "").trim(),
                 firstName: (`${formData.firstName ?? ""}`).trim() || "Guest",
                 phoneNumber: (formData.phone ?? "").trim(),
+            };
+
+            const fullForm = {
+                firstName: formData.firstName || "",
+                email: formData.email || "",
+                phone: formData.phone || "",
+                deliveryMethod: formData.deliveryMethod || "pickup",
+                pickupTime: formData.pickupTime || "asap",
+                orderNotes: formData.orderNotes || "",
+                address: formData.address || "",
+                city: formData.city || "",
+                area: formData.area || "",
+                zipCode: formData.zipCode || "",
+                deliveryInstructions: formData.deliveryInstructions || "",
             };
 
             if (user) {
@@ -394,14 +418,40 @@ export default function CheckoutPage() {
                 metadata: {
                     userId: user?.id || "guest",
                     pointsEarned: String(user ? pointsEarned ?? 0 : 0),
+                    deliveryMethod: fullForm.deliveryMethod,
+                    pickupTime: fullForm.pickupTime,
+                    orderNotes: fullForm.orderNotes,
+                    customerName: fullForm.firstName,
+                    customerEmail: fullForm.email,
+                    customerPhone: fullForm.phone,
+                    // totals: JSON.stringify({
+                    //     subtotal: calculatedSubtotal,
+                    //     gst,
+                    //     qst,
+                    //     deliveryFee: deliveryInfo.fee,
+                    //     finalTotal,
+                    // }),
                     totals: JSON.stringify({
-                        subtotal: calculatedSubtotal,
-                        gst,
-                        qst,
-                        deliveryFee: deliveryInfo.fee,
-                        finalTotal,
+                        subtotal: IS_TEST_CHECKOUT ? 1 : calculatedSubtotal,
+                        gst: IS_TEST_CHECKOUT ? 0.05 : gst,
+                        qst: IS_TEST_CHECKOUT ? 0.1 : qst,
+                        deliveryFee: IS_TEST_CHECKOUT ? 0 : deliveryInfo.fee,
+                        finalTotal: IS_TEST_CHECKOUT ? 1.15 : finalTotal,
                     }),
-                    deliveryMethod: formData.deliveryMethod,
+                    isTest: IS_TEST_CHECKOUT ? "true" : "false",
+                    customerInfo: JSON.stringify({
+                        name: fullForm.firstName,
+                        email: fullForm.email,
+                        phone: fullForm.phone,
+                    }),
+                    deliveryInfo: JSON.stringify({
+                        address: fullForm.address,
+                        city: fullForm.city,
+                        area: fullForm.area,
+                        zipCode: fullForm.zipCode,
+                        instructions: fullForm.deliveryInstructions,
+                    }),
+                    fullForm: JSON.stringify(fullForm),
                 },
             };
 
@@ -463,6 +513,8 @@ export default function CheckoutPage() {
                         deliveryFee: deliveryInfo.fee,
                         finalTotal,
                     },
+                    customer,
+                    formData: fullForm,
                     pointsEarned: user ? pointsEarned ?? 0 : 0,
                     userId: user?.id || null,
                     customerEmail: customer.email,

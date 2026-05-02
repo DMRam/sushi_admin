@@ -8,11 +8,12 @@ interface OrderSummaryProps {
     itemCount: number
     deliveryFee: number
     finalTotal: number
-    gst: number;
+    gst: number
     qst: number
 }
 
-// Memoize the main component to prevent unnecessary re-renders
+const DELIVERY_MINIMUM = 150
+
 const OrderSummary = memo(function OrderSummary({
     cartTotal,
     itemCount,
@@ -23,11 +24,14 @@ const OrderSummary = memo(function OrderSummary({
 }: OrderSummaryProps) {
     const { t } = useTranslation()
 
-    const addToCart = useCartStore((state) => state.addToCart);
-    const removeFromCart = useCartStore((state) => state.removeFromCart);
-    const cart = useCartStore((state) => state.cart);
+    const addToCart = useCartStore((state) => state.addToCart)
+    const removeFromCart = useCartStore((state) => state.removeFromCart)
+    const cart = useCartStore((state) => state.cart)
 
-    const safeCart = Array.isArray(cart) ? cart : [];
+    const safeCart = Array.isArray(cart) ? cart : []
+    const remainingForDelivery = Math.max(DELIVERY_MINIMUM - cartTotal, 0)
+    const deliveryProgress = Math.min((cartTotal / DELIVERY_MINIMUM) * 100, 100)
+    const isDeliveryAvailable = cartTotal >= DELIVERY_MINIMUM
 
     const handleAddToCart = (item: MenuItem) => {
         console.log('Adding to cart:', item.name)
@@ -37,7 +41,7 @@ const OrderSummary = memo(function OrderSummary({
     const handleRemoveItem = (item: MenuItem) => {
         console.log('Removing from cart:', item.name)
         removeFromCart(item)
-    };
+    }
 
     return (
         <div className="bg-white/5 border border-white/10 rounded-sm p-6 backdrop-blur-sm lg:sticky lg:top-8 min-w-80">
@@ -48,12 +52,12 @@ const OrderSummary = memo(function OrderSummary({
                     </svg>
                     {t('orderSummary.title')}
                 </div>
+
                 <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full font-light">
                     {itemCount} {itemCount === 1 ? t('common.item') : t('common.items')}
                 </span>
             </h2>
 
-            {/* Cart Items */}
             <div className="space-y-3 mb-4 max-h-80 overflow-y-auto">
                 {safeCart.length === 0 ? (
                     <div className="text-center py-8 text-white/40">
@@ -64,12 +68,12 @@ const OrderSummary = memo(function OrderSummary({
                     </div>
                 ) : (
                     safeCart.map((item, index) => {
-                        const safeItem = item || {};
-                        const safeId = safeItem.id || `item-${index}`;
-                        const safeName = safeItem.name || t('orderSummary.unknownItem');
-                        const safePrice = safeItem.price || 0;
-                        const safeQuantity = safeItem.quantity || 0;
-                        const itemTotal = safePrice * safeQuantity;
+                        const safeItem = item || {}
+                        const safeId = safeItem.id || `item-${index}`
+                        const safeName = safeItem.name || t('orderSummary.unknownItem')
+                        const safePrice = safeItem.price || 0
+                        const safeQuantity = safeItem.quantity || 0
+                        const itemTotal = safePrice * safeQuantity
 
                         return (
                             <div
@@ -89,6 +93,7 @@ const OrderSummary = memo(function OrderSummary({
                                                 <span className="text-sm text-white/80">🍣</span>
                                             </div>
                                         )}
+
                                         {safeQuantity > 1 && (
                                             <span className="absolute -top-1 -right-1 bg-white/20 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-light border border-white/20 backdrop-blur-sm">
                                                 {safeQuantity}
@@ -100,14 +105,13 @@ const OrderSummary = memo(function OrderSummary({
                                         <h3 className="font-light text-white text-sm tracking-wide break-words">
                                             {safeName}
                                         </h3>
-                                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1">
-                                            <p className="text-white/80 font-light text-sm">${safePrice.toFixed(2)}</p>
-                                        </div>
+                                        <p className="text-white/80 font-light text-sm mt-1">
+                                            ${safePrice.toFixed(2)}
+                                        </p>
                                     </div>
                                 </div>
 
                                 <div className="flex flex-col items-end space-y-2 flex-shrink-0">
-                                    {/* Enhanced quantity controls with better spacing */}
                                     <div className="flex items-center space-x-1 bg-white/5 rounded-sm border border-white/10 p-1 min-w-[100px] justify-between">
                                         <button
                                             onClick={() => handleRemoveItem(item)}
@@ -134,12 +138,9 @@ const OrderSummary = memo(function OrderSummary({
                                         </button>
                                     </div>
 
-                                    {/* Item total display - moved outside quantity controls */}
-                                    <div className="text-right">
-                                        <p className="text-white font-light text-sm">
-                                            ${itemTotal.toFixed(2)}
-                                        </p>
-                                    </div>
+                                    <p className="text-white font-light text-sm">
+                                        ${itemTotal.toFixed(2)}
+                                    </p>
 
                                     <button
                                         onClick={() => handleRemoveItem(item)}
@@ -152,31 +153,33 @@ const OrderSummary = memo(function OrderSummary({
                                     </button>
                                 </div>
                             </div>
-                        );
+                        )
                     })
                 )}
             </div>
 
-            {/* Order Totals */}
             {safeCart.length > 0 && (
                 <div className="space-y-4 border-t border-white/10 pt-4">
-                    {/* Free Delivery Progress */}
-                    {cartTotal < 25 && (
+                    {!isDeliveryAvailable && (
                         <div className="mb-4">
                             <div className="flex justify-between text-xs mb-2">
-                                <span className="text-white/60 font-light">${cartTotal.toFixed(2)} {t('orderSummary.of')} $25</span>
-                                <span className="text-white/80 font-light">${(25 - cartTotal).toFixed(2)} {t('orderSummary.toGo')}</span>
+                                <span className="text-white/60 font-light">
+                                    Delivery from ${DELIVERY_MINIMUM.toFixed(2)}
+                                </span>
+                                <span className="text-white/80 font-light">
+                                    ${remainingForDelivery.toFixed(2)} to go
+                                </span>
                             </div>
+
                             <div className="w-full bg-white/10 rounded-full h-2">
                                 <div
                                     className="bg-white/80 h-2 rounded-full transition-all duration-500"
-                                    style={{ width: `${Math.min((cartTotal / 25) * 100, 100)}%` }}
+                                    style={{ width: `${deliveryProgress}%` }}
                                 />
                             </div>
                         </div>
                     )}
 
-                    {/* Pricing Breakdown */}
                     <div className="space-y-3">
                         <div className="flex justify-between items-center py-1">
                             <span className="text-white/60 text-sm font-light">
@@ -195,15 +198,16 @@ const OrderSummary = memo(function OrderSummary({
                             <span className="font-light text-white">${qst.toFixed(2)}</span>
                         </div>
 
-                        <div className="flex justify-between items-center py-1">
-                            <span className="text-white/60 text-sm font-light">{t('common.deliveryFee')}</span>
-                            <span className={`font-light ${deliveryFee === 0 ? 'text-green-400' : 'text-white/80'}`}>
-                                {deliveryFee === 0 ? t('common.free') : `$${deliveryFee.toFixed(2)}`}
-                            </span>
-                        </div>
+                        {isDeliveryAvailable && (
+                            <div className="flex justify-between items-center py-1">
+                                <span className="text-white/60 text-sm font-light">{t('common.deliveryFee')}</span>
+                                <span className={`font-light ${deliveryFee === 0 ? 'text-green-400' : 'text-white/80'}`}>
+                                    {deliveryFee === 0 ? t('common.free') : `$${deliveryFee.toFixed(2)}`}
+                                </span>
+                            </div>
+                        )}
 
-                        {/* Free Delivery Message */}
-                        {deliveryFee === 0 && cartTotal > 0 && (
+                        {isDeliveryAvailable && (
                             <div className="bg-green-500/10 rounded-sm p-3 text-center border border-green-500/20">
                                 <div className="flex items-center justify-center space-x-2 text-green-400 text-xs font-light">
                                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -215,42 +219,39 @@ const OrderSummary = memo(function OrderSummary({
                         )}
                     </div>
 
-                    {/* Total */}
                     <div className="border-t border-white/20 pt-4">
                         <div className="flex justify-between items-center">
                             <span className="text-lg font-light text-white">{t('common.total')}</span>
                             <div className="text-right">
                                 <div className="text-xl font-light text-white">${finalTotal.toFixed(2)}</div>
-                                <div className="text-xs text-white/40 font-light">{t('orderSummary.includingTaxDelivery')}</div>
+                                <div className="text-xs text-white/40 font-light">
+                                    {isDeliveryAvailable
+                                        ? t('orderSummary.includingTaxDelivery')
+                                        : 'CAD · including taxes'}
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Delivery Time */}
                     <div className="bg-white/10 rounded-sm p-3 text-center border border-white/20">
-                        <div className="flex items-center justify-center space-x-2 text-white text-xs font-light">
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>{t('orderSummary.estimatedDelivery')}: <span className="text-white/80">20-30 {t('common.minutes')}</span></span>
+                        <div className="text-white text-xs font-light">
+                            Pickup only for online orders. For large delivery orders, please contact us directly.
                         </div>
                     </div>
                 </div>
             )}
         </div>
-    );
+    )
 },
-    // Custom comparison function to prevent unnecessary re-renders
     (prevProps, nextProps) => {
         return (
-            prevProps.cartTotal === nextProps.cartTotal &&
             prevProps.cartTotal === nextProps.cartTotal &&
             prevProps.itemCount === nextProps.itemCount &&
             prevProps.gst === nextProps.gst &&
             prevProps.qst === nextProps.qst &&
             prevProps.deliveryFee === nextProps.deliveryFee &&
             prevProps.finalTotal === nextProps.finalTotal
-        );
-    });
+        )
+    })
 
-export default OrderSummary;
+export default OrderSummary

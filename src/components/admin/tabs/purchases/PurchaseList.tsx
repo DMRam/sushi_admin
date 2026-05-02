@@ -1,71 +1,155 @@
-import { useState, useMemo } from 'react'
-import { usePurchases } from '../../../../context/PurchasesContext'
-import { useIngredients } from '../../../../context/IngredientsContext'
+import { useMemo, useState } from 'react'
+import type {
+    PurchaseLocale,
+    PurchaseRecord,
+} from '../../../../pages/admin/tabs/purchases/purchaseTypes'
+import {
+    formatDate,
+    formatMoney,
+} from '../../../../pages/admin/tabs/purchases/purchaseLocale'
+import { deletePurchase, updatePurchase } from '../../../../pages/admin/tabs/purchases/purchaseFirestore'
 
 interface PurchaseListProps {
-  isMobile?: boolean;
+    isMobile?: boolean
+    locale?: PurchaseLocale
+    rows: PurchaseRecord[]
+    loading?: boolean
+    onSelect?: (purchase: PurchaseRecord) => void
 }
 
-export const PurchaseList = ({ isMobile = false }: PurchaseListProps) => {
-    const { purchases, removePurchase } = usePurchases()
-    const { ingredients } = useIngredients()
-    const [filter, setFilter] = useState({
-        purchaseType: '', // 'ingredient', 'supply', or '' for all
-        ingredientId: '',
+type FilterState = {
+    source: '' | 'app' | 'n8n' | 'import'
+    paymentStatus: '' | 'paid' | 'unpaid'
+    supplier: string
+    dateRange: '7' | '30' | '90' | 'all'
+}
+
+export const PurchaseList = ({
+    isMobile = false,
+    locale = 'fr-CA',
+    rows,
+    loading = false,
+    onSelect,
+}: PurchaseListProps) => {
+    const [filter, setFilter] = useState<FilterState>({
+        source: '',
+        paymentStatus: '',
         supplier: '',
-        dateRange: '30' // 7, 30, 90, all
+        dateRange: '30',
     })
+    const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [updatingPaymentId, setUpdatingPaymentId] = useState<string | null>(null)
 
     const filteredPurchases = useMemo(() => {
-        let filtered = purchases
+        let filtered = rows
 
-        // Filter by purchase type
-        if (filter.purchaseType) {
-            filtered = filtered.filter(purchase => purchase.purchaseType === filter.purchaseType)
+        if (filter.source) {
+            filtered = filtered.filter((purchase) => purchase.source === filter.source)
         }
 
-        // Filter by ingredient (only for ingredient purchases)
-        if (filter.ingredientId) {
-            filtered = filtered.filter(purchase =>
-                purchase.purchaseType === 'ingredient' && purchase.ingredientId === filter.ingredientId
+        if (filter.paymentStatus) {
+            filtered = filtered.filter(
+                (purchase) => (purchase.paymentStatus ?? 'unpaid') === filter.paymentStatus
             )
         }
 
-        // Filter by supplier
-        if (filter.supplier) {
-            filtered = filtered.filter(purchase =>
-                purchase.supplier.toLowerCase().includes(filter.supplier.toLowerCase())
+        if (filter.supplier.trim()) {
+            filtered = filtered.filter((purchase) =>
+                String(purchase.supplierName ?? '')
+                    .toLowerCase()
+                    .includes(filter.supplier.toLowerCase())
             )
         }
 
-        // Filter by date range
         if (filter.dateRange !== 'all') {
-            const days = parseInt(filter.dateRange)
+            const days = parseInt(filter.dateRange, 10)
             const cutoffDate = new Date()
             cutoffDate.setDate(cutoffDate.getDate() - days)
-            filtered = filtered.filter(purchase => new Date(purchase.purchaseDate) >= cutoffDate)
+
+            filtered = filtered.filter((purchase) => {
+                const d = new Date(`${purchase.purchaseDate}T00:00:00`)
+                return d >= cutoffDate
+            })
         }
 
-        return filtered.sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
-    }, [purchases, filter])
+        return [...filtered].sort(
+            (a, b) =>
+                new Date(`${b.purchaseDate}T00:00:00`).getTime() -
+                new Date(`${a.purchaseDate}T00:00:00`).getTime()
+        )
+    }, [rows, filter])
 
-    const getDisplayName = (purchase: any) => {
-        if (purchase.purchaseType === 'supply') {
-            return purchase.supplyName || 'Supply Item'
+    const totalSpent = filteredPurchases.reduce(
+        (sum, purchase) => sum + Number(purchase.total ?? 0),
+        0
+    )
+
+    const uniqueSuppliers = useMemo(() => {
+        const suppliers = rows.map((p) => p.supplierName).filter(Boolean)
+        return [...new Set(suppliers)].sort()
+    }, [rows])
+
+    async function handleTogglePaymentStatus(purchase: PurchaseRecord) {
+        const nextStatus = purchase.paymentStatus === 'paid' ? 'unpaid' : 'paid'
+
+        try {
+            setUpdatingPaymentId(purchase.id)
+            await updatePurchase(purchase.id, {
+                paymentStatus: nextStatus,
+            })
+        } catch (error) {
+            console.error('Failed to update payment status', error)
+            window.alert('Failed to update payment status.')
+        } finally {
+            setUpdatingPaymentId(null)
         }
-        return ingredients.find(ing => ing.id === purchase.ingredientId)?.name || 'Unknown Ingredient'
     }
 
-    const getCategory = (purchase: any) => {
-        if (purchase.purchaseType === 'supply') {
-            return purchase.supplyCategory || 'supply'
+    function getSourceBadge(source: string | undefined) {
+        const toneMap: Record<string, string> = {
+            app: 'bg-gray-100 text-gray-700',
+            n8n: 'bg-blue-100 text-blue-700',
+            import: 'bg-purple-100 text-purple-700',
         }
-        const ingredient = ingredients.find(ing => ing.id === purchase.ingredientId)
-        return ingredient?.category || 'ingredient'
+
+        return {
+            label: source || 'app',
+            className: toneMap[source || 'app'] ?? 'bg-gray-100 text-gray-700',
+        }
     }
 
-    const getCategoryDisplayName = (category: string) => {
-        const categoryMap: { [key: string]: string } = {
+    function getPaymentBadge(paymentStatus: string | undefined) {
+        if (paymentStatus === 'paid') {
+            return {
+                label: 'paid',
+                className: 'bg-green-100 text-green-700',
+            }
+        }
+
+        return {
+            label: 'unpaid',
+            className: 'bg-amber-100 text-amber-700',
+        }
+    }
+
+    function getItemsSummary(purchase: PurchaseRecord) {
+        if (!purchase.items?.length) return 'No items'
+
+        if (purchase.items.length === 1) {
+            const item = purchase.items[0]
+            return `${item.quantity} ${item.unit || ''} ${item.name}`.trim()
+        }
+
+        return `${purchase.items.length} items`
+    }
+
+    function getPrimaryCategory(purchase: PurchaseRecord) {
+        const first = purchase.items?.[0]
+        return first?.category || 'other'
+    }
+
+    function getCategoryDisplayName(category: string) {
+        const categoryMap: Record<string, string> = {
             packaging: 'Packaging',
             cleaning: 'Cleaning',
             delivery: 'Delivery',
@@ -76,13 +160,14 @@ export const PurchaseList = ({ isMobile = false }: PurchaseListProps) => {
             fruits: 'Fruits',
             spices: 'Spices',
             dairy: 'Dairy',
-            grains: 'Grains'
+            grains: 'Grains',
+            ingredient: 'Ingredient',
         }
         return categoryMap[category] || category
     }
 
-    const getCategoryColor = (category: string) => {
-        const colorMap: { [key: string]: string } = {
+    function getCategoryColor(category: string) {
+        const colorMap: Record<string, string> = {
             packaging: 'bg-purple-100 text-purple-800',
             cleaning: 'bg-blue-100 text-blue-800',
             delivery: 'bg-green-100 text-green-800',
@@ -93,107 +178,121 @@ export const PurchaseList = ({ isMobile = false }: PurchaseListProps) => {
             fruits: 'bg-orange-100 text-orange-800',
             spices: 'bg-yellow-100 text-yellow-800',
             dairy: 'bg-blue-100 text-blue-800',
-            grains: 'bg-amber-100 text-amber-800'
+            grains: 'bg-amber-100 text-amber-800',
+            ingredient: 'bg-gray-100 text-gray-800',
         }
         return colorMap[category] || 'bg-gray-100 text-gray-800'
     }
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        })
-    }
+    async function handleDeletePurchase(purchaseId: string) {
+        const confirmed = window.confirm('Delete this purchase?')
+        if (!confirmed) return
 
-    const handleDelete = (purchaseId: string) => {
-        if (confirm('Are you sure you want to delete this purchase record? This action cannot be undone.')) {
-            removePurchase(purchaseId)
+        try {
+            setDeletingId(purchaseId)
+            await deletePurchase(purchaseId)
+        } catch (error) {
+            console.error('Failed to delete purchase', error)
+            window.alert('Failed to delete purchase.')
+        } finally {
+            setDeletingId(null)
         }
     }
 
-    const totalSpent = filteredPurchases.reduce((sum, purchase) => sum + purchase.totalCost, 0)
-
-    // Get unique suppliers for filter suggestions
-    const uniqueSuppliers = useMemo(() => {
-        const suppliers = purchases.map(p => p.supplier).filter(Boolean)
-        return [...new Set(suppliers)].sort()
-    }, [purchases])
+    if (loading) {
+        return (
+            <div className="py-10 text-center text-sm text-gray-500">
+                Loading purchases...
+            </div>
+        )
+    }
 
     return (
         <div className={`space-y-${isMobile ? '4' : '6'}`}>
-            {/* Filters */}
-            <div className={`bg-gray-50 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
-                <h3 className={`font-medium text-gray-900 mb-${isMobile ? '3' : '4'} ${isMobile ? 'text-base' : 'text-lg'}`}>
+            <div className={`rounded-lg bg-gray-50 ${isMobile ? 'p-3' : 'p-4'}`}>
+                <h3 className={`mb-${isMobile ? '3' : '4'} font-medium text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>
                     Filters
                 </h3>
+
                 <div className={`grid gap-${isMobile ? '3' : '4'} ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-4'}`}>
                     <div>
-                        <label className={`block text-gray-700 mb-1 ${isMobile ? 'text-xs font-medium' : 'text-sm font-medium'}`}>
-                            Type
+                        <label className={`mb-1 block text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-medium'}`}>
+                            Source
                         </label>
                         <select
-                            value={filter.purchaseType}
-                            onChange={(e) => setFilter({ ...filter, purchaseType: e.target.value })}
-                            className={`w-full border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-gray-900 ${isMobile ? 'px-2 py-2 text-sm' : 'px-3 py-2'}`}
+                            value={filter.source}
+                            onChange={(e) =>
+                                setFilter((prev) => ({
+                                    ...prev,
+                                    source: e.target.value as FilterState['source'],
+                                }))
+                            }
+                            className={`w-full rounded-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900 ${isMobile ? 'px-2 py-2 text-sm' : 'px-3 py-2'}`}
                         >
-                            <option value="">All Types</option>
-                            <option value="ingredient">Food Ingredients</option>
-                            <option value="supply">Supplies & Equipment</option>
+                            <option value="">All sources</option>
+                            <option value="app">App</option>
+                            <option value="n8n">n8n</option>
+                            <option value="import">Import</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className={`block text-gray-700 mb-1 ${isMobile ? 'text-xs font-medium' : 'text-sm font-medium'}`}>
-                            Ingredient
+                        <label className={`mb-1 block text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-medium'}`}>
+                            Payment
                         </label>
                         <select
-                            value={filter.ingredientId}
-                            onChange={(e) => setFilter({ ...filter, ingredientId: e.target.value })}
-                            className={`w-full border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-gray-900 ${isMobile ? 'px-2 py-2 text-sm' : 'px-3 py-2'}`}
-                            disabled={filter.purchaseType === 'supply'}
+                            value={filter.paymentStatus}
+                            onChange={(e) =>
+                                setFilter((prev) => ({
+                                    ...prev,
+                                    paymentStatus: e.target.value as FilterState['paymentStatus'],
+                                }))
+                            }
+                            className={`w-full rounded-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900 ${isMobile ? 'px-2 py-2 text-sm' : 'px-3 py-2'}`}
                         >
-                            <option value="">All Ingredients</option>
-                            {ingredients.map(ingredient => (
-                                <option key={ingredient.id} value={ingredient.id}>
-                                    {ingredient.name}
-                                </option>
-                            ))}
+                            <option value="">All</option>
+                            <option value="paid">Paid</option>
+                            <option value="unpaid">Unpaid</option>
                         </select>
-                        {filter.purchaseType === 'supply' && (
-                            <p className={`text-gray-500 mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}>
-                                Ingredient filter disabled for supplies
-                            </p>
-                        )}
                     </div>
 
                     <div>
-                        <label className={`block text-gray-700 mb-1 ${isMobile ? 'text-xs font-medium' : 'text-sm font-medium'}`}>
+                        <label className={`mb-1 block text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-medium'}`}>
                             Supplier
                         </label>
                         <input
                             type="text"
                             value={filter.supplier}
-                            onChange={(e) => setFilter({ ...filter, supplier: e.target.value })}
-                            className={`w-full border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-gray-900 ${isMobile ? 'px-2 py-2 text-sm' : 'px-3 py-2'}`}
+                            onChange={(e) =>
+                                setFilter((prev) => ({
+                                    ...prev,
+                                    supplier: e.target.value,
+                                }))
+                            }
+                            className={`w-full rounded-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900 ${isMobile ? 'px-2 py-2 text-sm' : 'px-3 py-2'}`}
                             placeholder="Filter by supplier..."
                             list="supplier-suggestions"
                         />
                         <datalist id="supplier-suggestions">
-                            {uniqueSuppliers.map(supplier => (
+                            {uniqueSuppliers.map((supplier) => (
                                 <option key={supplier} value={supplier} />
                             ))}
                         </datalist>
                     </div>
 
                     <div>
-                        <label className={`block text-gray-700 mb-1 ${isMobile ? 'text-xs font-medium' : 'text-sm font-medium'}`}>
-                            Date Range
+                        <label className={`mb-1 block text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-medium'}`}>
+                            Date range
                         </label>
                         <select
                             value={filter.dateRange}
-                            onChange={(e) => setFilter({ ...filter, dateRange: e.target.value })}
-                            className={`w-full border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-gray-900 ${isMobile ? 'px-2 py-2 text-sm' : 'px-3 py-2'}`}
+                            onChange={(e) =>
+                                setFilter((prev) => ({
+                                    ...prev,
+                                    dateRange: e.target.value as FilterState['dateRange'],
+                                }))
+                            }
+                            className={`w-full rounded-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900 ${isMobile ? 'px-2 py-2 text-sm' : 'px-3 py-2'}`}
                         >
                             <option value="7">Last 7 days</option>
                             <option value="30">Last 30 days</option>
@@ -204,163 +303,217 @@ export const PurchaseList = ({ isMobile = false }: PurchaseListProps) => {
                 </div>
             </div>
 
-            {/* Summary */}
-            <div className={`bg-white border rounded-sm ${isMobile ? 'p-3' : 'p-4'}`}>
-                <div className={`flex ${isMobile ? 'flex-col gap-2' : 'justify-between items-center'}`}>
+            <div className={`rounded-sm border bg-white ${isMobile ? 'p-3' : 'p-4'}`}>
+                <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}>
                     <div>
-                        <span className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                        <span className="text-sm text-gray-600">
                             Showing {filteredPurchases.length} purchases
                         </span>
-                        {filter.purchaseType && (
-                            <span className={`text-gray-500 ${isMobile ? 'text-xs block mt-1' : 'text-sm ml-2'}`}>
-                                ({filter.purchaseType === 'ingredient' ? 'Food Ingredients' : 'Supplies & Equipment'})
-                            </span>
-                        )}
                     </div>
+
                     <div className={isMobile ? 'mt-2' : 'text-right'}>
-                        <span className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>Total spent: </span>
+                        <span className="text-sm text-gray-600">Total spent: </span>
                         <span className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-lg'}`}>
-                            ${totalSpent.toFixed(2)}
+                            {formatMoney(totalSpent, locale)}
                         </span>
                     </div>
                 </div>
             </div>
 
-            {/* Purchases List */}
             <div className={`space-y-${isMobile ? '3' : '4'}`}>
                 {filteredPurchases.length === 0 ? (
-                    <div className="text-center py-12">
-                        <div className={`text-gray-500 mb-2 ${isMobile ? 'text-base' : 'text-lg'}`}>
+                    <div className="py-12 text-center">
+                        <div className={`mb-2 text-gray-500 ${isMobile ? 'text-base' : 'text-lg'}`}>
                             No purchases found
                         </div>
                         <div className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                            {purchases.length === 0
-                                ? "No purchases recorded yet. Record your first purchase above."
-                                : "No purchases match your current filters."
-                            }
+                            {rows.length === 0
+                                ? 'No purchases recorded yet.'
+                                : 'No purchases match your current filters.'}
                         </div>
                     </div>
                 ) : (
-                    filteredPurchases.map(purchase => {
-                        const displayName = getDisplayName(purchase)
-                        const category = getCategory(purchase)
-                        const categoryDisplayName = getCategoryDisplayName(category)
-                        const categoryColor = getCategoryColor(category)
+                    filteredPurchases.map((purchase) => {
+                        const primaryCategory = getPrimaryCategory(purchase)
+                        const categoryDisplayName = getCategoryDisplayName(primaryCategory)
+                        const categoryColor = getCategoryColor(primaryCategory)
+                        const sourceBadge = getSourceBadge(purchase.source)
+                        const paymentBadge = getPaymentBadge(purchase.paymentStatus)
+                        // const isDeleting = deletingId === purchase.id
 
                         return (
-                            <div 
-                                key={purchase.id} 
-                                className={`bg-white border border-gray-200 rounded-sm hover:shadow-sm transition-shadow ${isMobile ? 'p-3' : 'p-4'}`}
+                            <div
+                                key={purchase.id}
+                                className={`rounded-sm border border-gray-200 bg-white transition-shadow hover:shadow-sm ${isMobile ? 'p-3' : 'p-4'}`}
                             >
-                                <div className={`${isMobile ? 'flex-col' : 'flex justify-between items-start'}`}>
+                                <div className={`${isMobile ? 'flex-col' : 'flex items-start justify-between'}`}>
                                     <div className={isMobile ? '' : 'flex-1'}>
-                                        <div className={`flex items-center gap-${isMobile ? '2' : '3'} mb-${isMobile ? '2' : '2'} ${isMobile ? 'flex-wrap' : ''}`}>
+                                        <div className={`mb-2 flex items-center gap-${isMobile ? '2' : '3'} ${isMobile ? 'flex-wrap' : ''}`}>
                                             <div className="flex items-center gap-2">
-                                                {purchase.purchaseType === 'supply' ? (
-                                                    <span className={isMobile ? 'text-base' : 'text-lg'}>📦</span>
-                                                ) : (
-                                                    <span className={isMobile ? 'text-base' : 'text-lg'}>🍣</span>
-                                                )}
+                                                <span className={isMobile ? 'text-base' : 'text-lg'}>
+                                                    {primaryCategory === 'packaging' ||
+                                                        primaryCategory === 'cleaning' ||
+                                                        primaryCategory === 'delivery' ||
+                                                        primaryCategory === 'office'
+                                                        ? '📦'
+                                                        : '🍣'}
+                                                </span>
+
                                                 <h3 className={`font-semibold text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>
-                                                    {displayName.length > 30 && isMobile ? `${displayName.substring(0, 30)}...` : displayName}
+                                                    {purchase.supplierName}
                                                 </h3>
                                             </div>
+
                                             <div className={`flex gap-1 ${isMobile ? 'mt-1' : ''}`}>
-                                                <span className={`px-2 py-1 rounded-full ${categoryColor} ${isMobile ? 'text-xs' : 'text-xs'}`}>
-                                                    {isMobile && categoryDisplayName.length > 12 
-                                                        ? `${categoryDisplayName.substring(0, 12)}...` 
+                                                <span className={`rounded-full px-2 py-1 text-xs ${categoryColor}`}>
+                                                    {isMobile && categoryDisplayName.length > 12
+                                                        ? `${categoryDisplayName.substring(0, 12)}...`
                                                         : categoryDisplayName}
                                                 </span>
-                                                {purchase.purchaseType === 'supply' && (
-                                                    <span className={`bg-gray-100 text-gray-600 px-2 py-1 rounded-full ${isMobile ? 'text-xs' : 'text-xs'}`}>
-                                                        Supply
-                                                    </span>
-                                                )}
+
+                                                <span className={`rounded-full px-2 py-1 text-xs ${sourceBadge.className}`}>
+                                                    {sourceBadge.label}
+                                                </span>
+
+                                                <span className={`rounded-full px-2 py-1 text-xs ${paymentBadge.className}`}>
+                                                    {paymentBadge.label}
+                                                </span>
                                             </div>
                                         </div>
 
                                         <div className={`grid gap-${isMobile ? '3' : '4'} ${isMobile ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-4'}`}>
                                             <div>
-                                                <span className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Quantity:</span>
-                                                <div className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-                                                    {purchase.quantity} {purchase.unit}
+                                                <span className="text-sm text-gray-600">Items:</span>
+                                                <div className={`${isMobile ? 'text-sm' : ''} font-medium`}>
+                                                    {getItemsSummary(purchase)}
                                                 </div>
                                             </div>
-                                            {purchase.purchaseType === 'ingredient' ? (
-                                                <div>
-                                                    <span className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Price:</span>
-                                                    <div className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-                                                        ${purchase.pricePerKg.toFixed(2)}/kg
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div>
-                                                    <span className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Unit Price:</span>
-                                                    <div className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-                                                        ${(purchase.totalCost / purchase.quantity).toFixed(2)}/{purchase.unit}
-                                                    </div>
-                                                </div>
-                                            )}
+
                                             <div>
-                                                <span className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Supplier:</span>
-                                                <div className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-                                                    {isMobile && purchase.supplier.length > 20 
-                                                        ? `${purchase.supplier.substring(0, 20)}...` 
-                                                        : purchase.supplier}
+                                                <span className="text-sm text-gray-600">Supplier:</span>
+                                                <div className={`${isMobile ? 'text-sm' : ''} font-medium`}>
+                                                    {isMobile && purchase.supplierName.length > 20
+                                                        ? `${purchase.supplierName.substring(0, 20)}...`
+                                                        : purchase.supplierName}
                                                 </div>
                                             </div>
+
                                             <div>
-                                                <span className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>Date:</span>
-                                                <div className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-                                                    {formatDate(purchase.purchaseDate)}
+                                                <span className="text-sm text-gray-600">Date:</span>
+                                                <div className={`${isMobile ? 'text-sm' : ''} font-medium`}>
+                                                    {formatDate(purchase.purchaseDate, locale)}
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <span className="text-sm text-gray-600">Invoice:</span>
+                                                <div className={`${isMobile ? 'text-sm' : ''} font-medium`}>
+                                                    {purchase.invoiceNumber || '—'}
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {(purchase.deliveryDate || purchase.invoiceNumber || purchase.notes) && (
-                                            <div className={`mt-3 pt-3 border-t border-gray-200 ${isMobile ? 'mt-2 pt-2' : ''}`}>
-                                                <div className={`grid gap-2 text-gray-600 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
-                                                    {purchase.deliveryDate && (
-                                                        <div className={isMobile ? 'text-xs' : 'text-xs'}>
-                                                            <span className="font-medium">Delivery:</span> {formatDate(purchase.deliveryDate)}
+                                        {(purchase.invoiceNumber || purchase.attachmentUrl) && (
+                                            <div className={`mt-3 flex flex-wrap gap-2 border-t border-gray-200 pt-3 ${isMobile ? 'mt-2 pt-2' : ''}`}>
+                                                {purchase.invoiceNumber ? (
+                                                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                                                        Invoice #{purchase.invoiceNumber}
+                                                    </span>
+                                                ) : null}
+
+                                                {purchase.attachmentUrl ? (
+                                                    <a
+                                                        href={purchase.attachmentUrl}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200"
+                                                    >
+                                                        View invoice
+                                                    </a>
+                                                ) : null}
+                                            </div>
+                                        )}
+
+                                        {purchase.items?.length > 0 && (
+                                            <div className={`mt-3 border-t border-gray-200 pt-3 ${isMobile ? 'mt-2 pt-2' : ''}`}>
+                                                <div className="space-y-2">
+                                                    {purchase.items.map((item, index) => (
+                                                        <div
+                                                            key={`${purchase.id}-${index}`}
+                                                            className="flex items-center justify-between rounded-sm bg-gray-50 px-3 py-2"
+                                                        >
+                                                            <div>
+                                                                <div className="text-sm font-medium text-gray-900">
+                                                                    {item.quantity} {item.unit || ''} {item.name}
+                                                                </div>
+                                                                {item.category ? (
+                                                                    <div className="text-xs text-gray-500">{item.category}</div>
+                                                                ) : null}
+                                                            </div>
+
+                                                            <div className="text-sm font-medium text-gray-700">
+                                                                {formatMoney(item.lineTotal, locale)}
+                                                            </div>
                                                         </div>
-                                                    )}
-                                                    {purchase.invoiceNumber && (
-                                                        <div className={isMobile ? 'text-xs' : 'text-xs'}>
-                                                            <span className="font-medium">Invoice:</span> {purchase.invoiceNumber}
-                                                        </div>
-                                                    )}
-                                                    {purchase.notes && (
-                                                        <div className={isMobile ? 'text-xs col-span-1' : 'md:col-span-2 text-xs'}>
-                                                            <span className="font-medium">Notes:</span> 
-                                                            <span className="ml-1">
-                                                                {isMobile && purchase.notes.length > 50 
-                                                                    ? `${purchase.notes.substring(0, 50)}...` 
-                                                                    : purchase.notes}
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {purchase.notes && (
+                                            <div className={`mt-3 border-t border-gray-200 pt-3 ${isMobile ? 'mt-2 pt-2' : ''}`}>
+                                                <div className="text-xs text-gray-600">
+                                                    <span className="font-medium">Notes:</span> {purchase.notes}
                                                 </div>
                                             </div>
                                         )}
                                     </div>
 
-                                    <div className={`flex items-center gap-2 ${isMobile ? 'mt-3 justify-between border-t border-gray-100 pt-3' : 'flex-col items-end gap-2 ml-4'}`}>
+                                    <div className={`flex items-center gap-2 ${isMobile ? 'mt-3 justify-between border-t border-gray-100 pt-3' : 'ml-4 flex-col items-end gap-2'}`}>
                                         <div className={isMobile ? 'text-left' : 'text-right'}>
                                             <div className={`font-bold text-green-600 ${isMobile ? 'text-xl' : 'text-2xl'}`}>
-                                                ${purchase.totalCost.toFixed(2)}
+                                                {formatMoney(purchase.total, locale)}
                                             </div>
-                                            <div className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-xs'}`}>
-                                                Total cost
-                                            </div>
+                                            <div className="text-xs text-gray-500">Total</div>
                                         </div>
 
-                                        <button
-                                            onClick={() => handleDelete(purchase.id)}
-                                            className={`text-red-600 hover:text-red-800 font-medium border border-red-200 rounded hover:bg-red-50 transition-colors ${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1 text-sm'}`}
-                                        >
-                                            Delete
-                                        </button>
+                                        <div className={`flex gap-2 ${isMobile ? 'flex-row' : 'flex-col w-full'}`}>
+                                            <button
+                                                type="button"
+                                                onClick={() => onSelect?.(purchase)}
+                                                className={`rounded border border-gray-300 font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 ${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1 text-sm'}`}
+                                            >
+                                                Map items
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleTogglePaymentStatus(purchase)}
+                                                disabled={updatingPaymentId === purchase.id}
+                                                className={[
+                                                    'rounded border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                                                    isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1 text-sm',
+                                                    purchase.paymentStatus === 'paid'
+                                                        ? 'border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800'
+                                                        : 'border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800',
+                                                ].join(' ')}
+                                            >
+                                                {updatingPaymentId === purchase.id
+                                                    ? 'Updating...'
+                                                    : purchase.paymentStatus === 'paid'
+                                                        ? 'Mark unpaid'
+                                                        : 'Mark paid'}
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeletePurchase(purchase.id)}
+                                                disabled={deletingId === purchase.id}
+                                                className={`rounded border border-red-200 font-medium text-red-600 transition-colors hover:bg-red-50 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50 ${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1 text-sm'}`}
+                                            >
+                                                {deletingId === purchase.id ? 'Deleting...' : 'Delete'}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

@@ -109,7 +109,7 @@
   },
   "paymentMethod": {
     "card": "Carte de Crédit/Débit",
-    "cardDescription": "Payer en toute sécurité avec Stripe. Vous serez redirigé pour compléter le paiement.",
+    "cardDescription": "Paiement sécurisé avec Clover via Maisushi. Vous serez redirigé pour finaliser votre paiement.",
     "cash": "Paiement à la Livraison",
     "cashDescription": "Payez en espèces lorsque votre commande arrive",
     "securePayment": "Paiement Sécurisé",
@@ -653,6 +653,56 @@
       "newOrder": "Nouvelle Commande Reçue",
       "orderReady": "Commande Prête à Être Récupérée",
       "deliveryReady": "Commande de Livraison Prête"
+    }
+  },
+  "purchases": {
+    "title": "Achats",
+    "subtitle": "Suivi des achats et des coûts fournisseurs",
+    "tabs": {
+      "form": "Saisie",
+      "list": "Historique",
+      "stats": "Statistiques"
+    },
+    "sections": {
+      "newPurchase": "Nouvel achat",
+      "newPurchaseHint": "Ajouter rapidement des articles ou une facture",
+      "history": "Historique",
+      "historyHint": "Consulter et gérer les achats enregistrés",
+      "stats": "Statistiques",
+      "statsHint": "Analyser les dépenses et les fournisseurs"
+    },
+    "cards": {
+      "today": "Aujourd’hui",
+      "month": "Ce mois-ci",
+      "average": "Coût moyen",
+      "suppliers": "Fournisseurs"
+    },
+    "common": {
+      "loading": "Chargement...",
+      "noData": "Aucune donnée",
+      "app": "Application",
+      "n8n": "n8n",
+      "import": "Importation"
+    }
+  },
+  "checkout": {
+    "delivery": {
+      "pickup": "Ramassage",
+      "deliveryLargeOrdersOnly": "Livraison (commandes importantes seulement)",
+      "largeOrdersMessage": "La livraison est limitée pour le moment. Veuillez nous contacter pour les commandes importantes."
+    },
+    "pickup": {
+      "pickupTime": "Heure de ramassage",
+      "asap": "Dès que possible",
+      "in15": "Dans environ 15 minutes",
+      "in30": "Dans environ 30 minutes",
+      "in45": "Dans environ 45 minutes",
+      "in60": "Dans environ 1 heure",
+      "custom": "J’indiquerai l’heure dans les notes",
+      "orderNotes": "Notes de commande",
+      "orderNotesPlaceholder": "Ex. : Je passerai à 18h30, sans sésame, sauce soya en extra...",
+      "pickupMessage": "Ramassage à notre restaurant à Sherbrooke. Nous préparerons votre commande selon l’heure choisie et communiquerons avec vous au besoin.",
+      "freePickup": "Ramassage gratuit à notre restaurant à Sherbrooke."
     }
   }
 }

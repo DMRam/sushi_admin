@@ -129,6 +129,8 @@ export default function SuccessPage() {
             };
         });
 
+        
+
         const totals = data.totals || null;
 
         const computedSubtotal = items.reduce((sum: number, it: any) => {

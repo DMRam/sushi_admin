@@ -1,6 +1,6 @@
 import {
     BarChart3,
-    ChefHat,
+    // ChefHat,
     ShoppingCart,
     Package,
     Boxes,
@@ -22,13 +22,13 @@ export function buildNavLinks(t: TFunction): NavLink[] {
             allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
             icon: BarChart3,
         },
-        {
-            path: "/admin/kitchen",
-            label: t("nav.kitchen", "Kitchen"),
-            shortLabel: t("nav.kitchen", "Kitchen"),
-            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
-            icon: ChefHat,
-        },
+        // {
+        //     path: "/admin/kitchen",
+        //     label: t("nav.kitchen", "Kitchen"),
+        //     shortLabel: t("nav.kitchen", "Kitchen"),
+        //     allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
+        //     icon: ChefHat,
+        // },
         {
             path: "/admin/purchases",
             label: t("nav.purchases", "Purchases"),

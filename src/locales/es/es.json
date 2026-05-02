@@ -81,7 +81,6 @@
     "categories": "Categorías",
     "exploreCategories": "Explora Nuestras Categorías",
     "culinaryPortfolio": "Recorre nuestro portfolio culinario",
-
     "foundMatches": "Encontradas {{count}} coincidencias para \"{{term}}\"",
     "showcasingCreations": "Mostrando {{count}} creaciones culinarias",
     "categorySelections": "{{count}} selecciones de {{category}}"
@@ -110,7 +109,7 @@
   },
   "paymentMethod": {
     "card": "Tarjeta de Crédito/Débito",
-    "cardDescription": "Pague de forma segura con Stripe. Será redirigido para completar el pago.",
+    "cardDescription": "Pago seguro con Clover a través de Maisushi. Serás redirigido para completar el pago.",
     "cash": "Pago en Efectivo",
     "cashDescription": "Pague en efectivo cuando llegue su pedido",
     "securePayment": "Pago Seguro",
@@ -140,7 +139,7 @@
     "requiredFields": "Por favor complete los siguientes campos obligatorios:",
     "validEmail": "Por favor ingrese una dirección de email válida",
     "validPhone": "Por favor ingrese un número de teléfono válido",
-    "backToInfo":"Volver"
+    "backToInfo": "Volver"
   },
   "nav": {
     "salesTracking": "Seguimiento de Ventas",
@@ -517,7 +516,6 @@
       "contact": "Para consultas legales:"
     }
   },
-
   "footer": {
     "staffAdminLogin": "Staff/Admin Login",
     "staffAdminAccess": "STAFF & ADMIN ACCESS",
@@ -555,14 +553,12 @@
   "kitchen": {
     "title": "Gestión de Cocina",
     "subtitle": "Gestiona la preparación de alimentos y sigue el progreso de los pedidos",
-    
     "stats": {
       "inQueue": "En Cola",
       "preparing": "Preparando",
       "ready": "Listo",
       "completed": "Completado"
     },
-    
     "instructions": {
       "title": "Cómo Usar",
       "steps": [
@@ -571,14 +567,12 @@
         "Marca el pedido como listo cuando todos los artículos estén preparados"
       ]
     },
-    
     "tabs": {
       "queue": "Cola de Pedidos",
       "preparation": "Preparación",
       "completed": "Completados",
       "all": "Todos los Pedidos"
     },
-    
     "orderQueue": {
       "noOrders": "No Hay Pedidos en Cola",
       "noOrdersMessage": "Los nuevos pedidos aparecerán aquí automáticamente",
@@ -594,7 +588,6 @@
       "pickupOrder": "Pedido para Recoger",
       "deliveryOrder": "Pedido a Domicilio"
     },
-    
     "orderPreparation": {
       "preparingOrder": "Preparando Pedido",
       "progress": "Progreso",
@@ -619,7 +612,6 @@
       "confirmComplete": "¿Marcar este pedido como listo para recoger/entrega?",
       "totalRequired": "Total requerido"
     },
-    
     "completedOrders": {
       "title": "Pedidos Completados",
       "noOrders": "Aún no hay pedidos completados",
@@ -629,14 +621,12 @@
       "preparationTime": "Tiempo de Prep.",
       "viewDetails": "Ver Detalles"
     },
-    
     "status": {
       "pending": "Pendiente",
       "preparing": "Preparando",
       "ready": "Listo",
       "completed": "Completado"
     },
-    
     "buttons": {
       "start": "Comenzar Preparación",
       "complete": "Completar Pedido",
@@ -644,7 +634,6 @@
       "refresh": "Actualizar Pedidos",
       "viewAll": "Ver Todos los Pedidos"
     },
-    
     "messages": {
       "loading": "Cargando datos de cocina...",
       "selectOrder": "Por favor selecciona un pedido de la cola para comenzar preparación",
@@ -653,7 +642,6 @@
       "orderCompleted": "Pedido marcado como completado",
       "webhookTriggered": "Notificación enviada exitosamente"
     },
-    
     "time": {
       "minutes": "min",
       "hours": "hrs",
@@ -661,12 +649,60 @@
       "today": "Hoy",
       "yesterday": "Ayer"
     },
-    
     "notifications": {
       "newOrder": "Nuevo Pedido Recibido",
       "orderReady": "Pedido Listo para Recoger",
       "deliveryReady": "Pedido a Domicilio Listo"
     }
+  },
+  "purchases": {
+    "title": "Compras",
+    "subtitle": "Seguimiento de compras y costos de proveedores",
+    "tabs": {
+      "form": "Registro",
+      "list": "Historial",
+      "stats": "Estadísticas"
+    },
+    "sections": {
+      "newPurchase": "Nueva compra",
+      "newPurchaseHint": "Agregar artículos o datos de factura rápidamente",
+      "history": "Historial",
+      "historyHint": "Ver y gestionar compras registradas",
+      "stats": "Estadísticas",
+      "statsHint": "Analizar gastos y proveedores"
+    },
+    "cards": {
+      "today": "Hoy",
+      "month": "Este mes",
+      "average": "Costo promedio",
+      "suppliers": "Proveedores"
+    },
+    "common": {
+      "loading": "Cargando...",
+      "noData": "Sin datos",
+      "app": "Aplicación",
+      "n8n": "n8n",
+      "import": "Importación"
+    }
+  },
+  "checkout": {
+    "delivery": {
+      "pickup": "Retiro",
+      "deliveryLargeOrdersOnly": "Entrega (solo pedidos grandes)",
+      "largeOrdersMessage": "La entrega está actualmente limitada. Por favor contáctanos para pedidos grandes."
+    },
+    "pickup": {
+      "pickupTime": "Hora de retiro",
+      "asap": "Lo antes posible",
+      "in15": "En aproximadamente 15 minutos",
+      "in30": "En aproximadamente 30 minutos",
+      "in45": "En aproximadamente 45 minutos",
+      "in60": "En aproximadamente 1 hora",
+      "custom": "Escribiré la hora en las notas",
+      "orderNotes": "Notas del pedido",
+      "orderNotesPlaceholder": "Ejemplo: Voy a retirar a las 18:30, sin sésamo, extra salsa de soya...",
+      "pickupMessage": "Retiro en nuestra ubicación en Sherbrooke. Prepararemos tu pedido según la hora seleccionada y te contactaremos si es necesario.",
+      "freePickup": "Retiro gratuito en nuestra ubicación en Sherbrooke."
+    }
   }
-
 }

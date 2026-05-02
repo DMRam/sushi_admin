@@ -66,7 +66,7 @@ export default function PaymentMethodSelector({
             </div>
 
             {/* Payment Note */}
-            {paymentMethod === "card" && (
+            {/* {paymentMethod === "card" && (
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-sm p-4 mb-6">
                     <div className="flex items-start space-x-3">
                         <svg className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,7 +77,7 @@ export default function PaymentMethodSelector({
                         </div>
                     </div>
                 </div>
-            )}
+            )} */}
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">

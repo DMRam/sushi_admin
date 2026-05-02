@@ -1,55 +1,82 @@
 import { useState, useEffect } from 'react'
 import { useIngredients } from '../../../../context/IngredientsContext'
-import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore'
+import { updateDoc, doc, serverTimestamp } from 'firebase/firestore'
 import type { Unit } from '../../../../types/types'
 import { db } from '../../../../firebase/firebase'
+import type { PurchaseLocale } from '../../../../pages/admin/tabs/purchases/purchaseTypes'
+import {
+    createPurchase,
+    normalizePurchasePayload,
+} from '../../../../pages/admin/tabs/purchases/purchaseFirestore'
+import { formatMoney } from '../../../../pages/admin/tabs/purchases/purchaseLocale'
 
 interface PurchaseFormProps {
-    isMobile?: boolean;
+    isMobile?: boolean
+    locale?: PurchaseLocale
 }
 
-export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
+type PurchaseType = 'ingredient' | 'supply'
+type SupplyCategory = 'packaging' | 'cleaning' | 'delivery' | 'office' | 'other'
+type PaymentStatus = 'paid' | 'unpaid'
+
+interface NewIngredientForm {
+    name: string
+    category: string
+    unit: Unit
+    minimumStock: string
+    displayOnBYOS: boolean
+}
+
+export default function PurchaseForm({
+    isMobile = false,
+    locale = 'fr-CA',
+}: PurchaseFormProps) {
     const { ingredients, updateIngredient, addIngredient } = useIngredients()
 
     const [formData, setFormData] = useState({
-        purchaseType: 'ingredient' as 'ingredient' | 'supply',
+        purchaseType: 'ingredient' as PurchaseType,
         ingredientId: '',
         supplyName: '',
-        supplyCategory: 'packaging' as 'packaging' | 'cleaning' | 'delivery' | 'office' | 'other',
+        supplyCategory: 'packaging' as SupplyCategory,
         quantity: '',
         unit: 'unit' as Unit,
         pricePerKg: '',
         totalCost: '',
         supplier: '',
+        supplierAddress: '',
         purchaseDate: new Date().toISOString().split('T')[0],
         deliveryDate: '',
         invoiceNumber: '',
-        notes: ''
+        paymentStatus: 'paid' as PaymentStatus,
+        paymentTerms: '',
+        paymentAccount: '',
+        attachmentUrl: '',
+        notes: '',
     })
 
     const [selectedIngredient, setSelectedIngredient] = useState<any>(null)
     const [showNewIngredientForm, setShowNewIngredientForm] = useState(false)
-    const [newIngredient, setNewIngredient] = useState({
+    const [newIngredient, setNewIngredient] = useState<NewIngredientForm>({
         name: '',
         category: 'seafood',
-        unit: 'kg' as Unit,
+        unit: 'kg',
         minimumStock: '0',
-        displayOnBYOS: false
+        displayOnBYOS: false,
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [quickMode, setQuickMode] = useState(true)
     const [showBYOSToggle, setShowBYOSToggle] = useState(false)
 
-    // Update selected ingredient when ingredientId changes
     useEffect(() => {
         if (formData.ingredientId && formData.purchaseType === 'ingredient') {
-            const ingredient = ingredients.find(ing => ing.id === formData.ingredientId)
+            const ingredient = ingredients.find((ing) => ing.id === formData.ingredientId)
             setSelectedIngredient(ingredient)
+
             if (ingredient) {
-                setFormData(prev => ({
+                setFormData((prev) => ({
                     ...prev,
                     pricePerKg: ingredient.pricePerKg?.toString() || '',
-                    unit: ingredient.unit || 'kg'
+                    unit: ingredient.unit || 'kg',
                 }))
             }
         } else {
@@ -58,11 +85,13 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
         }
     }, [formData.ingredientId, formData.purchaseType, ingredients])
 
-    // Calculate total cost for ingredients
-    const calculateIngredientTotalCost = (): number => {
+    function calculateIngredientTotalCost(): number {
         if (!formData.quantity || !formData.pricePerKg) return 0
+
         const quantity = parseFloat(formData.quantity)
         const pricePerKg = parseFloat(formData.pricePerKg)
+
+        if (!Number.isFinite(quantity) || !Number.isFinite(pricePerKg)) return 0
 
         let quantityInKg = quantity
         if (formData.unit === 'g') quantityInKg = quantity / 1000
@@ -72,17 +101,15 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
         return quantityInKg * pricePerKg
     }
 
-    // Get the final total cost based on purchase type
-    const getTotalCost = (): number => {
+    function getTotalCost(): number {
         if (formData.purchaseType === 'ingredient') {
             return calculateIngredientTotalCost()
-        } else {
-            return parseFloat(formData.totalCost) || 0
         }
+        return parseFloat(formData.totalCost) || 0
     }
 
-    const handleAddNewIngredient = async () => {
-        if (!newIngredient.name) {
+    async function handleAddNewIngredient() {
+        if (!newIngredient.name.trim()) {
             alert('Please enter ingredient name')
             return
         }
@@ -96,14 +123,14 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                 minimumStock: parseFloat(newIngredient.minimumStock) || 0,
                 currentStock: 0,
                 stockGrams: 0,
-                displayOnBYOS: newIngredient.displayOnBYOS
+                displayOnBYOS: newIngredient.displayOnBYOS,
             }
 
             const firebaseId = await addIngredient(ingredientData)
 
-            setFormData(prev => ({
+            setFormData((prev) => ({
                 ...prev,
-                ingredientId: firebaseId
+                ingredientId: firebaseId,
             }))
 
             setShowNewIngredientForm(false)
@@ -112,64 +139,67 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                 category: 'seafood',
                 unit: 'kg',
                 minimumStock: '0',
-                displayOnBYOS: false
+                displayOnBYOS: false,
             })
 
-            alert('Ingredient added! Now complete the purchase.')
+            alert('Ingredient added. Now complete the purchase.')
         } catch (error) {
             console.error('Error adding ingredient:', error)
             alert('Error adding ingredient. Please try again.')
         }
     }
 
-    const handleToggleBYOS = async () => {
+    async function handleToggleBYOS() {
         if (!selectedIngredient) return
 
         try {
             const newBYOSStatus = !selectedIngredient.displayOnBYOS
 
-            const ingredientUpdate = {
+            await updateDoc(doc(db, 'ingredients', selectedIngredient.id), {
                 displayOnBYOS: newBYOSStatus,
-                updatedAt: serverTimestamp()
-            }
+                updatedAt: serverTimestamp(),
+            })
 
-            await updateDoc(doc(db, 'ingredients', selectedIngredient.id), ingredientUpdate)
-
-            // Update local state
             updateIngredient(selectedIngredient.id, {
-                displayOnBYOS: newBYOSStatus
+                displayOnBYOS: newBYOSStatus,
             })
 
             setSelectedIngredient({
                 ...selectedIngredient,
-                displayOnBYOS: newBYOSStatus
+                displayOnBYOS: newBYOSStatus,
             })
 
-            alert(`Ingredient ${newBYOSStatus ? 'added to' : 'removed from'} Build Your Own Sushi!`)
+            alert(`Ingredient ${newBYOSStatus ? 'added to' : 'removed from'} Build Your Own Sushi`)
         } catch (error) {
             console.error('Error updating BYOS status:', error)
             alert('Error updating ingredient. Please try again.')
         }
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
 
-        // Type-specific validation
+        if (!formData.supplier.trim()) {
+            alert('Please enter supplier')
+            return
+        }
+
         if (formData.purchaseType === 'ingredient') {
             if (!formData.ingredientId || !formData.quantity || !formData.pricePerKg) {
-                alert('Please fill in all required fields: Ingredient, Quantity, and Price per Kg')
+                alert('Please fill Ingredient, Quantity and Price per Kg')
                 return
             }
+
             if (parseFloat(formData.quantity) <= 0 || parseFloat(formData.pricePerKg) <= 0) {
                 alert('Quantity and Price per Kg must be greater than 0')
                 return
             }
         } else {
-            if (!formData.supplyName || !formData.totalCost) {
-                alert('Please fill in Supply Name and Total Cost')
+            if (!formData.supplyName.trim() || !formData.totalCost) {
+                alert('Please fill Supply Name and Total Cost')
                 return
             }
+
             if (parseFloat(formData.totalCost) <= 0) {
                 alert('Total Cost must be greater than 0')
                 return
@@ -182,7 +212,6 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
             const totalCost = getTotalCost()
             const quantity = parseFloat(formData.quantity) || 1
 
-            // Calculate quantity in grams for ingredients
             let quantityGrams = quantity
             let quantityInKg = quantity
 
@@ -207,68 +236,82 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                         quantityInKg = quantity
                         break
                 }
-            } else {
-                quantityGrams = quantity
-                quantityInKg = quantity
             }
 
-            let ingredientName = ''
-            let ingredientId = ''
+            let itemName = ''
+            let itemCategory = ''
+            let itemUnitPrice = 0
 
             if (formData.purchaseType === 'ingredient') {
-                const selectedIngredient = ingredients.find(ing => ing.id === formData.ingredientId)
-                if (!selectedIngredient) {
+                const ingredient = ingredients.find((ing) => ing.id === formData.ingredientId)
+
+                if (!ingredient) {
                     throw new Error('Selected ingredient not found')
                 }
-                ingredientName = selectedIngredient.name
-                ingredientId = formData.ingredientId
 
-                // Update ingredient in Firebase
-                const newStock = (selectedIngredient.currentStock || 0) + quantityInKg
-                const newStockGrams = (selectedIngredient.stockGrams || 0) + quantityGrams
+                itemName = ingredient.name
+                itemCategory = ingredient.category || 'ingredient'
+                itemUnitPrice = parseFloat(formData.pricePerKg)
 
-                const ingredientUpdate = {
+                const newStock = (ingredient.currentStock || 0) + quantityInKg
+                const newStockGrams = (ingredient.stockGrams || 0) + quantityGrams
+
+                await updateDoc(doc(db, 'ingredients', ingredient.id), {
                     pricePerKg: parseFloat(formData.pricePerKg),
                     currentStock: newStock,
                     stockGrams: newStockGrams,
-                    updatedAt: serverTimestamp()
-                }
+                    updatedAt: serverTimestamp(),
+                })
 
-                await updateDoc(doc(db, 'ingredients', selectedIngredient.id), ingredientUpdate)
-
-                // Update local state
-                updateIngredient(selectedIngredient.id, {
+                updateIngredient(ingredient.id, {
                     pricePerKg: parseFloat(formData.pricePerKg),
                     currentStock: newStock,
-                    stockGrams: newStockGrams
+                    stockGrams: newStockGrams,
                 })
             } else {
-                ingredientName = formData.supplyName
-                ingredientId = `supply_${Date.now()}`
+                itemName = formData.supplyName.trim()
+                itemCategory = formData.supplyCategory
+                itemUnitPrice = totalCost / Math.max(quantity, 1)
             }
 
-            const purchaseData = {
-                purchaseType: formData.purchaseType,
-                ingredientId: ingredientId,
-                ingredientName: ingredientName,
-                supplyName: formData.purchaseType === 'supply' ? formData.supplyName : null,
-                supplyCategory: formData.purchaseType === 'supply' ? formData.supplyCategory : null,
-                quantity: quantity,
-                unit: formData.unit,
-                totalCost: totalCost,
-                pricePerKg: formData.purchaseType === 'ingredient' ? parseFloat(formData.pricePerKg) : 0,
-                supplier: formData.supplier.trim(),
+            const composedNotes = [
+                formData.notes.trim(),
+                formData.deliveryDate ? `Delivery date: ${formData.deliveryDate}` : '',
+                formData.purchaseType === 'ingredient'
+                    ? `Ingredient stock updated: +${quantityGrams}${formData.unit === 'kg' ? 'g' : formData.unit}`
+                    : '',
+            ]
+                .filter(Boolean)
+                .join(' | ')
+
+            const payload = normalizePurchasePayload({
+                source: 'app',
+                locale,
+                status: 'recorded',
                 purchaseDate: formData.purchaseDate,
-                deliveryDate: formData.deliveryDate || null,
-                invoiceNumber: formData.invoiceNumber?.trim() || null,
-                notes: formData.notes?.trim() || null,
-                quantityGrams: quantityGrams,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
-            }
+                supplierName: formData.supplier.trim(),
+                invoiceNumber: formData.invoiceNumber.trim() || null,
+                notes: composedNotes || null,
+                taxes: 0,
+                attachmentUrl: formData.attachmentUrl.trim() || null,
+                supplierAddress: formData.supplierAddress.trim() || null,
+                paymentStatus: formData.paymentStatus,
+                paymentTerms: formData.paymentTerms.trim() || null,
+                paymentAccount: formData.paymentAccount.trim() || null,
+                
+                items: [
+                    {
+                        name: itemName,
+                        category: itemCategory,
+                        quantity,
+                        unit: formData.unit,
+                        unitPrice: itemUnitPrice,
+                        lineTotal: totalCost,
+                    },
+                ],
+            })
 
-            const purchaseRef = await addDoc(collection(db, 'purchases'), purchaseData)
-            console.log('Purchase recorded with ID: ', purchaseRef.id)
+            await createPurchase(payload)
 
             setFormData({
                 purchaseType: formData.purchaseType,
@@ -280,17 +323,25 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                 pricePerKg: '',
                 totalCost: '',
                 supplier: formData.supplier,
+                supplierAddress: '',
                 purchaseDate: new Date().toISOString().split('T')[0],
                 deliveryDate: '',
                 invoiceNumber: '',
-                notes: ''
+                paymentStatus: 'paid',
+                paymentTerms: '',
+                paymentAccount: '',
+                attachmentUrl: '',
+                notes: '',
             })
 
             setShowBYOSToggle(false)
             setSelectedIngredient(null)
 
-            alert('Purchase recorded successfully!' + (formData.purchaseType === 'ingredient' ? ' Inventory updated.' : ''))
-
+            alert(
+                formData.purchaseType === 'ingredient'
+                    ? 'Purchase recorded successfully. Inventory updated.'
+                    : 'Purchase recorded successfully.'
+            )
         } catch (error) {
             console.error('Error recording purchase:', error)
             alert('Error recording purchase. Please try again.')
@@ -303,21 +354,21 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
 
     return (
         <div className={`space-y-${isMobile ? '4' : '6'}`}>
-            {/* Entry Mode Toggle */}
-            <div className={`bg-white border border-gray-200 rounded-sm ${isMobile ? 'p-3' : 'p-4'}`}>
+            <div className={`rounded-sm border border-gray-200 bg-white ${isMobile ? 'p-3' : 'p-4'}`}>
                 <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center justify-between'}`}>
                     <div>
-                        <h3 className={`font-light text-gray-900 tracking-wide ${isMobile ? 'text-sm' : ''}`}>
+                        <h3 className={`font-light tracking-wide text-gray-900 ${isMobile ? 'text-sm' : ''}`}>
                             ENTRY MODE
                         </h3>
-                        <p className={`text-gray-500 font-light ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                        <p className={`font-light text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                             {quickMode ? 'Quick supermarket mode' : 'Detailed invoice mode'}
                         </p>
                     </div>
+
                     <button
                         type="button"
-                        onClick={() => setQuickMode(!quickMode)}
-                        className={`px-4 py-2 bg-gray-900 text-white text-sm font-light tracking-wide rounded-sm hover:bg-gray-800 transition-colors ${isMobile ? 'w-full mt-1' : ''}`}
+                        onClick={() => setQuickMode((prev) => !prev)}
+                        className={`rounded-sm bg-gray-900 px-4 py-2 text-sm font-light tracking-wide text-white transition-colors hover:bg-gray-800 ${isMobile ? 'mt-1 w-full' : ''}`}
                     >
                         {quickMode ? 'SWITCH TO DETAILED' : 'SWITCH TO QUICK'}
                     </button>
@@ -325,100 +376,102 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
             </div>
 
             <form onSubmit={handleSubmit} className={`space-y-${isMobile ? '4' : '6'}`}>
-                {/* Purchase Type Selection */}
-                <div className={`bg-white border border-gray-200 rounded-sm ${isMobile ? 'p-4' : 'p-6'}`}>
-                    <h3 className={`font-light text-gray-900 tracking-wide mb-4 ${isMobile ? 'text-base' : 'text-lg'}`}>
+                <div className={`rounded-sm border border-gray-200 bg-white ${isMobile ? 'p-4' : 'p-6'}`}>
+                    <h3 className={`mb-4 font-light tracking-wide text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>
                         1. PURCHASE TYPE
                     </h3>
 
                     <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
                         <button
                             type="button"
-                            onClick={() => setFormData({
-                                ...formData,
-                                purchaseType: 'ingredient',
-                                unit: 'kg',
-                                supplyName: '',
-                                supplyCategory: 'packaging',
-                                totalCost: ''
-                            })}
-                            className={`p-4 border-2 rounded-sm text-left transition-all ${formData.purchaseType === 'ingredient'
-                                ? 'border-gray-900 bg-gray-50'
-                                : 'border-gray-200 hover:border-gray-300'
+                            onClick={() =>
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    purchaseType: 'ingredient',
+                                    unit: 'kg',
+                                    supplyName: '',
+                                    supplyCategory: 'packaging',
+                                    totalCost: '',
+                                }))
+                            }
+                            className={`rounded-sm border-2 p-4 text-left transition-all ${formData.purchaseType === 'ingredient'
+                                    ? 'border-gray-900 bg-gray-50'
+                                    : 'border-gray-200 hover:border-gray-300'
                                 }`}
                         >
-                            <div className="font-light text-gray-900 tracking-wide">🍣 FOOD INGREDIENT</div>
-                            <p className={`text-gray-500 font-light mt-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                            <div className="font-light tracking-wide text-gray-900">🍣 FOOD INGREDIENT</div>
+                            <p className={`mt-1 font-light text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                                 Raw materials, seafood, vegetables, spices
                             </p>
                         </button>
 
                         <button
                             type="button"
-                            onClick={() => setFormData({
-                                ...formData,
-                                purchaseType: 'supply',
-                                unit: 'unit',
-                                ingredientId: '',
-                                pricePerKg: '',
-                                quantity: '1'
-                            })}
-                            className={`p-4 border-2 rounded-sm text-left transition-all ${formData.purchaseType === 'supply'
-                                ? 'border-gray-900 bg-gray-50'
-                                : 'border-gray-200 hover:border-gray-300'
+                            onClick={() =>
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    purchaseType: 'supply',
+                                    unit: 'unit',
+                                    ingredientId: '',
+                                    pricePerKg: '',
+                                    quantity: '1',
+                                }))
+                            }
+                            className={`rounded-sm border-2 p-4 text-left transition-all ${formData.purchaseType === 'supply'
+                                    ? 'border-gray-900 bg-gray-50'
+                                    : 'border-gray-200 hover:border-gray-300'
                                 }`}
                         >
-                            <div className="font-light text-gray-900 tracking-wide">📦 SUPPLIES & EQUIPMENT</div>
-                            <p className={`text-gray-500 font-light mt-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                            <div className="font-light tracking-wide text-gray-900">📦 SUPPLIES & EQUIPMENT</div>
+                            <p className={`mt-1 font-light text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                                 Packaging, cleaning, delivery supplies, equipment
                             </p>
                         </button>
                     </div>
                 </div>
 
-                {/* Item Selection */}
-                <div className={`bg-white border border-gray-200 rounded-sm ${isMobile ? 'p-4' : 'p-6'}`}>
-                    <h3 className={`font-light text-gray-900 tracking-wide mb-4 ${isMobile ? 'text-base' : 'text-lg'}`}>
+                <div className={`rounded-sm border border-gray-200 bg-white ${isMobile ? 'p-4' : 'p-6'}`}>
+                    <h3 className={`mb-4 font-light tracking-wide text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>
                         2. {formData.purchaseType === 'ingredient' ? 'SELECT INGREDIENT' : 'SUPPLY DETAILS'}
                     </h3>
 
                     {formData.purchaseType === 'ingredient' ? (
-                        /* INGREDIENT SELECTION */
                         <div className="space-y-4">
                             <div className={`flex gap-4 ${isMobile ? 'flex-col' : 'items-end'}`}>
                                 <div className={isMobile ? '' : 'flex-1'}>
-                                    <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                    <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
                                         INGREDIENT *
                                     </label>
+
                                     <select
                                         value={formData.ingredientId}
                                         onChange={(e) => {
-                                            setFormData({ ...formData, ingredientId: e.target.value })
+                                            setFormData((prev) => ({ ...prev, ingredientId: e.target.value }))
                                             setShowBYOSToggle(!!e.target.value)
                                         }}
-                                        className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
+                                        className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
                                         required
                                         disabled={isSubmitting}
                                     >
                                         <option value="">Select Ingredient</option>
-                                        {ingredients.map(ingredient => (
+                                        {ingredients.map((ingredient) => (
                                             <option key={ingredient.id} value={ingredient.id}>
                                                 {ingredient.name}
-                                                {ingredient.currentStock > 0 &&
-                                                    ` (Stock: ${ingredient.currentStock.toFixed(2)}${ingredient.unit})`
-                                                }
-                                                {ingredient.displayOnBYOS && ' 🎯 BYOS'}
+                                                {ingredient.currentStock > 0
+                                                    ? ` (Stock: ${ingredient.currentStock.toFixed(2)}${ingredient.unit})`
+                                                    : ''}
+                                                {ingredient.displayOnBYOS ? ' 🎯 BYOS' : ''}
                                             </option>
                                         ))}
                                     </select>
                                 </div>
 
-                                {!isMobile && <div className="text-gray-500 font-light">or</div>}
+                                {!isMobile && <div className="font-light text-gray-500">or</div>}
 
                                 <button
                                     type="button"
-                                    onClick={() => setShowNewIngredientForm(!showNewIngredientForm)}
-                                    className={`px-4 py-3 bg-gray-900 text-white text-sm font-light tracking-wide rounded-sm hover:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-900 ${isMobile ? 'w-full' : ''}`}
+                                    onClick={() => setShowNewIngredientForm((prev) => !prev)}
+                                    className={`rounded-sm bg-gray-900 px-4 py-3 text-sm font-light tracking-wide text-white hover:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-900 ${isMobile ? 'w-full' : ''}`}
                                     disabled={isSubmitting}
                                 >
                                     {showNewIngredientForm ? 'CANCEL' : 'NEW INGREDIENT'}
@@ -426,28 +479,28 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                             </div>
 
                             {isMobile && showNewIngredientForm && (
-                                <div className="text-center text-gray-500 font-light text-sm">or</div>
+                                <div className="text-center text-sm font-light text-gray-500">or</div>
                             )}
 
-                            {/* BYOS Toggle */}
                             {showBYOSToggle && selectedIngredient && (
-                                <div className={`p-4 bg-amber-50 border border-amber-200 rounded-sm ${isMobile ? 'mt-3' : ''}`}>
+                                <div className={`rounded-sm border border-amber-200 bg-amber-50 p-4 ${isMobile ? 'mt-3' : ''}`}>
                                     <div className={`${isMobile ? 'flex-col gap-3' : 'flex items-center justify-between'}`}>
                                         <div>
-                                            <h4 className="font-medium text-amber-900 text-sm">
+                                            <h4 className="text-sm font-medium text-amber-900">
                                                 🎯 Build Your Own Sushi Setting
                                             </h4>
-                                            <p className={`text-amber-700 ${isMobile ? 'text-xs mt-1' : 'text-xs mt-1'}`}>
+                                            <p className="mt-1 text-xs text-amber-700">
                                                 This ingredient is {selectedIngredient.displayOnBYOS ? 'currently available' : 'not available'} in the Build Your Own Sushi section
                                             </p>
                                         </div>
+
                                         <button
                                             type="button"
                                             onClick={handleToggleBYOS}
-                                            className={`font-medium rounded-sm transition-colors ${selectedIngredient.displayOnBYOS
-                                                ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                                : 'bg-amber-500 text-white hover:bg-amber-600'
-                                                } ${isMobile ? 'w-full mt-3 px-4 py-2 text-sm' : 'px-4 py-2 text-sm'}`}
+                                            className={`rounded-sm font-medium transition-colors ${selectedIngredient.displayOnBYOS
+                                                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                    : 'bg-amber-500 text-white hover:bg-amber-600'
+                                                } ${isMobile ? 'mt-3 w-full px-4 py-2 text-sm' : 'px-4 py-2 text-sm'}`}
                                         >
                                             {selectedIngredient.displayOnBYOS ? 'Remove from BYOS' : 'Add to BYOS'}
                                         </button>
@@ -456,17 +509,16 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                             )}
                         </div>
                     ) : (
-                        /* SUPPLY DETAILS */
                         <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                             <div>
-                                <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
                                     SUPPLY NAME *
                                 </label>
                                 <input
                                     type="text"
                                     value={formData.supplyName}
-                                    onChange={(e) => setFormData({ ...formData, supplyName: e.target.value })}
-                                    className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, supplyName: e.target.value }))}
+                                    className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
                                     placeholder="e.g., Aluminum Trays, Delivery Bags, Cleaning Supplies"
                                     required
                                     disabled={isSubmitting}
@@ -474,13 +526,18 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                             </div>
 
                             <div>
-                                <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
                                     CATEGORY
                                 </label>
                                 <select
                                     value={formData.supplyCategory}
-                                    onChange={(e) => setFormData({ ...formData, supplyCategory: e.target.value as any })}
-                                    className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
+                                    onChange={(e) =>
+                                        setFormData((prev) => ({
+                                            ...prev,
+                                            supplyCategory: e.target.value as SupplyCategory,
+                                        }))
+                                    }
+                                    className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
                                     disabled={isSubmitting}
                                 >
                                     <option value="packaging">Packaging</option>
@@ -493,33 +550,34 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                         </div>
                     )}
 
-                    {/* New Ingredient Form */}
                     {showNewIngredientForm && formData.purchaseType === 'ingredient' && (
-                        <div className={`mt-4 p-4 bg-gray-50 rounded-sm border ${isMobile ? 'mt-3' : ''}`}>
-                            <h4 className={`font-light text-gray-900 tracking-wide mb-3 ${isMobile ? 'text-sm' : ''}`}>
+                        <div className={`mt-4 rounded-sm border bg-gray-50 p-4 ${isMobile ? 'mt-3' : ''}`}>
+                            <h4 className={`mb-3 font-light tracking-wide text-gray-900 ${isMobile ? 'text-sm' : ''}`}>
                                 ADD NEW INGREDIENT
                             </h4>
+
                             <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                                 <div>
-                                    <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                    <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
                                         NAME *
                                     </label>
                                     <input
                                         type="text"
                                         value={newIngredient.name}
-                                        onChange={(e) => setNewIngredient({ ...newIngredient, name: e.target.value })}
-                                        className="w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light"
+                                        onChange={(e) => setNewIngredient((prev) => ({ ...prev, name: e.target.value }))}
+                                        className="w-full rounded-sm border border-gray-300 px-3 py-2 font-light focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
                                         placeholder="e.g., Fresh Tuna, Salmon Fillet"
                                     />
                                 </div>
+
                                 <div>
-                                    <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                    <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
                                         CATEGORY
                                     </label>
                                     <select
                                         value={newIngredient.category}
-                                        onChange={(e) => setNewIngredient({ ...newIngredient, category: e.target.value })}
-                                        className="w-full border border-gray-300 rounded-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light"
+                                        onChange={(e) => setNewIngredient((prev) => ({ ...prev, category: e.target.value }))}
+                                        className="w-full rounded-sm border border-gray-300 px-3 py-2 font-light focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
                                     >
                                         <option value="seafood">Seafood</option>
                                         <option value="vegetables">Vegetables</option>
@@ -530,35 +588,39 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                                         <option value="other">Other</option>
                                     </select>
                                 </div>
+
                                 <div className={isMobile ? '' : 'md:col-span-2'}>
-                                    <div className="flex items-center gap-3 p-3 bg-white border border-gray-300 rounded-sm">
+                                    <div className="flex items-center gap-3 rounded-sm border border-gray-300 bg-white p-3">
                                         <input
                                             type="checkbox"
                                             id="displayOnBYOS"
                                             checked={newIngredient.displayOnBYOS}
-                                            onChange={(e) => setNewIngredient({
-                                                ...newIngredient,
-                                                displayOnBYOS: e.target.checked
-                                            })}
-                                            className="w-4 h-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                                            onChange={(e) =>
+                                                setNewIngredient((prev) => ({
+                                                    ...prev,
+                                                    displayOnBYOS: e.target.checked,
+                                                }))
+                                            }
+                                            className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
                                         />
+
                                         <label htmlFor="displayOnBYOS" className="flex-1">
-                                            <div className="font-medium text-gray-900 text-sm">
+                                            <div className="text-sm font-medium text-gray-900">
                                                 🎯 Show in Build Your Own Sushi
                                             </div>
-                                            <p className={`text-gray-600 mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}>
-                                                When checked, this ingredient will appear in the "Build Your Own Sushi" section
-                                                where customers can select it for custom sushi creations.
+                                            <p className={`mt-1 text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                                                When checked, this ingredient will appear in the Build Your Own Sushi section.
                                             </p>
                                         </label>
                                     </div>
                                 </div>
                             </div>
+
                             <div className={`mt-4 flex gap-4 ${isMobile ? 'flex-col' : ''}`}>
                                 <button
                                     type="button"
                                     onClick={handleAddNewIngredient}
-                                    className={`px-4 py-2 bg-gray-900 text-white text-sm font-light tracking-wide rounded-sm hover:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-900 ${isMobile ? 'w-full' : ''}`}
+                                    className={`rounded-sm bg-gray-900 px-4 py-2 text-sm font-light tracking-wide text-white hover:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-900 ${isMobile ? 'w-full' : ''}`}
                                 >
                                     ADD INGREDIENT
                                 </button>
@@ -567,22 +629,21 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                     )}
                 </div>
 
-                {/* Purchase Details */}
-                <div className={`bg-white border border-gray-200 rounded-sm ${isMobile ? 'p-4' : 'p-6'}`}>
-                    <h3 className={`font-light text-gray-900 tracking-wide mb-4 ${isMobile ? 'text-base' : 'text-lg'}`}>
+                <div className={`rounded-sm border border-gray-200 bg-white ${isMobile ? 'p-4' : 'p-6'}`}>
+                    <h3 className={`mb-4 font-light tracking-wide text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>
                         3. PURCHASE DETAILS
                     </h3>
 
                     <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                         <div>
-                            <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                            <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
                                 SUPPLIER *
                             </label>
                             <input
                                 type="text"
                                 value={formData.supplier}
-                                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                                className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
+                                onChange={(e) => setFormData((prev) => ({ ...prev, supplier: e.target.value }))}
+                                className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
                                 placeholder="Supplier name"
                                 required
                                 disabled={isSubmitting}
@@ -590,47 +651,88 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                         </div>
 
                         <div>
-                            <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
-                                PURCHASE DATE *
+                            <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                SUPPLIER ADDRESS
                             </label>
                             <input
-                                type="date"
-                                value={formData.purchaseDate}
-                                onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                                className="w-full border border-gray-300 rounded-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide appearance-none"
-                                style={isMobile ? {
-                                    padding: '0.75rem 0.75rem',
-                                    fontSize: '0.875rem',
-                                    lineHeight: '1.25rem'
-                                } : {}}
-                                required
+                                type="text"
+                                value={formData.supplierAddress}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, supplierAddress: e.target.value }))}
+                                className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                placeholder="Optional"
                                 disabled={isSubmitting}
                             />
                         </div>
                     </div>
 
-                    <div className={`grid gap-6 mt-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
-                        {/* Quantity and Unit */}
+                    <div className={`mt-6 grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                         <div>
-                            <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                            <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                PURCHASE DATE *
+                            </label>
+                            <input
+                                type="date"
+                                value={formData.purchaseDate}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, purchaseDate: e.target.value }))}
+                                className="w-full appearance-none rounded-sm border border-gray-300 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                style={
+                                    isMobile
+                                        ? {
+                                            padding: '0.75rem 0.75rem',
+                                            fontSize: '0.875rem',
+                                            lineHeight: '1.25rem',
+                                        }
+                                        : undefined
+                                }
+                                required
+                                disabled={isSubmitting}
+                            />
+                        </div>
+
+                        <div>
+                            <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                PAYMENT STATUS
+                            </label>
+                            <select
+                                value={formData.paymentStatus}
+                                onChange={(e) =>
+                                    setFormData((prev) => ({
+                                        ...prev,
+                                        paymentStatus: e.target.value as PaymentStatus,
+                                    }))
+                                }
+                                className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                disabled={isSubmitting}
+                            >
+                                <option value="paid">Paid</option>
+                                <option value="unpaid">Unpaid</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className={`mt-6 grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
+                        <div>
+                            <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
                                 QUANTITY {formData.purchaseType === 'ingredient' ? '*' : ''}
                             </label>
+
                             <div className="flex gap-2">
                                 <input
                                     type="number"
                                     step="0.01"
                                     min="0"
                                     value={formData.quantity}
-                                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                                    className="flex-1 min-w-0 border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
-                                    placeholder={formData.purchaseType === 'ingredient' ? "0.00" : "1"}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, quantity: e.target.value }))}
+                                    className="min-w-0 flex-1 rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                    placeholder={formData.purchaseType === 'ingredient' ? '0.00' : '1'}
                                     required={formData.purchaseType === 'ingredient'}
                                     disabled={isSubmitting}
                                 />
+
                                 <select
                                     value={formData.unit}
-                                    onChange={(e) => setFormData({ ...formData, unit: e.target.value as Unit })}
-                                    className={`border border-gray-300 rounded-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light ${isMobile ? 'px-2 py-3 w-auto text-sm' : 'px-3 py-3 w-24'}`}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, unit: e.target.value as Unit }))}
+                                    className={`rounded-sm border border-gray-300 font-light focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 ${isMobile ? 'w-auto px-2 py-3 text-sm' : 'w-24 px-3 py-3'}`}
                                     disabled={isSubmitting}
                                 >
                                     <option value="unit">unit</option>
@@ -642,10 +744,9 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                             </div>
                         </div>
 
-                        {/* Price Input */}
                         {formData.purchaseType === 'ingredient' ? (
                             <div>
-                                <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
                                     PRICE PER KG *
                                 </label>
                                 <input
@@ -653,8 +754,8 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                                     step="0.01"
                                     min="0"
                                     value={formData.pricePerKg}
-                                    onChange={(e) => setFormData({ ...formData, pricePerKg: e.target.value })}
-                                    className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, pricePerKg: e.target.value }))}
+                                    className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
                                     placeholder="0.00"
                                     required
                                     disabled={isSubmitting}
@@ -662,7 +763,7 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                             </div>
                         ) : (
                             <div>
-                                <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
                                     TOTAL COST *
                                 </label>
                                 <input
@@ -670,8 +771,8 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                                     step="0.01"
                                     min="0"
                                     value={formData.totalCost}
-                                    onChange={(e) => setFormData({ ...formData, totalCost: e.target.value })}
-                                    className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, totalCost: e.target.value }))}
+                                    className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
                                     placeholder="0.00"
                                     required
                                     disabled={isSubmitting}
@@ -680,92 +781,132 @@ export default function PurchaseForm({ isMobile = false }: PurchaseFormProps) {
                         )}
 
                         <div>
-                            <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                            <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
                                 FINAL TOTAL
                             </label>
-                            <div className="w-full border border-gray-300 rounded-sm px-3 py-3 bg-gray-50">
+                            <div className="w-full rounded-sm border border-gray-300 bg-gray-50 px-3 py-3">
                                 <span className={`font-light text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>
-                                    ${totalCost.toFixed(2)}
+                                    {formatMoney(totalCost, locale)}
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Detailed Fields */}
                     {!quickMode && (
-                        <div className={`grid gap-6 mt-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
-                            <div>
-                                <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
-                                    DELIVERY DATE
+                        <>
+                            <div className={`mt-6 grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+                                <div>
+                                    <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                        DELIVERY DATE
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={formData.deliveryDate}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, deliveryDate: e.target.value }))}
+                                        className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                        disabled={isSubmitting}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                        INVOICE NUMBER
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.invoiceNumber}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, invoiceNumber: e.target.value }))}
+                                        className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                        placeholder="Optional"
+                                        disabled={isSubmitting}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className={`mt-6 grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+                                <div>
+                                    <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                        PAYMENT TERMS
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.paymentTerms}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, paymentTerms: e.target.value }))}
+                                        className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                        placeholder="Optional"
+                                        disabled={isSubmitting}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                        PAYMENT ACCOUNT
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.paymentAccount}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, paymentAccount: e.target.value }))}
+                                        className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                        placeholder="Card, Scotia, Cash, etc."
+                                        disabled={isSubmitting}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mt-6">
+                                <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                    ATTACHMENT URL
                                 </label>
                                 <input
-                                    type="date"
-                                    value={formData.deliveryDate}
-                                    onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
-                                    className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
+                                    type="url"
+                                    value={formData.attachmentUrl}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, attachmentUrl: e.target.value }))}
+                                    className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                    placeholder="https://..."
                                     disabled={isSubmitting}
                                 />
                             </div>
 
-                            <div>
-                                <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
-                                    INVOICE NUMBER
+                            <div className="mt-6">
+                                <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                    NOTES
                                 </label>
-                                <input
-                                    type="text"
-                                    value={formData.invoiceNumber}
-                                    onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
-                                    className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
-                                    placeholder="Optional"
+                                <textarea
+                                    value={formData.notes}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                                    className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                    rows={isMobile ? 2 : 3}
+                                    placeholder="Quality notes, special instructions, etc."
                                     disabled={isSubmitting}
                                 />
                             </div>
-                        </div>
-                    )}
-
-                    {/* Notes */}
-                    {!quickMode && (
-                        <div className="mt-6">
-                            <label className={`block text-gray-700 mb-2 tracking-wide ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
-                                NOTES
-                            </label>
-                            <textarea
-                                value={formData.notes}
-                                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                                className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light"
-                                rows={isMobile ? 2 : 3}
-                                placeholder="Quality notes, special instructions, etc."
-                                disabled={isSubmitting}
-                            />
-                        </div>
+                        </>
                     )}
                 </div>
 
-                {/* Submit Button */}
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className={`w-full bg-gray-900 text-white rounded-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 font-light tracking-wide disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors ${isMobile ? 'py-3 text-sm' : 'py-4 text-base'}`}
+                    className={`w-full rounded-sm bg-gray-900 text-white transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-400 ${isMobile ? 'py-3 text-sm' : 'py-4 text-base'} font-light tracking-wide`}
                 >
                     {isSubmitting ? 'RECORDING PURCHASE...' : 'RECORD PURCHASE'}
                 </button>
             </form>
 
-            {/* Quick Tips */}
-            <div className="bg-blue-50 border border-blue-200 rounded-sm p-4">
+            <div className="rounded-sm border border-blue-200 bg-blue-50 p-4">
                 <div className="flex items-start gap-3">
-                    <svg className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
+
                     <div>
-                        <h4 className="font-light text-blue-900 tracking-wide text-sm">
+                        <h4 className="text-sm font-light tracking-wide text-blue-900">
                             {formData.purchaseType === 'ingredient' ? 'FOOD INGREDIENTS' : 'SUPPLIES & EQUIPMENT'}
                         </h4>
-                        <p className={`text-blue-700 font-light mt-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                        <p className={`mt-1 font-light text-blue-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                             {formData.purchaseType === 'ingredient'
-                                ? 'Food ingredients will update your inventory stock automatically. Ingredients marked with 🎯 BYOS will appear in the "Build Your Own Sushi" section for customers to select.'
-                                : 'Supplies and equipment purchases are recorded as expenses and don\'t affect inventory. Perfect for packaging, delivery supplies, and equipment.'
-                            }
+                                ? 'Food ingredients will update your inventory automatically and will also be recorded in the shared purchases collection.'
+                                : 'Supplies and equipment are recorded in the same purchases collection, so app entries and n8n POST entries will appear together.'}
                         </p>
                     </div>
                 </div>

@@ -1,7 +1,6 @@
 import { memo, useMemo, useRef, useCallback, useState } from "react";
 import type { ChangeEvent } from "react";
 
-
 type DeliveryMethod = "pickup" | "delivery";
 
 export interface CustomerFormData {
@@ -14,6 +13,8 @@ export interface CustomerFormData {
   area: string;
   zipCode: string;
   deliveryInstructions: string;
+  pickupTime: string;
+  orderNotes: string;
 }
 
 interface Props {
@@ -43,6 +44,15 @@ const SHERBROOKE_AREAS = [
   "Lennoxville",
 ].sort();
 
+const PICKUP_TIME_OPTIONS = [
+  { value: "asap", labelKey: "checkout.pickup.asap", defaultLabel: "As soon as possible" },
+  { value: "15", labelKey: "checkout.pickup.in15", defaultLabel: "In about 15 minutes" },
+  { value: "30", labelKey: "checkout.pickup.in30", defaultLabel: "In about 30 minutes" },
+  { value: "45", labelKey: "checkout.pickup.in45", defaultLabel: "In about 45 minutes" },
+  { value: "60", labelKey: "checkout.pickup.in60", defaultLabel: "In about 1 hour" },
+  { value: "custom", labelKey: "checkout.pickup.custom", defaultLabel: "I will write a pickup time in the notes" },
+];
+
 const CustomerInformationComponent = ({
   formData,
   onInputChange,
@@ -59,6 +69,7 @@ const CustomerInformationComponent = ({
   // Memoized lists
   const cityOptions = useMemo(() => CITIES, []);
   const sherbrookeAreas = useMemo(() => SHERBROOKE_AREAS, []);
+  const pickupTimeOptions = useMemo(() => PICKUP_TIME_OPTIONS, []);
 
   // Form fields
   const formFields = useMemo(
@@ -80,19 +91,26 @@ const CustomerInformationComponent = ({
     () =>
       (["pickup", "delivery"] as DeliveryMethod[]).map((method) => {
         const active = formData.deliveryMethod === method;
+        const isDelivery = method === "delivery";
+
         return {
           method,
           active,
-          label: method === "pickup" ? "Pickup" : "Delivery",
+          disabled: isDelivery,
+          label: isDelivery
+            ? t("checkout.delivery.deliveryLargeOrdersOnly", "Delivery (large orders only)")
+            : t("checkout.delivery.pickup", "Pickup"),
           className: [
             "px-6 py-3 text-sm border rounded-xl transition-all duration-300 font-light tracking-wide",
-            active
-              ? "border-[#E62B2B] bg-[#E62B2B] text-white shadow-lg shadow-[#E62B2B]/30"
-              : "border-white/15 bg-white/5 text-white/80 hover:border-[#E62B2B]/40 hover:bg-white/10",
+            isDelivery
+              ? "border-white/10 bg-white/5 text-white/30 cursor-not-allowed"
+              : active
+                ? "border-[#E62B2B] bg-[#E62B2B] text-white shadow-lg shadow-[#E62B2B]/30"
+                : "border-white/15 bg-white/5 text-white/80 hover:border-[#E62B2B]/40 hover:bg-white/10",
           ].join(" "),
         };
       }),
-    [formData.deliveryMethod]
+    [formData.deliveryMethod, t]
   );
 
   // Delivery method handler
@@ -104,19 +122,80 @@ const CustomerInformationComponent = ({
           value: method,
         },
       } as ChangeEvent<HTMLSelectElement>;
+
       onInputChange(syntheticEvent);
     },
     [onInputChange]
   );
 
+  // Pickup section
+  const pickupSection = useMemo(
+    () => (
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 bg-white/5 rounded-2xl border border-white/10">
+        <div>
+          <label className="block text-sm text-white/70 mb-2 font-light tracking-wide">
+            {t("checkout.pickup.pickupTime", "Pickup time")}
+          </label>
+
+          <select
+            name="pickupTime"
+            value={formData.pickupTime || "asap"}
+            onChange={onInputChange}
+            className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-white font-light focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300"
+          >
+            {pickupTimeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(option.labelKey, option.defaultLabel)}
+              </option>
+            ))}
+          </select>
+
+          {errors.pickupTime && (
+            <p className="mt-2 text-xs text-[#E62B2B] font-light">
+              {errors.pickupTime}
+            </p>
+          )}
+        </div>
+
+        <div className="lg:col-span-2">
+          <label className="block text-sm text-white/70 mb-2 font-light tracking-wide">
+            {t("checkout.pickup.orderNotes", "Order notes")}
+          </label>
+
+          <textarea
+            name="orderNotes"
+            value={formData.orderNotes || ""}
+            onChange={onInputChange}
+            placeholder={t(
+              "checkout.pickup.orderNotesPlaceholder",
+              "Example: I will pick it up at 6:30 PM, no sesame, extra soy sauce..."
+            )}
+            className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-white placeholder-white/30 min-h-[90px] resize-y font-light focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300"
+          />
+
+          {errors.orderNotes && (
+            <p className="mt-2 text-xs text-[#E62B2B] font-light">
+              {errors.orderNotes}
+            </p>
+          )}
+        </div>
+
+        <div className="lg:col-span-2 text-sm text-white/60 font-light bg-black/10 rounded-xl p-4 border border-white/10">
+          📍{" "}
+          {t(
+            "checkout.pickup.pickupMessage",
+            "Pickup at our Sherbrooke location. We will prepare your order based on your selected time and contact you if needed."
+          )}
+        </div>
+      </div>
+    ),
+    [formData.pickupTime, formData.orderNotes, onInputChange, errors.pickupTime, errors.orderNotes, t, pickupTimeOptions]
+  );
+
   // Address section
   const addressSection = useMemo(() => {
     if (!needsAddress) {
-      return (
-        <div className="mt-6 text-sm text-white/60 font-light bg-white/5 rounded-xl p-4 border border-white/10">
-          📍 Pickup in Sherbrooke — we'll message you when it's ready.
-        </div>
-      );
+      return pickupSection;
     }
 
     return (
@@ -168,7 +247,7 @@ const CustomerInformationComponent = ({
         {/* Area */}
         <div>
           <label className="block text-sm text-white/70 mb-2 font-light tracking-wide">
-            Area (Cartier)
+            {t("common.area", "Area")}
           </label>
           <select
             name="area"
@@ -182,7 +261,7 @@ const CustomerInformationComponent = ({
                 : "border-white/5 opacity-60 cursor-not-allowed",
             ].join(" ")}
           >
-            <option value="">{showArea ? "Select area" : "—"}</option>
+            <option value="">{showArea ? t("common.selectArea", "Select area") : "—"}</option>
             {showArea &&
               sherbrookeAreas.map((a) => (
                 <option key={a} value={a}>
@@ -233,7 +312,17 @@ const CustomerInformationComponent = ({
         </div>
       </div>
     );
-  }, [needsAddress, formData, onInputChange, errors, t, showArea, cityOptions, sherbrookeAreas]);
+  }, [
+    needsAddress,
+    pickupSection,
+    formData,
+    onInputChange,
+    errors,
+    t,
+    showArea,
+    cityOptions,
+    sherbrookeAreas,
+  ]);
 
   // Personal Info
   const personalInfoSection = useMemo(
@@ -245,7 +334,7 @@ const CustomerInformationComponent = ({
               {t(labelKey, def)}
               {clientProfile && name === "email" && (
                 <span className="ml-2 text-xs text-emerald-400 font-light">
-                  (from your profile)
+                  {t("customerInformation.fromProfile", "(from your profile)")}
                 </span>
               )}
             </label>
@@ -269,7 +358,7 @@ const CustomerInformationComponent = ({
     [formFields, formData, onInputChange, errors, t, clientProfile]
   );
 
-  // Delivery Method Section
+  // Delivery method section
   const deliveryMethodSection = useMemo(
     () => (
       <div className="mb-8">
@@ -278,17 +367,28 @@ const CustomerInformationComponent = ({
         </p>
 
         <div className="flex flex-wrap gap-3">
-          {deliveryMethodButtons.map(({ method, label, className }) => (
+          {deliveryMethodButtons.map(({ method, label, className, disabled }) => (
             <button
               key={method}
               type="button"
-              onClick={() => handleDeliveryMethodChange(method)}
+              disabled={disabled}
+              onClick={() => {
+                if (disabled) return;
+                handleDeliveryMethodChange(method);
+              }}
               className={className}
             >
               {label}
             </button>
           ))}
         </div>
+
+        <p className="mt-4 text-xs text-white/50 font-light">
+          {t(
+            "checkout.delivery.largeOrdersMessage",
+            "Delivery is currently limited. Please contact us for large orders."
+          )}
+        </p>
 
         {errors.deliveryMethod && (
           <p className="mt-3 text-xs text-[#E62B2B] font-light">
@@ -298,12 +398,18 @@ const CustomerInformationComponent = ({
 
         {formData.deliveryMethod === "pickup" && (
           <p className="mt-4 text-sm text-white/60 font-light">
-            ✅ {t("common.free", "Free")} pickup at our Sherbrooke location.
+            ✅ {t("checkout.pickup.freePickup", "Free pickup at our Sherbrooke location.")}
           </p>
         )}
       </div>
     ),
-    [deliveryMethodButtons, handleDeliveryMethodChange, errors.deliveryMethod, formData.deliveryMethod, t]
+    [
+      deliveryMethodButtons,
+      handleDeliveryMethodChange,
+      errors.deliveryMethod,
+      formData.deliveryMethod,
+      t,
+    ]
   );
 
   return (
@@ -314,7 +420,7 @@ const CustomerInformationComponent = ({
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
             <p className="text-emerald-400 text-sm font-light">
-              Signed in as {clientProfile.full_name}
+              {t("customerInformation.signedInAs", "Signed in as")} {clientProfile.full_name}
             </p>
           </div>
         </div>
@@ -333,10 +439,13 @@ const arePropsEqual = (prevProps: Props, nextProps: Props) => {
     const k = key as keyof CustomerFormData;
     return prevProps.formData[k] !== nextProps.formData[k];
   });
+
   const errorsChanged =
     JSON.stringify(prevProps.errors) !== JSON.stringify(nextProps.errors);
+
   const tChanged = prevProps.t !== nextProps.t;
   const onInputChangeChanged = prevProps.onInputChange !== nextProps.onInputChange;
+
   return !formDataChanged && !errorsChanged && !tChanged && !onInputChangeChanged;
 };
 

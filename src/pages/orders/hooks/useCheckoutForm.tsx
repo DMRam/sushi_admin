@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 import type { CustomerFormData } from "../CustomerInformation";
 
 export const useCheckoutForm = (initialData?: Partial<CustomerFormData>) => {
-  
   const [formData, setFormData] = useState<CustomerFormData>({
     firstName: initialData?.firstName || "",
     email: initialData?.email || "",
@@ -13,10 +12,12 @@ export const useCheckoutForm = (initialData?: Partial<CustomerFormData>) => {
     deliveryMethod: initialData?.deliveryMethod || "pickup",
     area: initialData?.area || "",
     deliveryInstructions: initialData?.deliveryInstructions || "",
+    pickupTime: initialData?.pickupTime || "asap",
+    orderNotes: initialData?.orderNotes || "",
   });
 
   const updateFormData = useCallback((updates: Partial<CustomerFormData>) => {
-    setFormData(prev => ({ ...prev, ...updates }));
+    setFormData((prev) => ({ ...prev, ...updates }));
   }, []);
 
   const resetForm = useCallback(() => {
@@ -30,6 +31,8 @@ export const useCheckoutForm = (initialData?: Partial<CustomerFormData>) => {
       deliveryMethod: "pickup",
       area: "",
       deliveryInstructions: "",
+      pickupTime: "asap",
+      orderNotes: "",
     });
   }, []);
 

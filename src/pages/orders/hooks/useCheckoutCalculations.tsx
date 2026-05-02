@@ -85,6 +85,7 @@ export const useDeliveryInfo = (formData: CustomerFormData, subtotal: number) =>
       const fee = subtotal > 25 ? 0 : 4.99;
       return { allowed: true, reason: "", fee, freeThreshold: 25 };
     }
+    
     if (formData.city === "Magog") {
       if (subtotal < 100) {
         return { allowed: false, reason: "Delivery to Magog requires a $100 minimum order.", fee: 0, freeThreshold: 150 };
