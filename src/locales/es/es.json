@@ -139,7 +139,22 @@
     "requiredFields": "Por favor complete los siguientes campos obligatorios:",
     "validEmail": "Por favor ingrese una dirección de email válida",
     "validPhone": "Por favor ingrese un número de teléfono válido",
-    "backToInfo": "Volver"
+    "backToInfo": "Volver",
+    "pickupPromoTitle": "Oferta online para retiro",
+    "pickupPromoDescription": "Usa MAISUSHI10 para obtener 10% de descuento en pedidos pickup sobre $25.",
+    "discountCode": "Código promo",
+    "remove": "Quitar",
+    "apply": "Aplicar",
+    "originalSubtotal": "Subtotal original",
+    "discount": "Descuento",
+    "discountedSubtotal": "Subtotal con descuento",
+    "webPickupDeal": "Oferta online para pickup",
+    "webPickupDealDescription": "Usa el código MAISUSHI10 y obtén 10% de descuento en pedidos pickup sobre $25.",
+    "closedNow": "Actualmente estamos cerrados.",
+    "ordersPreparedAt": "Los pedidos se prepararán a las {{time}}",
+    "placeOrder": "Realizar pedido",
+    "scheduleOrder": "Programar pedido"
+  
   },
   "nav": {
     "salesTracking": "Seguimiento de Ventas",
@@ -261,8 +276,9 @@
     "emailAddressDisplay": "contact@maisushi.ca",
     "addressLine1": "1975 King Ouest,",
     "addressLine2": "Sherbrooke, QC J1J 2E6",
-    "hoursTuesdayWednesday": "Mar-Jeu: 11:00 AM - 8:00 PM",
-    "hoursThursdaySaturday": "Vie-Sáb: 12:00 PM - 9:00 PM",
+    "hoursTuesdayWednesday": "Mar-Mie: 12:00 PM - 8:00 PM",
+    "hoursThursday": "Jue: 12:00 PM - 9:00 PM",
+    "hoursThursdaySaturday": "Vie-Sáb: 12:00 PM - 10:00 PM",
     "hoursSunday": "Dom: Cerrado",
     "hoursMonday": "Lun: Cerrado",
     "email_placeholder": "tu.email@ejemplo.com"
@@ -424,7 +440,7 @@
   "privacy": {
     "title": "Política de Privacidad",
     "lastUpdated": "Última actualización",
-    "intro": "En MaiSushi, operado por Pacifique Resto Inc. y desarrollado por SherDev, cumplimos con la Ley 25 de Quebec y la normativa PIPEDA de Canadá.",
+    "intro": "En MaiSushi, operado por Pacifique Resto Inc. y desarrollado por Ulogic IT, cumplimos con la Ley 25 de Quebec y la normativa PIPEDA de Canadá.",
     "section1": {
       "title": "1. Información que recopilamos",
       "name": "Nombre y apellido",
@@ -505,7 +521,7 @@
     },
     "section4": {
       "title": "4. Propiedad intelectual",
-      "content": "Todo el contenido pertenece a Pacifique Resto Inc. y SherDev."
+      "content": "Todo el contenido pertenece a Pacifique Resto Inc. y Ulogic IT."
     },
     "section5": {
       "title": "5. Responsabilidad",

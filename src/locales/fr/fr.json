@@ -139,7 +139,22 @@
     "requiredFields": "Veuillez remplir les champs obligatoires suivants :",
     "validEmail": "Veuillez entrer une adresse email valide",
     "validPhone": "Veuillez entrer un numéro de téléphone valide",
-    "backToInfo": "Rentre"
+    "backToInfo": "Rentre",
+    "pickupPromoTitle": "Offre en ligne pour cueillette",
+    "pickupPromoDescription": "Utilisez MAISUSHI10 pour obtenir 10 % de rabais sur les commandes à emporter de 25 $ et plus.",
+    "discountCode": "Code promo",
+    "remove": "Retirer",
+    "apply": "Appliquer",
+    "originalSubtotal": "Sous-total initial",
+    "discount": "Rabais",
+    "discountedSubtotal": "Sous-total avec rabais",
+    "webPickupDeal": "Offre en ligne pour cueillette",
+    "webPickupDealDescription": "Utilisez le code MAISUSHI10 et obtenez 10 % de rabais sur les commandes à emporter de 25 $ et plus.",
+    "closedNow": "Nous sommes actuellement fermés.",
+    "ordersPreparedAt": "Les commandes seront préparées à {{time}}",
+    "placeOrder": "Passer la commande",
+    "scheduleOrder": "Planifier la commande"
+  
   },
   "nav": {
     "salesTracking": "Suivi des Ventes",
@@ -261,8 +276,9 @@
     "emailAddressDisplay": "contact@maisushi.ca",
     "addressLine1": "1975 King Ouest,",
     "addressLine2": "Sherbrooke, QC J1J 2E6",
-    "hoursTuesdayWednesday": "Mar-Jeu: 11:00 AM - 8:00 PM",
-    "hoursThursdaySaturday": "Ven-Sam: 12:00 PM - 9:00 PM",
+    "hoursTuesdayWednesday": "Mar-Mer: 12:00 PM - 8:00 PM",
+    "hoursThursday": "Jeu: 12:00 PM - 9:00 PM",
+    "hoursThursdaySaturday": "Ven-Sam: 12:00 PM - 10:00 PM",
     "hoursSunday": "Dim: Fermé",
     "hoursMonday": "Lun: Fermé",
     "email_placeholder": "votre.email@example.com"
@@ -424,7 +440,7 @@
   "privacy": {
     "title": "Politique de confidentialité",
     "lastUpdated": "Dernière mise à jour",
-    "intro": "Chez MaiSushi, exploité par Pacifique Resto Inc. et propulsé par SherDev, nous respectons la Loi 25 du Québec ainsi que la LPRPDE pour protéger vos renseignements personnels.",
+    "intro": "Chez MaiSushi, exploité par Pacifique Resto Inc. et propulsé par Ulogic IT, nous respectons la Loi 25 du Québec ainsi que la LPRPDE pour protéger vos renseignements personnels.",
     "section1": {
       "title": "1. Renseignements que nous recueillons",
       "name": "Nom et prénom",
@@ -505,7 +521,7 @@
     },
     "section4": {
       "title": "4. Propriété intellectuelle",
-      "content": "Tout le contenu appartient à Pacifique Resto Inc. et SherDev."
+      "content": "Tout le contenu appartient à Pacifique Resto Inc. et Ulogic IT."
     },
     "section5": {
       "title": "5. Responsabilité",

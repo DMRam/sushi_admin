@@ -722,8 +722,9 @@ export const LandingCTAFooter = ({ displaySimple, user: propUser, isAdmin, isSta
                             <ul className="space-y-2 text-gray-400 text-sm font-light">
                                 <li>{t('landing.addressLine1', '1975 King Ouest,')}</li>
                                 <li>{t('landing.addressLine2', 'Sherbrooke, QC J1J 2E6')}</li>
-                                <li className="pt-2">{t('landing.hoursTuesdayWednesday', 'Tue-Wed: 11:00 AM - 8:00 PM')}</li>
-                                <li>{t('landing.hoursThursdaySaturday', 'Thu-Sat: 11:00 AM - 9:00 PM')}</li>
+                                <li className="pt-2">{t('landing.hoursTuesdayWednesday', 'Tue-Wed: 12:00 PM - 8:00 PM')}</li>
+                                 <li>{t('landing.hoursThursday', 'Thu-Sat: 12:00 PM - 9:00 PM')}</li>
+                                <li>{t('landing.hoursThursdaySaturday', 'Fri-Sat: 12:00 PM - 10:00 PM')}</li>
                                 <li>{t('landing.hoursSunday', 'Sun: Closed')}</li>
                                 <li>{t('landing.hoursMonday', 'Mon: Closed')}</li>
                                 <li className="pt-2">{t('landing.phoneNumberDisplay', "+1 (819) 861-3889")}</li>
@@ -805,12 +806,12 @@ export const LandingCTAFooter = ({ displaySimple, user: propUser, isAdmin, isSta
                             Powered by{" "}
                             <span className="text-red-400">
                                 <a
-                                    href="https://sherdev.com"
+                                    href="https://ulogicit.com"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="hover:underline"
                                 >
-                                    SherDev
+                                    Ulogic IT
                                 </a>
                             </span>
                         </p>

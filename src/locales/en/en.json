@@ -142,7 +142,21 @@
     "requiredFields": "Please fill in the following required fields:",
     "validEmail": "Please enter a valid email address",
     "validPhone": "Please enter a valid phone number",
-    "backToInfo": "Back"
+    "backToInfo": "Back",
+    "pickupPromoTitle": "Pickup online deal",
+    "pickupPromoDescription": "Use MAISUSHI10 for 10% off pickup orders over $25.",
+    "discountCode": "Promo code",
+    "remove": "Remove",
+    "apply": "Apply",
+    "originalSubtotal": "Original subtotal",
+    "discount": "Discount",
+    "discountedSubtotal": "Discounted subtotal",
+    "webPickupDeal": "Online pickup deal",
+    "webPickupDealDescription": "Use code MAISUSHI10 and get 10% off pickup orders over $25.",
+    "closedNow": "We are currently closed.",
+    "ordersPreparedAt": "Orders will be prepared at {{time}}",
+    "placeOrder": "Place Order",
+    "scheduleOrder": "Schedule Order"
   },
   "nav": {
     "salesTracking": "Sales",
@@ -266,8 +280,9 @@
     "emailAddressDisplay": "contact@maisushi.ca",
     "addressLine1": "1975 King Ouest,",
     "addressLine2": "Sherbrooke, QC J1J 2E6",
-    "hoursTuesdayWednesday": "Tue-Thu: 11:00 AM - 8:00 PM",
-    "hoursThursdaySaturday": "Fri-Sat: 12:00 PM - 9:00 PM",
+    "hoursTuesdayWednesday": "Tue-Wed: 12:00 PM - 8:00 PM",
+    "hoursThursday": "Thu: 12:00 PM - 9:00 PM",
+    "hoursThursdaySaturday": "Fri-Sat: 12:00 PM - 10:00 PM",
     "hoursSunday": "Sun: Closed",
     "hoursMonday": "Mon: Closed",
     "email_placeholder": "your.email@example.com"
@@ -447,7 +462,7 @@
   "privacy": {
     "title": "Privacy Policy",
     "lastUpdated": "Last updated",
-    "intro": "At MaiSushi, operated by Pacifique Resto Inc. and powered by SherDev, we comply with Quebec Law 25 and Canada's PIPEDA regulations to protect your privacy.",
+    "intro": "At MaiSushi, operated by Pacifique Resto Inc. and powered by Ulogic IT, we comply with Quebec Law 25 and Canada's PIPEDA regulations to protect your privacy.",
     "section1": {
       "title": "1. Information we collect",
       "name": "Name and surname",
@@ -528,7 +543,7 @@
     },
     "section4": {
       "title": "4. Intellectual property",
-      "content": "All branding and content belong to Pacifique Resto Inc. and SherDev."
+      "content": "All branding and content belong to Pacifique Resto Inc. and Ulogic IT."
     },
     "section5": {
       "title": "5. Liability",

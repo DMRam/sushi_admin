@@ -243,8 +243,9 @@ Submitted: ${new Date().toLocaleString()}
                                 <div className="flex items-start text-gray-600">
                                     <Calendar className="w-4 h-4 mr-3 mt-1 text-[#E62B2B]" />
                                     <div className="font-light space-y-1">
-                                        <div>{t('landing.hoursTuesdayWednesday', 'Tue-Wed: 11:00 AM - 8:00 PM')}</div>
-                                        <div>{t('landing.hoursThursdaySaturday', 'Thu-Sat: 11:00 AM - 10:00 PM')}</div>
+                                        <div>{t('landing.hoursTuesdayWednesday', 'Tue-Wed: 12:00 PM - 8:00 PM')}</div>
+                                        <div>{t('landing.hoursThursday', 'Thu: 12:00 PM - 9:00 PM')}</div>
+                                        <div>{t('landing.hoursThursdaySaturday', 'Fri-Sat: 12:00 PM - 10:00 PM')}</div>
                                         <div>{t('landing.hoursSunday', 'Sun: Closed')}</div>
                                         <div>{t('landing.hoursMonday', 'Mon: Closed')}</div>
                                     </div>

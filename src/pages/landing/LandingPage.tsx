@@ -11,47 +11,12 @@ import { LandingCTAFooter } from './components/LandingCTAFooter'
 import { LandingContact } from './components/LandingContact'
 import { useUserProfile } from '../../context/UserProfileContext'
 import { useTranslation } from 'react-i18next'
-// import { Facebook, Instagram } from 'lucide-react'
 import { SocialMediaSection } from './components/SocialMediaSection'
 
 // Constants
 const VIDEOS = [video1, video2]
 const VIDEO_LOAD_TIMEOUT = 5000
 const ADMIN_EMAIL_PATTERN = /admin/i
-
-// Types
-// interface SocialLinkProps {
-//   href: string
-//   icon: typeof Facebook | typeof Instagram
-//   label: string
-//   'aria-label': string
-// }
-
-// Extracted Components for better maintainability
-// const SocialLink: React.FC<SocialLinkProps> = ({ href, icon: Icon, label, ...props }) => (
-//   <a
-//     href={href}
-//     target="_blank"
-//     rel="noopener noreferrer"
-//     className="group relative"
-//     {...props}
-//   >
-//     <div className="relative bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-xl border border-white/20 rounded-lg p-3 sm:p-3.5 shadow-lg shadow-black/10 transition-all duration-500 ease-out hover:scale-105 hover:bg-white/95 hover:shadow-2xl hover:shadow-black/20">
-//       <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-//       <div className="relative flex items-center justify-center">
-//         <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-[#0D0D0D]/70 group-hover:text-[#E62B2B] transition-colors duration-300" />
-//       </div>
-//       <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#E62B2B]/10 to-transparent opacity-0 group-hover:opacity-100 blur-md -z-10 transition-opacity duration-500" />
-
-//       {/* Tooltip */}
-//       <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 hidden sm:block">
-//         <div className="bg-[#0D0D0D] text-white text-[10px] font-medium tracking-[0.15em] uppercase px-2 py-1 rounded-sm shadow-lg whitespace-nowrap">
-//           {label}
-//         </div>
-//       </div>
-//     </div>
-//   </a>
-// )
 
 const MenuNavigation: React.FC = () => {
   const { t } = useTranslation()
@@ -259,18 +224,25 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
+
       <LandingHeader />
 
-      <LandingHero
-        currentVideoIndex={videoState.currentIndex}
-        handleVideoError={handleVideoError}
-        handleVideoLoad={handleVideoLoad}
-        setCurrentVideoIndex={(index) => setVideoState(prev => ({ ...prev, currentIndex: index }))}
-        videoError={videoState.error}
-        videoLoaded={videoState.loaded}
-        videoRef={videoRef}
-        videos={VIDEOS}
-      />
+      <div className="relative">
+        <PromoBanner />
+
+        <LandingHero
+          currentVideoIndex={videoState.currentIndex}
+          handleVideoError={handleVideoError}
+          handleVideoLoad={handleVideoLoad}
+          setCurrentVideoIndex={(index) =>
+            setVideoState(prev => ({ ...prev, currentIndex: index }))
+          }
+          videoError={videoState.error}
+          videoLoaded={videoState.loaded}
+          videoRef={videoRef}
+          videos={VIDEOS}
+        />
+      </div>
 
       <SocialMediaSection />
 
@@ -348,6 +320,37 @@ export default function LandingPage() {
           }
         }
       `}</style>
+    </div>
+  )
+}
+
+const PromoBanner: React.FC = () => {
+  return (
+    <div className="absolute top-[92px] left-1/2 -translate-x-1/2 z-50 w-[92%] sm:w-auto">
+      <Link
+        to="/menu"
+        className="
+          group flex items-center justify-center gap-2
+          rounded-full border border-white/30
+          bg-white/85 backdrop-blur-xl
+          px-4 py-2 sm:px-6
+          text-[10px] sm:text-xs font-medium
+          tracking-[0.14em] uppercase
+          text-[#0D0D0D]
+          shadow-lg shadow-black/10
+          hover:bg-white hover:scale-[1.02]
+          transition-all duration-300
+        "
+      >
+        <span className="text-[#E62B2B]">●</span>
+        <span>Online Special</span>
+        <span className="hidden sm:inline text-[#0D0D0D]/40">/</span>
+        <span className="text-[#E62B2B] font-semibold">10% Off</span>
+        <span className="hidden sm:inline">with code</span>
+        <span className="font-bold underline underline-offset-4">
+          MAISUSHI10
+        </span>
+      </Link>
     </div>
   )
 }

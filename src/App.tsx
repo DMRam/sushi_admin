@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { UserProfileProvider } from './context/UserProfileContext'
 import { InvitationProvider } from './context/InvitationContext'
@@ -16,6 +16,7 @@ import { TermsConditions } from './pages/legal/TermsConditions'
 import { PrivacyPolicy } from './pages/legal/PrivacyPolicy'
 import { CookiesPolicy } from './pages/legal/CookiesPolicy'
 import { EULA } from './components/web/EULAPolicies'
+import { GlobalPromoBanner } from './pages/landing/components/GlobalPromoBanner'
 
 const SalesTrackingPage = lazy(() => import('./pages/admin/SalesTrackingPage'))
 const PurchasesPage = lazy(() => import('./pages/admin/PurchasesPage'))
@@ -26,7 +27,6 @@ const BusinessAnalyticsPage = lazy(() => import('./pages/admin/BusinessAnalytics
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const ProfilePage = lazy(() => import('./pages/admin/ProfilePage'))
 const NavBar = lazy(() => import('./components/web/NavBar'))
-// const KitchenPage = lazy(() => import('./pages/kitchen/KitchenPage'))
 const AdminProviders = lazy(() => import('./components/AdminProviders'))
 const ClientLogin = lazy(() => import('./pages/client_hub/ClientLoginPage'))
 const ClientRegistration = lazy(() => import('./pages/client_hub/ClientRegistrationPage'))
@@ -54,7 +54,6 @@ function AppContent() {
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
             <Route path="/sales-tracking" element={<SalesTrackingPage />} />
-            {/* <Route path="/kitchen" element={<KitchenPage />} /> */}
             <Route path="/purchases" element={<PurchasesPage />} />
             <Route path="/stock" element={<StockPage />} />
             <Route path="/products" element={<ProductsPage />} />
@@ -84,7 +83,6 @@ function PublicRoutes() {
       <Route path="/catering" element={<CateringPage />} />
       <Route path="/eula" element={<EULA />} />
       <Route path="/policies" element={<PrivacyPolicy />} />
-      {/* <Route path="/kitchen" element={<KitchenPage />} /> */}
 
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
@@ -101,6 +99,7 @@ function PublicRoutes() {
           </Suspense>
         }
       />
+
       <Route
         path="/client-register"
         element={
@@ -109,6 +108,7 @@ function PublicRoutes() {
           </Suspense>
         }
       />
+
       <Route
         path="/client-dashboard"
         element={
@@ -136,13 +136,28 @@ function PublicRoutes() {
   )
 }
 
+function AppShell() {
+  const location = useLocation()
+
+  const hidePromoBanner =
+    location.pathname.startsWith('/admin') ||
+    location.pathname === '/checkout/success'
+
+  return (
+    <>
+      {!hidePromoBanner && <GlobalPromoBanner />}
+      <PublicRoutes />
+      <CookieBanner />
+    </>
+  )
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <InvitationProvider>
         <UserProfileProvider>
-          <PublicRoutes />
-          <CookieBanner />
+          <AppShell />
         </UserProfileProvider>
       </InvitationProvider>
     </AuthProvider>

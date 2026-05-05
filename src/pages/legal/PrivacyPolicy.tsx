@@ -115,7 +115,7 @@ export const PrivacyPolicy = () => {
                                     </li>
                                     <li className="flex items-start">
                                         <span className="w-2 h-2 bg-red-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                                        <span><strong>SherDev Automations</strong> - Business process automation</span>
+                                        <span><strong>Ulogic IT Automations</strong> - Business process automation</span>
                                     </li>
                                 </ul>
                             </section>
