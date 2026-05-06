@@ -250,8 +250,8 @@ const ImageModal = ({
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center space-x-2 ${activeTab === tab.id
-                                            ? 'border-[#E62B2B] text-white'
-                                            : 'border-transparent text-white/40 hover:text-white/60'
+                                        ? 'border-[#E62B2B] text-white'
+                                        : 'border-transparent text-white/40 hover:text-white/60'
                                         }`}
                                 >
                                     <tab.icon className="w-4 h-4" />
@@ -314,8 +314,8 @@ const ImageModal = ({
                                     onClick={handleAddToCart}
                                     disabled={isAddingToCart}
                                     className={`flex-1 py-3 rounded-xl font-medium transition-all duration-300 flex items-center justify-center space-x-2 ${isAddingToCart
-                                            ? 'bg-green-500 text-white'
-                                            : 'bg-[#E62B2B] text-white hover:bg-[#ff4444] active:scale-95'
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-[#E62B2B] text-white hover:bg-[#ff4444] active:scale-95'
                                         }`}
                                 >
                                     {isAddingToCart ? (
@@ -462,6 +462,20 @@ export default function OrderPage() {
 
     const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    const handleAddToCartTracked = (item: MenuItem) => {
+        if (window.fbq) {
+            window.fbq('track', 'AddToCart', {
+                value: item.price,
+                currency: 'CAD',
+                content_name: item.name,
+                content_type: 'product',
+            });
+        }
+
+        addToCart(item);
+    };
+
 
     useEffect(() => {
         localStorage.setItem('favorites', JSON.stringify(favorites));
@@ -742,7 +756,7 @@ export default function OrderPage() {
                         setSelectedItem(null);
                         setIsModalOpen(false);
                     }}
-                    onAddToCart={addToCart}
+                    onAddToCart={handleAddToCartTracked}
                 />
             )}
 
@@ -779,8 +793,8 @@ export default function OrderPage() {
                         <button
                             onClick={() => setShowFilters(!showFilters)}
                             className={`px-4 py-2 rounded-lg border transition-all flex items-center space-x-2 ${showFilters || activeFiltersCount > 0
-                                    ? 'bg-[#E62B2B] border-[#E62B2B] text-white'
-                                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
+                                ? 'bg-[#E62B2B] border-[#E62B2B] text-white'
+                                : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
                                 }`}
                         >
                             <Filter className="w-4 h-4" />
@@ -795,8 +809,8 @@ export default function OrderPage() {
                         <button
                             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
                             className={`px-4 py-2 rounded-lg border transition-all flex items-center space-x-2 ${showFavoritesOnly
-                                    ? 'bg-[#E62B2B] border-[#E62B2B] text-white'
-                                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
+                                ? 'bg-[#E62B2B] border-[#E62B2B] text-white'
+                                : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
                                 }`}
                         >
                             <Heart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
@@ -1021,7 +1035,7 @@ export default function OrderPage() {
                                                     setSelectedItem(selected);
                                                     setIsModalOpen(true);
                                                 }}
-                                                onAddToCart={addToCart}
+                                                onAddToCart={handleAddToCartTracked}
                                                 getCurrentLanguageDescription={getCurrentLanguageDescription}
                                             />
                                         ))}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCartStore } from "../stores/cartStore";
 import { useClientAuth } from "./client_hub/hooks/useClientAuth";
@@ -35,10 +35,16 @@ type PointsTxnFail = {
 
 type PointsTxnResult = PointsTxnSuccess | PointsTxnFail;
 
+type CreatedGiftCard = {
+    code: string;
+    amount: number;
+};
+
 const ENABLE_SUPABASE_SYNC = true;
 
 type PendingCloverCheckout = {
-    orderId: string;
+    orderId?: string;
+    checkoutSessionId?: string | null;
     totals?: {
         subtotal: number;
         gst: number;
@@ -65,8 +71,36 @@ export default function SuccessPage() {
     const [searchParams] = useSearchParams();
 
     const orderIdParam = searchParams.get("orderId") || searchParams.get("order_id");
-    const sessionId = searchParams.get("session_id");
+    const rawSessionId = searchParams.get("session_id");
     const paymentIntent = searchParams.get("payment_intent");
+
+    const storedSessionId = sessionStorage.getItem("cloverCheckoutSessionId");
+
+    const pending = useMemo(() => {
+        return safeParseJSON<PendingCloverCheckout>(
+            sessionStorage.getItem("pendingCloverCheckout")
+        );
+    }, []);
+
+    const sessionId =
+        rawSessionId && rawSessionId !== "{CHECKOUT_SESSION_ID}"
+            ? rawSessionId
+            : storedSessionId || pending?.checkoutSessionId || null;
+
+    const targetOrderId = useMemo(() => {
+        return orderIdParam || pending?.orderId || sessionId || paymentIntent || null;
+    }, [orderIdParam, pending?.orderId, sessionId, paymentIntent]);
+
+    console.log("🔥 SUCCESS PAGE DEBUG", {
+        rawSessionId,
+        storedSessionId,
+        pendingCheckoutSessionId: pending?.checkoutSessionId,
+        sessionId,
+        orderIdParam,
+        paymentIntent,
+        targetOrderId,
+        pending,
+    });
 
     const clearCart = useCartStore((state) => state.clearCart);
     const { isClient, clientProfile, loading: authLoading } = useClientAuth();
@@ -79,25 +113,49 @@ export default function SuccessPage() {
     const [pointsError, setPointsError] = useState<string | null>(null);
 
     const [supabaseOrderId, setSupabaseOrderId] = useState<string | null>(null);
+    const [giftCardsCreated, setGiftCardsCreated] = useState<CreatedGiftCard[]>([]);
 
-    // 🔑 processingKey = orderId:userId(or guest)
     const [processedKey, setProcessedKey] = useState<string | null>(null);
 
-    const pending = useMemo(() => {
-        return safeParseJSON<PendingCloverCheckout>(sessionStorage.getItem("pendingCloverCheckout"));
-    }, []);
-
-    const targetOrderId = useMemo(() => {
-        return orderIdParam || pending?.orderId || sessionId || paymentIntent || null;
-    }, [orderIdParam, pending?.orderId, sessionId, paymentIntent]);
+    console.log(
+        "🔥 Stored checkout session:",
+        sessionStorage.getItem("cloverCheckoutSessionId")
+    );
 
     useEffect(() => {
         clearCart();
     }, [clearCart]);
 
-    // ───────────────────────────────
-    // FIRESTORE ORDER FETCH
-    // ───────────────────────────────
+    const createFallbackOrder = (
+        id: string,
+        pendingCheckout: PendingCloverCheckout | null
+    ): OrderDetails => {
+        const pendingTotals = pendingCheckout?.totals;
+        const subtotal = money2(pendingTotals?.subtotal ?? 0);
+        const gst = money2(pendingTotals?.gst ?? 0);
+        const qst = money2(pendingTotals?.qst ?? 0);
+        const deliveryFee = money2(pendingTotals?.deliveryFee ?? 0);
+        const finalTotal = money2(
+            pendingTotals?.finalTotal ?? subtotal + gst + qst + deliveryFee
+        );
+
+        return {
+            id,
+            amount: finalTotal,
+            subtotal,
+            gst,
+            qst,
+            delivery_fee: deliveryFee,
+            final_total: finalTotal,
+            created_at: new Date().toISOString(),
+            items: [],
+            status: "completed",
+            delivery_type: "pickup",
+            totals: { subtotal, gst, qst, deliveryFee, finalTotal },
+            type: "pickup",
+        };
+    };
+
     const fetchOrderFromFirestore = async (
         orderIdentifier: string,
         pendingCheckout: PendingCloverCheckout | null
@@ -106,7 +164,9 @@ export default function SuccessPage() {
         const snap = await getDoc(ref);
 
         if (!snap.exists()) {
-            console.warn("📭 Order not found in Firestore, using fallback");
+            console.warn("📭 Order not found in Firestore, using fallback", {
+                orderIdentifier,
+            });
             return createFallbackOrder(orderIdentifier, pendingCheckout);
         }
 
@@ -114,22 +174,19 @@ export default function SuccessPage() {
 
         const items = (data.items || []).map((item: any, i: number) => {
             const qty = Number(item.quantity ?? 1) || 1;
-            const priceDollars =
-                Number.isFinite(Number(item.priceCents))
-                    ? Number(item.priceCents) / 100
-                    : Number.isFinite(Number(item.price))
-                        ? Number(item.price)
-                        : 0;
+            const priceDollars = Number.isFinite(Number(item.priceCents))
+                ? Number(item.priceCents) / 100
+                : Number.isFinite(Number(item.price))
+                    ? Number(item.price)
+                    : 0;
 
             return {
-                id: item.productId || `item_${i}`,
+                id: item.productId || item.id || `item_${i}`,
                 name: item.name || "Product",
                 price: money2(priceDollars),
                 quantity: qty,
             };
         });
-
-        
 
         const totals = data.totals || null;
 
@@ -150,8 +207,9 @@ export default function SuccessPage() {
 
         const customerInfo = data.customerInfo || {};
 
-        const createdAtISO =
-            data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date(data.createdAt || Date.now()).toISOString();
+        const createdAtISO = data.createdAt?.toDate
+            ? data.createdAt.toDate().toISOString()
+            : new Date(data.createdAt || Date.now()).toISOString();
 
         return {
             id: orderIdentifier,
@@ -176,34 +234,68 @@ export default function SuccessPage() {
         };
     };
 
-    const createFallbackOrder = (id: string, pendingCheckout: PendingCloverCheckout | null): OrderDetails => {
-        const pendingTotals = pendingCheckout?.totals;
-        const subtotal = money2(pendingTotals?.subtotal ?? 0);
-        const gst = money2(pendingTotals?.gst ?? 0);
-        const qst = money2(pendingTotals?.qst ?? 0);
-        const deliveryFee = money2(pendingTotals?.deliveryFee ?? 0);
-        const finalTotal = money2(pendingTotals?.finalTotal ?? subtotal + gst + qst + deliveryFee);
+    const processGiftCardPurchase = useCallback(async () => {
+        console.log("🎁 Starting gift card processing...");
 
-        return {
-            id,
-            amount: finalTotal,
-            subtotal,
-            gst,
-            qst,
-            delivery_fee: deliveryFee,
-            final_total: finalTotal,
-            created_at: new Date().toISOString(),
-            items: [],
-            status: "completed",
-            delivery_type: "pickup",
-            totals: { subtotal, gst, qst, deliveryFee, finalTotal },
-            type: "pickup",
-        };
-    };
+        if (!sessionId) {
+            console.warn("⚠️ No sessionId found. Skipping gift card creation.", {
+                rawSessionId,
+                storedSessionId,
+                pendingCheckoutSessionId: pending?.checkoutSessionId,
+            });
+            return;
+        }
 
-    // ───────────────────────────────
-    // SUPABASE ORDERS SYNC (optional)
-    // ───────────────────────────────
+        console.log("📦 Using sessionId for gift card:", sessionId);
+
+        try {
+            const res = await fetch(
+                "https://us-central1-sushi-admin.cloudfunctions.net/finalizeGiftCardOrder",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        checkoutSessionId: sessionId,
+                    }),
+                }
+            );
+
+            console.log("📡 finalizeGiftCardOrder response status:", res.status);
+
+            const raw = await res.text();
+            console.log("📡 finalizeGiftCardOrder raw response:", raw);
+
+            let data: any = {};
+            try {
+                data = raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                console.error("❌ Failed to parse finalizeGiftCardOrder response JSON:", e);
+            }
+
+            console.log("📡 finalizeGiftCardOrder parsed response:", data);
+
+            if (!res.ok) {
+                console.error("❌ finalizeGiftCardOrder failed:", data);
+                return;
+            }
+
+            if (data?.giftCards?.length) {
+                console.log("✅ Gift cards created:", data.giftCards);
+                setGiftCardsCreated(data.giftCards);
+            } else {
+                console.warn("⚠️ No gift cards returned from backend", data);
+            }
+
+            if (data?.message) {
+                console.log("ℹ️ Backend message:", data.message);
+            }
+        } catch (err) {
+            console.error("❌ Gift card finalize error:", err);
+        }
+    }, [sessionId, rawSessionId, storedSessionId, pending?.checkoutSessionId]);
+
     const syncOrderToSupabase = async (userId: string, order: OrderDetails, profile: any) => {
         try {
             const { data: existingOrder, error: checkError } = await supabase
@@ -216,6 +308,7 @@ export default function SuccessPage() {
             if (checkError && (checkError as any).code !== "PGRST116") {
                 throw new Error(`Failed to check existing order: ${checkError.message}`);
             }
+
             if (existingOrder) return existingOrder;
 
             const supabaseOrderData = {
@@ -246,6 +339,7 @@ export default function SuccessPage() {
                 .single();
 
             if (insertError) throw new Error(`Failed to sync order: ${insertError.message}`);
+
             return newOrder;
         } catch (error) {
             console.error("💥 Supabase sync error:", error);
@@ -253,9 +347,6 @@ export default function SuccessPage() {
         }
     };
 
-    // ───────────────────────────────
-    // ANALYTICS
-    // ───────────────────────────────
     const trackConversion = (order: OrderDetails) => {
         if ((window as any).gtag && order) {
             (window as any).gtag("event", "purchase", {
@@ -270,60 +361,79 @@ export default function SuccessPage() {
                 })),
             });
         }
+
+        window.fbq?.("track", "Purchase", {
+            value: order.final_total,
+            currency: "CAD",
+            contents: order.items.map((item) => ({
+                id: item.id,
+                quantity: item.quantity,
+            })),
+            content_type: "product",
+        });
     };
 
-    // ───────────────────────────────
-    // MAIN FLOW (fixed)
-    // ───────────────────────────────
     useEffect(() => {
         const run = async () => {
             if (!targetOrderId) {
-                console.error("No order ID/session/payment found");
+                console.error("❌ No order ID/session/payment found", {
+                    orderIdParam,
+                    rawSessionId,
+                    storedSessionId,
+                    paymentIntent,
+                    pending,
+                });
                 setLoading(false);
                 return;
             }
 
-            // ✅ WAIT auth hydration
-            if (authLoading) return;
+            if (authLoading) {
+                console.log("⏳ Waiting for auth to finish...");
+                return;
+            }
 
             const userId = clientProfile?.id ?? "guest";
             const key = `${targetOrderId}:${userId}`;
 
-            // ✅ prevent re-run for same key
-            if (processedKey === key) return;
+            if (processedKey === key) {
+                console.log("⚠️ Success flow already processed. Skipping.", { key });
+                return;
+            }
 
             setPointsError(null);
 
             try {
                 setLoading(true);
 
-                console.log("[SuccessPage] start", {
+                console.log("🚀 Running success flow with:", {
                     targetOrderId,
-                    authLoading,
-                    isClient,
+                    sessionId,
+                    pending,
                     userId,
                 });
 
                 const orderData = await fetchOrderFromFirestore(targetOrderId, pending);
                 setOrderDetails(orderData);
 
-                // mark processed AFTER we have order (so we can show summary even if points fail)
+                await processGiftCardPurchase();
+
                 setProcessedKey(key);
 
-                // ✅ Optional Supabase order sync
                 if (ENABLE_SUPABASE_SYNC && isClient && clientProfile?.id && orderData) {
-                    const supabaseOrder = await syncOrderToSupabase(clientProfile.id, orderData, clientProfile);
-                    if (supabaseOrder) setSupabaseOrderId(supabaseOrder.id);
+                    const supabaseOrder = await syncOrderToSupabase(
+                        clientProfile.id,
+                        orderData,
+                        clientProfile
+                    );
+
+                    if (supabaseOrder) {
+                        console.log("✅ Order synced to Supabase:", supabaseOrder.id);
+                        setSupabaseOrderId(supabaseOrder.id);
+                    }
                 }
 
-                // ✅ Points awarding ONLY if user logged in
                 if (isClient && clientProfile?.id && orderData) {
                     const pointsEarned = Math.floor(money2(orderData.final_total));
-
-                    console.log("[SuccessPage] points candidate", {
-                        pointsEarned,
-                        final_total: orderData.final_total,
-                    });
 
                     if (pointsEarned > 0) {
                         const result = (await PointsService.addTransaction({
@@ -344,35 +454,23 @@ export default function SuccessPage() {
                                 newBalance: result.newBalance,
                             });
                         } else {
-                            setPointsError(result.error);
+                            setPointsError(result.error || "Points transaction failed");
                         }
 
-                        console.log("[SuccessPage] addTransaction result", result);
-
-                        if (result?.success) {
-                            setPointsData({
-                                pointsEarned: result.pointsEarned,
-                                previousBalance: result.previousBalance,
-                                newBalance: result.newBalance,
-                            });
-                        } else {
-                            setPointsError(result?.error || "Points transaction failed");
-                        }
-
-                        // ✅ Always refresh history after attempting a transaction
                         const history = await PointsService.getUserPointsHistory(clientProfile.id);
                         setPointsHistory(history);
                     }
                 } else {
-                    // guest: clear points UI
                     setPointsData(null);
                     setPointsHistory([]);
                 }
 
                 trackConversion(orderData);
 
-                // ✅ clear pending ONLY once we did the run successfully
                 sessionStorage.removeItem("pendingCloverCheckout");
+                sessionStorage.removeItem("cloverCheckoutSessionId");
+
+                console.log("✅ Success flow completed.");
             } catch (err: any) {
                 console.error("❌ Error processing success:", err);
                 setPointsError(err?.message || "Error processing success page");
@@ -389,11 +487,14 @@ export default function SuccessPage() {
         clientProfile?.id,
         pending,
         processedKey,
+        processGiftCardPurchase,
+        orderIdParam,
+        rawSessionId,
+        storedSessionId,
+        paymentIntent,
+        sessionId,
     ]);
 
-    // ───────────────────────────────
-    // UI
-    // ───────────────────────────────
     if (authLoading || loading) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -465,6 +566,36 @@ export default function SuccessPage() {
                         </div>
                     )}
 
+                    {giftCardsCreated.length > 0 && (
+                        <div className="bg-[#E62B2B]/10 border border-[#E62B2B]/30 rounded-xl p-6 mb-6">
+                            <h3 className="text-lg font-semibold text-white mb-3">
+                                🎁 Your Maisushi Gift Card
+                            </h3>
+
+                            <p className="text-white/70 text-sm mb-4">
+                                Use this code at checkout on maisushi.ca. Please keep it safe.
+                            </p>
+
+                            <div className="space-y-3">
+                                {giftCardsCreated.map((card) => (
+                                    <div key={card.code} className="bg-black/30 border border-white/10 rounded-lg p-4">
+                                        <div className="flex justify-between gap-3 text-sm text-white/70 mb-1">
+                                            <span>Amount</span>
+                                            <span>${card.amount.toFixed(2)}</span>
+                                        </div>
+
+                                        <div className="flex justify-between gap-3 items-center">
+                                            <span className="text-white/70 text-sm">Code</span>
+                                            <span className="text-white font-bold tracking-widest">
+                                                {card.code}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {pointsData && (
                         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
                             <div className="flex justify-between items-center mb-1">
@@ -496,7 +627,8 @@ export default function SuccessPage() {
                                     <li key={item.id} className="flex justify-between border-b border-white/10 pb-2 last:border-0 last:pb-0">
                                         <span className="truncate mr-2">{item.description}</span>
                                         <span className="text-yellow-400 font-semibold whitespace-nowrap">
-                                            {item.points >= 0 ? "+" : ""}{item.points} pts
+                                            {item.points >= 0 ? "+" : ""}
+                                            {item.points} pts
                                         </span>
                                     </li>
                                 ))}

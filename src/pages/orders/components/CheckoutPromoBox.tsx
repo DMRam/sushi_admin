@@ -1,4 +1,4 @@
-import { CheckCircle2, Tag, X } from "lucide-react";
+import { CheckCircle2, Gift, Tag, X } from "lucide-react";
 
 type Props = {
   discountCode: string;
@@ -9,10 +9,11 @@ type Props = {
   discountError: string | null;
   subtotal: number;
   discountedSubtotal: number;
-  applyDiscount: () => void;
+  applyDiscount: () => void | Promise<void>;
   removeDiscount: () => void;
   t: (key: string, fallback?: string) => string;
   compact?: boolean;
+  isApplyingDiscount?: boolean;
 };
 
 export default function CheckoutPromoBox({
@@ -28,7 +29,10 @@ export default function CheckoutPromoBox({
   removeDiscount,
   t,
   compact = false,
+  isApplyingDiscount = false,
 }: Props) {
+  const isGiftCardInput = discountCode.trim().toUpperCase().startsWith("MSH-");
+
   return (
     <div
       className={`w-full box-border overflow-hidden bg-gradient-to-r from-[#E62B2B]/15 to-white/5 border border-[#E62B2B]/25 rounded-xl ${compact ? "p-3" : "p-4"
@@ -39,19 +43,23 @@ export default function CheckoutPromoBox({
           className={`rounded-full bg-[#E62B2B]/20 flex items-center justify-center shrink-0 ${compact ? "w-8 h-8" : "w-9 h-9"
             }`}
         >
-          <Tag className="w-4 h-4 text-[#ff8a8a]" />
+          {isGiftCardInput ? (
+            <Gift className="w-4 h-4 text-[#ff8a8a]" />
+          ) : (
+            <Tag className="w-4 h-4 text-[#ff8a8a]" />
+          )}
         </div>
 
         <div className="min-w-0">
           <p className="text-white font-medium text-sm leading-snug">
-            {t("checkoutPage.pickupPromoTitle", "Pickup online deal")}
+            {t("checkoutPage.promoOrGiftCardTitle", "Promo code or gift card")}
           </p>
 
           {!compact && (
             <p className="text-white/60 text-xs mt-1 leading-snug">
               {t(
-                "checkoutPage.pickupPromoDescription",
-                "Use MAISUSHI10 for 10% off pickup orders over $25."
+                "checkoutPage.promoOrGiftCardDescription",
+                "Use MAISUSHI10 for pickup deals or enter your gift card code."
               )}
             </p>
           )}
@@ -62,9 +70,9 @@ export default function CheckoutPromoBox({
         <input
           type="text"
           value={discountCode}
-          disabled={Boolean(appliedCode)}
+          disabled={Boolean(appliedCode) || isApplyingDiscount}
           onChange={(e) => setDiscountCode(e.target.value)}
-          placeholder={t("checkoutPage.discountCode", "Promo code")}
+          placeholder={t("checkoutPage.discountCode", "Promo or gift card code")}
           className="w-full min-w-0 box-border bg-black/30 border border-white/15 text-white placeholder:text-white/35 rounded-lg px-3 py-3 text-sm outline-none focus:border-[#E62B2B]/70 disabled:opacity-70"
         />
 
@@ -72,7 +80,8 @@ export default function CheckoutPromoBox({
           <button
             type="button"
             onClick={removeDiscount}
-            className="w-full inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white px-4 py-3 rounded-lg text-sm transition-colors"
+            disabled={isApplyingDiscount}
+            className="w-full inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white px-4 py-3 rounded-lg text-sm transition-colors disabled:opacity-70"
           >
             <X className="w-4 h-4" />
             {t("checkoutPage.remove", "Remove")}
@@ -81,9 +90,12 @@ export default function CheckoutPromoBox({
           <button
             type="button"
             onClick={applyDiscount}
-            className="w-full bg-[#E62B2B] hover:bg-[#c82020] text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors"
+            disabled={isApplyingDiscount}
+            className="w-full bg-[#E62B2B] hover:bg-[#c82020] text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {t("checkoutPage.apply", "Apply")}
+            {isApplyingDiscount
+              ? t("checkoutPage.applying", "Applying...")
+              : t("checkoutPage.apply", "Apply")}
           </button>
         )}
       </div>

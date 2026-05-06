@@ -194,6 +194,13 @@ export default function LandingPage() {
   }, [])
 
   const handleAddToCart = useCallback((item: MenuItem) => {
+    window.fbq?.('track', 'AddToCart', {
+      value: item.price,
+      currency: 'CAD',
+      content_name: item.name,
+      content_type: 'product',
+    })
+
     console.log('🛒 Adding to cart:', item.name)
     addToCart(item)
   }, [addToCart])

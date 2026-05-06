@@ -240,13 +240,29 @@ export function useCloverCheckout({
       }
 
       if (!data?.checkoutUrl) {
+        console.error("Missing checkoutUrl in Clover response:", data);
         throw new Error("Missing checkoutUrl in Clover response");
+      }
+
+      const checkoutSessionId = data.checkoutSessionId || null;
+
+      console.log("✅ Clover checkout created:", {
+        checkoutSessionId,
+        checkoutUrl: data.checkoutUrl,
+        expirationTime: data.expirationTime || null,
+      });
+
+      if (checkoutSessionId) {
+        sessionStorage.setItem("cloverCheckoutSessionId", checkoutSessionId);
+        console.log("✅ Saved cloverCheckoutSessionId:", checkoutSessionId);
+      } else {
+        console.warn("⚠️ Clover response has no checkoutSessionId:", data);
       }
 
       sessionStorage.setItem(
         "pendingCloverCheckout",
         JSON.stringify({
-          checkoutSessionId: data.checkoutSessionId || null,
+          checkoutSessionId,
           checkoutUrl: data.checkoutUrl,
           expirationTime: data.expirationTime || null,
           createdAt: Date.now(),
@@ -263,6 +279,7 @@ export function useCloverCheckout({
         })
       );
 
+      console.log("➡️ Redirecting to Clover checkout...");
       window.location.href = data.checkoutUrl;
     } catch (error: any) {
       console.error("❌ Checkout error:", error);

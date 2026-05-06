@@ -157,6 +157,10 @@ export default function CheckoutPage() {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }, []);
 
+    useEffect(() => {
+        window.fbq?.('track', 'InitiateCheckout')
+    }, [])
+
     const getLocalizedDescription = useCallback(
         (description: { es: string; fr: string; en: string } | string) => {
             if (typeof description === "string") return description;
@@ -271,6 +275,7 @@ export default function CheckoutPage() {
             discountedSubtotal: discount.discountedSubtotal,
             applyDiscount: discount.applyDiscount,
             removeDiscount: discount.removeDiscount,
+            isApplyingDiscount: discount.isApplyingDiscount,
             t: (key: string, fallback?: string) => t(key, { defaultValue: fallback }),
         }),
         [discount, subtotal, t]
