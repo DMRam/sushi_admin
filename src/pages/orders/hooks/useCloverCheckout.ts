@@ -147,6 +147,17 @@ export function useCloverCheckout({
 
       const cloverAmount = IS_TEST_CHECKOUT ? 115 : toCents(finalTotal);
 
+      // Add before payload
+      const localCheckoutId = crypto.randomUUID();
+
+      const publicBaseUrl =
+        window.location.hostname === "localhost"
+          ? "https://maisushi.ca"
+          : window.location.origin;
+
+      const successUrl = `${publicBaseUrl}/checkout/success?localCheckoutId=${localCheckoutId}`;
+      const cancelUrl = `${publicBaseUrl}/checkout/cancel?localCheckoutId=${localCheckoutId}`;
+
       const payload = {
         merchantId,
         clientUrl: window.location.origin,
@@ -154,8 +165,8 @@ export function useCloverCheckout({
         items,
         amount: cloverAmount,
         currency: "cad",
-        successUrl: `${window.location.origin}/checkout/success`,
-        cancelUrl: `${window.location.origin}/checkout/cancel`,
+        successUrl,
+        cancelUrl,
         metadata: {
           userId: user?.id || "guest",
           pointsEarned: String(user ? pointsEarned ?? 0 : 0),
@@ -168,6 +179,7 @@ export function useCloverCheckout({
           discountCode: appliedCode || "",
           discountAmount: String(discountAmount),
           discountedSubtotal: String(discountedSubtotal),
+          localCheckoutId,
           totals: JSON.stringify(
             IS_TEST_CHECKOUT
               ? {
@@ -246,41 +258,61 @@ export function useCloverCheckout({
 
       const checkoutSessionId = data.checkoutSessionId || null;
 
+      const pendingCheckoutData = {
+        localCheckoutId,
+        checkoutSessionId,
+        checkoutUrl: data.checkoutUrl,
+        expirationTime: data.expirationTime || null,
+        createdAt: Date.now(),
+        totals: realTotals,
+        customer,
+        formData: fullForm,
+        pointsEarned: user ? pointsEarned ?? 0 : 0,
+        userId: user?.id || null,
+        customerEmail: customer.email,
+        promo: {
+          code: appliedCode,
+          amount: discountAmount,
+        },
+      };
+
+      if (checkoutSessionId) {
+        localStorage.setItem("cloverCheckoutSessionId", checkoutSessionId);
+        localStorage.setItem(
+          `pendingCloverCheckout:${localCheckoutId}`,
+          JSON.stringify(pendingCheckoutData)
+        );
+
+        console.log("✅ Saved Clover checkout locally:", {
+          localCheckoutId,
+          checkoutSessionId,
+        });
+      } else {
+        console.warn("⚠️ Clover response has no checkoutSessionId:", data);
+      }
+
+
       console.log("✅ Clover checkout created:", {
         checkoutSessionId,
         checkoutUrl: data.checkoutUrl,
         expirationTime: data.expirationTime || null,
       });
 
-      if (checkoutSessionId) {
-        sessionStorage.setItem("cloverCheckoutSessionId", checkoutSessionId);
-        console.log("✅ Saved cloverCheckoutSessionId:", checkoutSessionId);
-      } else {
-        console.warn("⚠️ Clover response has no checkoutSessionId:", data);
-      }
-
-      sessionStorage.setItem(
-        "pendingCloverCheckout",
-        JSON.stringify({
-          checkoutSessionId,
-          checkoutUrl: data.checkoutUrl,
-          expirationTime: data.expirationTime || null,
-          createdAt: Date.now(),
-          totals: realTotals,
-          customer,
-          formData: fullForm,
-          pointsEarned: user ? pointsEarned ?? 0 : 0,
-          userId: user?.id || null,
-          customerEmail: customer.email,
-          promo: {
-            code: appliedCode,
-            amount: discountAmount,
-          },
-        })
-      );
 
       console.log("➡️ Redirecting to Clover checkout...");
-      window.location.href = data.checkoutUrl;
+      console.log("💾 Saved value check:", {
+        localCheckoutId,
+        checkoutSessionId,
+        savedPending: localStorage.getItem(`pendingCloverCheckout:${localCheckoutId}`),
+        savedSession: localStorage.getItem("cloverCheckoutSessionId"),
+      });
+
+      console.log("➡️ Redirecting to Clover checkout...");
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      window.location.assign(data.checkoutUrl);
+      return;
+      setIsProcessing(false);
     } catch (error: any) {
       console.error("❌ Checkout error:", error);
       alert(error?.message || "Payment processing failed. Please try again.");

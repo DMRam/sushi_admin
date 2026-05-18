@@ -21,19 +21,17 @@ interface PointsHistoryItem {
     created_at: string;
 }
 
-type PointsTxnSuccess = {
-    success: true;
-    previousBalance: number;
-    newBalance: number;
-    pointsEarned: number;
-};
-
-type PointsTxnFail = {
-    success: false;
-    error: string;
-};
-
-type PointsTxnResult = PointsTxnSuccess | PointsTxnFail;
+type PointsTxnResult =
+    | {
+        success: true;
+        previousBalance: number;
+        newBalance: number;
+        pointsEarned: number;
+    }
+    | {
+        success: false;
+        error: string;
+    };
 
 type CreatedGiftCard = {
     code: string;
@@ -56,6 +54,7 @@ type PendingCloverCheckout = {
 
 function safeParseJSON<T>(raw: string | null): T | null {
     if (!raw) return null;
+
     try {
         return JSON.parse(raw) as T;
     } catch {
@@ -73,14 +72,29 @@ export default function SuccessPage() {
     const orderIdParam = searchParams.get("orderId") || searchParams.get("order_id");
     const rawSessionId = searchParams.get("session_id");
     const paymentIntent = searchParams.get("payment_intent");
-
-    const storedSessionId = sessionStorage.getItem("cloverCheckoutSessionId");
+    const localCheckoutId = searchParams.get("localCheckoutId");
 
     const pending = useMemo(() => {
-        return safeParseJSON<PendingCloverCheckout>(
-            sessionStorage.getItem("pendingCloverCheckout")
+        if (localCheckoutId) {
+            return safeParseJSON<PendingCloverCheckout>(
+                localStorage.getItem(`pendingCloverCheckout:${localCheckoutId}`)
+            );
+        }
+
+        return (
+            safeParseJSON<PendingCloverCheckout>(
+                localStorage.getItem("pendingCloverCheckout")
+            ) ||
+            safeParseJSON<PendingCloverCheckout>(
+                sessionStorage.getItem("pendingCloverCheckout")
+            )
         );
-    }, []);
+    }, [localCheckoutId]);
+
+    const storedSessionId =
+        pending?.checkoutSessionId ||
+        localStorage.getItem("cloverCheckoutSessionId") ||
+        sessionStorage.getItem("cloverCheckoutSessionId");
 
     const sessionId =
         rawSessionId && rawSessionId !== "{CHECKOUT_SESSION_ID}"
@@ -91,36 +105,29 @@ export default function SuccessPage() {
         return orderIdParam || pending?.orderId || sessionId || paymentIntent || null;
     }, [orderIdParam, pending?.orderId, sessionId, paymentIntent]);
 
+    const clearCart = useCartStore((state) => state.clearCart);
+    const { isClient, clientProfile, loading: authLoading } = useClientAuth();
+
+    const [loading, setLoading] = useState(true);
+    const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+    const [pointsData, setPointsData] = useState<PointsData | null>(null);
+    const [_pointsHistory, setPointsHistory] = useState<PointsHistoryItem[]>([]);
+    const [pointsError, setPointsError] = useState<string | null>(null);
+    const [supabaseOrderId, setSupabaseOrderId] = useState<string | null>(null);
+    const [giftCardsCreated, setGiftCardsCreated] = useState<CreatedGiftCard[]>([]);
+    const [processedKey, setProcessedKey] = useState<string | null>(null);
+
     console.log("🔥 SUCCESS PAGE DEBUG", {
         rawSessionId,
         storedSessionId,
         pendingCheckoutSessionId: pending?.checkoutSessionId,
+        localCheckoutId,
         sessionId,
         orderIdParam,
         paymentIntent,
         targetOrderId,
         pending,
     });
-
-    const clearCart = useCartStore((state) => state.clearCart);
-    const { isClient, clientProfile, loading: authLoading } = useClientAuth();
-
-    const [loading, setLoading] = useState(true);
-    const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
-
-    const [pointsData, setPointsData] = useState<PointsData | null>(null);
-    const [pointsHistory, setPointsHistory] = useState<PointsHistoryItem[]>([]);
-    const [pointsError, setPointsError] = useState<string | null>(null);
-
-    const [supabaseOrderId, setSupabaseOrderId] = useState<string | null>(null);
-    const [giftCardsCreated, setGiftCardsCreated] = useState<CreatedGiftCard[]>([]);
-
-    const [processedKey, setProcessedKey] = useState<string | null>(null);
-
-    console.log(
-        "🔥 Stored checkout session:",
-        sessionStorage.getItem("cloverCheckoutSessionId")
-    );
 
     useEffect(() => {
         clearCart();
@@ -160,25 +167,52 @@ export default function SuccessPage() {
         orderIdentifier: string,
         pendingCheckout: PendingCloverCheckout | null
     ): Promise<OrderDetails> => {
-        const ref = doc(db, "orders", orderIdentifier);
+        const ref = doc(db, "cloverCheckoutSessions", orderIdentifier);
         const snap = await getDoc(ref);
 
         if (!snap.exists()) {
             console.warn("📭 Order not found in Firestore, using fallback", {
                 orderIdentifier,
             });
+
             return createFallbackOrder(orderIdentifier, pendingCheckout);
         }
 
         const data: any = snap.data();
 
+        // Parse metadata/fullForm if they come as strings
+        const fullForm =
+            typeof data.fullForm === "string"
+                ? safeParseJSON<any>(data.fullForm) || {}
+                : data.fullForm || {};
+
+        const metadata = data.metadata || {};
+
+        const metadataTotals =
+            typeof metadata.totals === "string"
+                ? safeParseJSON<any>(metadata.totals) || {}
+                : metadata.totals || {};
+
+        const metadataCustomerInfo =
+            typeof metadata.customerInfo === "string"
+                ? safeParseJSON<any>(metadata.customerInfo) || {}
+                : metadata.customerInfo || {};
+
+        // Build items safely
         const items = (data.items || []).map((item: any, i: number) => {
-            const qty = Number(item.quantity ?? 1) || 1;
-            const priceDollars = Number.isFinite(Number(item.priceCents))
-                ? Number(item.priceCents) / 100
-                : Number.isFinite(Number(item.price))
-                    ? Number(item.price)
-                    : 0;
+            const qty = Number(item.quantity ?? item.unitQty ?? 1) || 1;
+
+            const rawPrice = Number(
+                item.priceCents ??
+                item.price ??
+                0
+            );
+
+            // Clover values are cents
+            const priceDollars =
+                rawPrice > 100
+                    ? rawPrice / 100
+                    : rawPrice;
 
             return {
                 id: item.productId || item.id || `item_${i}`,
@@ -188,24 +222,122 @@ export default function SuccessPage() {
             };
         });
 
-        const totals = data.totals || null;
+        const pendingTotals = pendingCheckout?.totals || null;
 
         const computedSubtotal = items.reduce((sum: number, it: any) => {
             return sum + money2(it.price) * (Number(it.quantity) || 1);
         }, 0);
 
-        const pendingTotals = pendingCheckout?.totals || null;
-
-        const subtotal = money2(totals?.subtotal ?? pendingTotals?.subtotal ?? computedSubtotal);
-        const gst = money2(totals?.gst ?? pendingTotals?.gst ?? 0);
-        const qst = money2(totals?.qst ?? pendingTotals?.qst ?? 0);
-        const deliveryFee = money2(totals?.deliveryFee ?? pendingTotals?.deliveryFee ?? 0);
-
-        const finalTotal = money2(
-            totals?.finalTotal ?? pendingTotals?.finalTotal ?? subtotal + gst + qst + deliveryFee
+        const subtotal = money2(
+            Number(
+                metadataTotals.subtotal ??
+                pendingTotals?.subtotal ??
+                computedSubtotal
+            )
         );
 
-        const customerInfo = data.customerInfo || {};
+        const gst = money2(
+            Number(
+                metadataTotals.gst ??
+                (metadata.gstCents
+                    ? Number(metadata.gstCents) / 100
+                    : undefined) ??
+                pendingTotals?.gst ??
+                0
+            )
+        );
+
+        const qst = money2(
+            Number(
+                metadataTotals.qst ??
+                (metadata.qstCents
+                    ? Number(metadata.qstCents) / 100
+                    : undefined) ??
+                pendingTotals?.qst ??
+                0
+            )
+        );
+
+        const deliveryFee = money2(
+            Number(
+                metadataTotals.deliveryFee ??
+                pendingTotals?.deliveryFee ??
+                0
+            )
+        );
+
+        const finalTotal = money2(
+            Number(
+                metadataTotals.finalTotal ??
+                (data.expectedTotalCents
+                    ? Number(data.expectedTotalCents) / 100
+                    : undefined) ??
+                (metadata.expectedTotalCents
+                    ? Number(metadata.expectedTotalCents) / 100
+                    : undefined) ??
+                pendingTotals?.finalTotal ??
+                subtotal + gst + qst + deliveryFee
+            )
+        );
+
+        // REAL customer extraction
+        const customerInfo = {
+            name:
+                data.customerName ||
+                fullForm.firstName ||
+                fullForm.name ||
+                metadata.customerName ||
+                metadataCustomerInfo.name ||
+                "",
+
+            email:
+                data.customerEmail ||
+                fullForm.email ||
+                metadata.customerEmail ||
+                metadataCustomerInfo.email ||
+                "",
+
+            phone:
+                data.customerPhone ||
+                fullForm.phone ||
+                metadata.customerPhone ||
+                metadataCustomerInfo.phone ||
+                "",
+
+            address:
+                fullForm.address ||
+                metadata.address ||
+                "",
+
+            city:
+                fullForm.city ||
+                metadata.city ||
+                "",
+
+            province: "QC",
+
+            zipCode:
+                fullForm.zipCode ||
+                metadata.zipCode ||
+                "",
+        };
+
+        const deliveryMethod =
+            fullForm.deliveryMethod ||
+            metadata.deliveryMethod ||
+            data.deliveryMethod ||
+            "pickup";
+
+        const deliveryAddress =
+            deliveryMethod === "delivery"
+                ? [
+                    customerInfo.address,
+                    customerInfo.zipCode,
+                    customerInfo.city,
+                ]
+                    .filter(Boolean)
+                    .join(", ")
+                : "";
 
         const createdAtISO = data.createdAt?.toDate
             ? data.createdAt.toDate().toISOString()
@@ -213,24 +345,41 @@ export default function SuccessPage() {
 
         return {
             id: orderIdentifier,
+
             amount: finalTotal,
             subtotal,
             gst,
             qst,
             delivery_fee: deliveryFee,
             final_total: finalTotal,
+
             created_at: createdAtISO,
+
             items,
-            status: data.paymentStatus === "paid" ? "completed" : data.status || "confirmed",
-            delivery_type: customerInfo.deliveryMethod || data.deliveryType || "pickup",
-            delivery_address: data.shippingAddress?.address
-                ? `${data.shippingAddress.address.line1 ?? ""}, ${data.shippingAddress.address.postal_code ?? ""}, ${data.shippingAddress.address.city ?? ""}`
-                : "",
-            customer_name: customerInfo.firstName || customerInfo.name || "",
-            customer_email: customerInfo.email || data.customerEmail || "",
-            customer_phone: customerInfo.phoneNumber || customerInfo.phone || "",
-            totals: { subtotal, gst, qst, deliveryFee, finalTotal },
-            type: customerInfo.deliveryMethod || data.deliveryType || "pickup",
+
+            status:
+                data.paymentStatus === "paid"
+                    ? "completed"
+                    : data.status || "completed",
+
+            delivery_type: deliveryMethod,
+            type: deliveryMethod,
+
+            customerInfo,
+
+            customer_name: customerInfo.name,
+            customer_email: customerInfo.email,
+            customer_phone: customerInfo.phone,
+
+            delivery_address: deliveryAddress,
+
+            totals: {
+                subtotal,
+                gst,
+                qst,
+                deliveryFee,
+                finalTotal,
+            },
         };
     };
 
@@ -242,11 +391,10 @@ export default function SuccessPage() {
                 rawSessionId,
                 storedSessionId,
                 pendingCheckoutSessionId: pending?.checkoutSessionId,
+                localCheckoutId,
             });
             return;
         }
-
-        console.log("📦 Using sessionId for gift card:", sessionId);
 
         try {
             const res = await fetch(
@@ -262,19 +410,19 @@ export default function SuccessPage() {
                 }
             );
 
-            console.log("📡 finalizeGiftCardOrder response status:", res.status);
-
             const raw = await res.text();
-            console.log("📡 finalizeGiftCardOrder raw response:", raw);
 
             let data: any = {};
             try {
                 data = raw ? JSON.parse(raw) : {};
             } catch (e) {
-                console.error("❌ Failed to parse finalizeGiftCardOrder response JSON:", e);
+                console.error("❌ Failed to parse finalizeGiftCardOrder JSON:", e);
             }
 
-            console.log("📡 finalizeGiftCardOrder parsed response:", data);
+            console.log("📡 finalizeGiftCardOrder response:", {
+                status: res.status,
+                data,
+            });
 
             if (!res.ok) {
                 console.error("❌ finalizeGiftCardOrder failed:", data);
@@ -282,21 +430,24 @@ export default function SuccessPage() {
             }
 
             if (data?.giftCards?.length) {
-                console.log("✅ Gift cards created:", data.giftCards);
                 setGiftCardsCreated(data.giftCards);
-            } else {
-                console.warn("⚠️ No gift cards returned from backend", data);
-            }
-
-            if (data?.message) {
-                console.log("ℹ️ Backend message:", data.message);
             }
         } catch (err) {
             console.error("❌ Gift card finalize error:", err);
         }
-    }, [sessionId, rawSessionId, storedSessionId, pending?.checkoutSessionId]);
+    }, [
+        sessionId,
+        rawSessionId,
+        storedSessionId,
+        pending?.checkoutSessionId,
+        localCheckoutId,
+    ]);
 
-    const syncOrderToSupabase = async (userId: string, order: OrderDetails, profile: any) => {
+    const syncOrderToSupabase = async (
+        userId: string,
+        order: OrderDetails,
+        profile: any
+    ) => {
         try {
             const { data: existingOrder, error: checkError } = await supabase
                 .from("orders")
@@ -382,7 +533,9 @@ export default function SuccessPage() {
                     storedSessionId,
                     paymentIntent,
                     pending,
+                    localCheckoutId,
                 });
+
                 setLoading(false);
                 return;
             }
@@ -405,15 +558,22 @@ export default function SuccessPage() {
             try {
                 setLoading(true);
 
-                console.log("🚀 Running success flow with:", {
-                    targetOrderId,
-                    sessionId,
-                    pending,
-                    userId,
-                });
-
                 const orderData = await fetchOrderFromFirestore(targetOrderId, pending);
                 setOrderDetails(orderData);
+
+                await fetch("https://us-central1-sushi-admin.cloudfunctions.net/finalizeWebsiteOrder", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        checkoutSessionId: sessionId || targetOrderId,
+                    }),
+                });
+
+                fetch("https://automation.ulogicit.com/webhook/maisushi-web-sales", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ order: orderData }),
+                }).catch((err) => console.warn("Staff notification failed:", err));
 
                 await processGiftCardPurchase();
 
@@ -427,7 +587,6 @@ export default function SuccessPage() {
                     );
 
                     if (supabaseOrder) {
-                        console.log("✅ Order synced to Supabase:", supabaseOrder.id);
                         setSupabaseOrderId(supabaseOrder.id);
                     }
                 }
@@ -467,6 +626,12 @@ export default function SuccessPage() {
 
                 trackConversion(orderData);
 
+                if (localCheckoutId) {
+                    localStorage.removeItem(`pendingCloverCheckout:${localCheckoutId}`);
+                }
+
+                localStorage.removeItem("pendingCloverCheckout");
+                localStorage.removeItem("cloverCheckoutSessionId");
                 sessionStorage.removeItem("pendingCloverCheckout");
                 sessionStorage.removeItem("cloverCheckoutSessionId");
 
@@ -493,6 +658,7 @@ export default function SuccessPage() {
         storedSessionId,
         paymentIntent,
         sessionId,
+        localCheckoutId,
     ]);
 
     if (authLoading || loading) {
@@ -512,22 +678,38 @@ export default function SuccessPage() {
                 <div className="max-w-2xl mx-auto">
                     <div className="text-center mb-8">
                         <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-400/30">
-                            <svg className="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                            <svg
+                                className="w-10 h-10 text-green-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={1.5}
+                                    d="M5 13l4 4L19 7"
+                                />
                             </svg>
                         </div>
 
-                        <h1 className="text-3xl font-bold text-white mb-2">Order Confirmed 🎉</h1>
+                        <h1 className="text-3xl font-bold text-white mb-2">
+                            Order Confirmed 🎉
+                        </h1>
                         <p className="text-white/70">Thank you for your purchase!</p>
 
                         {supabaseOrderId && (
-                            <p className="text-green-400/80 text-sm mt-1">✅ Added to your client account</p>
+                            <p className="text-green-400/80 text-sm mt-1">
+                                ✅ Added to your client account
+                            </p>
                         )}
                     </div>
 
                     {orderDetails && (
                         <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-                            <h3 className="text-lg font-semibold text-white mb-4">Order Summary</h3>
+                            <h3 className="text-lg font-semibold text-white mb-4">
+                                Order Summary
+                            </h3>
 
                             <div className="space-y-2 text-sm text-white/80">
                                 <div className="flex justify-between">
@@ -556,8 +738,13 @@ export default function SuccessPage() {
                                 <h4 className="text-white font-medium mb-2">Items</h4>
                                 <div className="space-y-1">
                                     {orderDetails.items.map((item, index) => (
-                                        <div key={item.id || index} className="flex justify-between text-sm text-white/70">
-                                            <span>{item.quantity}x {item.name}</span>
+                                        <div
+                                            key={item.id || index}
+                                            className="flex justify-between text-sm text-white/70"
+                                        >
+                                            <span>
+                                                {item.quantity}x {item.name}
+                                            </span>
                                             <span>${(item.price * item.quantity).toFixed(2)}</span>
                                         </div>
                                     ))}
@@ -578,7 +765,10 @@ export default function SuccessPage() {
 
                             <div className="space-y-3">
                                 {giftCardsCreated.map((card) => (
-                                    <div key={card.code} className="bg-black/30 border border-white/10 rounded-lg p-4">
+                                    <div
+                                        key={card.code}
+                                        className="bg-black/30 border border-white/10 rounded-lg p-4"
+                                    >
                                         <div className="flex justify-between gap-3 text-sm text-white/70 mb-1">
                                             <span>Amount</span>
                                             <span>${card.amount.toFixed(2)}</span>
@@ -600,7 +790,9 @@ export default function SuccessPage() {
                         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
                             <div className="flex justify-between items-center mb-1">
                                 <span className="text-yellow-400 text-sm">Points Earned</span>
-                                <span className="text-yellow-400 font-bold text-lg">+{pointsData.pointsEarned}</span>
+                                <span className="text-yellow-400 font-bold text-lg">
+                                    +{pointsData.pointsEarned}
+                                </span>
                             </div>
                             <div className="text-yellow-400/70 text-xs flex justify-between">
                                 <span>Previous Balance</span>
@@ -619,26 +811,11 @@ export default function SuccessPage() {
                         </div>
                     )}
 
-                    {pointsHistory.length > 0 && (
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-                            <h3 className="text-lg font-semibold text-white mb-3">Recent Points Activity</h3>
-                            <ul className="space-y-2 text-sm text-white/80">
-                                {pointsHistory.map((item) => (
-                                    <li key={item.id} className="flex justify-between border-b border-white/10 pb-2 last:border-0 last:pb-0">
-                                        <span className="truncate mr-2">{item.description}</span>
-                                        <span className="text-yellow-400 font-semibold whitespace-nowrap">
-                                            {item.points >= 0 ? "+" : ""}
-                                            {item.points} pts
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
                     {!isClient && (
                         <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
-                            <span className="text-blue-400 text-sm">Create an account to earn points!</span>
+                            <span className="text-blue-400 text-sm">
+                                Create an account to earn points!
+                            </span>
                         </div>
                     )}
 
