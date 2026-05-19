@@ -302,10 +302,14 @@ export default function CheckoutPage() {
 
     if (safeCart.length === 0 && !orderComplete) {
         return (
-            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+            <div className="min-h-screen bg-[#050505] flex items-center justify-center text-white">
                 <div className="container mx-auto px-6 text-center">
-                    <div className="max-w-md mx-auto">
-                        <h2 className="text-2xl font-light text-white mb-3 tracking-wide">
+                    <div className="max-w-md mx-auto border border-white/10 bg-[#0b0b0b] p-8 shadow-2xl shadow-black/40">
+                        <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.28em] text-[#f26350]">
+                            Mai Sushi
+                        </p>
+
+                        <h2 className="text-3xl font-light text-white mb-3 tracking-wide">
                             {t("checkoutPage.emptyCart", "Your cart is empty")}
                         </h2>
 
@@ -315,7 +319,7 @@ export default function CheckoutPage() {
 
                         <Link
                             to="/order"
-                            className="border border-white text-white px-6 py-3 rounded-sm hover:bg-white hover:text-gray-900 transition-all text-sm"
+                            className="inline-flex items-center justify-center bg-[#f26350] px-7 py-4 text-[12px] font-extrabold uppercase tracking-[0.1em] text-white shadow-lg shadow-[#f26350]/25 transition-all hover:bg-[#ff725f]"
                         >
                             {t("checkoutPage.browseMenu", "Browse Menu")}
                         </Link>
@@ -327,14 +331,14 @@ export default function CheckoutPage() {
 
     if (orderComplete) {
         return (
-            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+            <div className="min-h-screen bg-[#050505] flex items-center justify-center">
                 <div className="container mx-auto px-6">
-                    <div className="max-w-md mx-auto text-center">
+                    <div className="max-w-md mx-auto text-center border border-white/10 bg-[#0b0b0b] p-8 shadow-2xl shadow-black/40">
                         <div className="text-white">Order complete: {orderNumber}</div>
 
                         <button
                             onClick={() => navigate("/")}
-                            className="mt-4 bg-white text-gray-900 px-4 py-2 rounded-sm"
+                            className="mt-4 bg-[#f26350] text-white px-6 py-3 text-[12px] font-extrabold uppercase tracking-[0.1em]"
                         >
                             {t("checkoutPage.backHome", "Back to Home")}
                         </button>
@@ -346,13 +350,13 @@ export default function CheckoutPage() {
 
     const deliveryBanner =
         formData.deliveryMethod === "delivery" && !deliveryInfo.allowed ? (
-            <div className="bg-[#E62B2B]/10 border border-[#E62B2B]/30 text-[#ffb3b3] text-sm p-3 rounded-sm mb-4">
+            <div className="bg-[#f26350]/10 border border-[#f26350]/30 text-[#ffb3b3] text-sm p-3 mb-4">
                 {deliveryInfo.reason} — we switched to <strong>Pickup</strong> to continue.
             </div>
         ) : null;
 
     return (
-        <div className="min-h-screen bg-gray-900">
+        <div className="min-h-screen bg-[#050505] text-white">
             {showAuthModal && (
                 <AuthModal
                     isLoginMode={isLoginMode}
@@ -368,8 +372,54 @@ export default function CheckoutPage() {
                 />
             )}
 
-            <div className="container mx-auto px-4 py-8">
-                <div className="max-w-7xl mx-auto">
+            <div className="mx-auto w-full max-w-[1680px] px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+                <div className="mx-auto">
+                    <div className="mb-6 border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(242,99,80,0.18),transparent_34%),linear-gradient(135deg,#101010,#050505)] px-5 py-5 shadow-2xl shadow-black/30 sm:px-7 lg:px-8">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                            <div className="max-w-3xl">
+                                <p className="text-[11px] font-extrabold uppercase tracking-[0.28em] text-[#f26350]">
+                                    {t("checkoutPage.secureCheckoutEyebrow", "Secure checkout")}
+                                </p>
+
+                                <h1 className="mt-3 text-3xl font-light tracking-wide text-white sm:text-4xl lg:text-5xl">
+                                    {currentStep === "info"
+                                        ? t("checkoutPage.completeOrderTitle", "Complete your order")
+                                        : t("checkoutPage.reviewPaymentTitle", "Review and pay")}
+                                </h1>
+
+                                <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65 sm:text-base">
+                                    {t(
+                                        "checkoutPage.checkoutPromise",
+                                        "Freshly prepared in Sherbrooke, secure card payment, and a fast pickup flow built for dinner decisions."
+                                    )}
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 text-center sm:min-w-[420px]">
+                                <div className="border border-white/10 bg-black/20 px-3 py-3">
+                                    <div className="text-lg font-semibold text-white">{itemCount}</div>
+                                    <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
+                                        {itemCount === 1 ? t("common.item", "Item") : t("common.items", "Items")}
+                                    </div>
+                                </div>
+
+                                <div className="border border-white/10 bg-black/20 px-3 py-3">
+                                    <div className="text-lg font-semibold text-[#f26350]">${finalTotal.toFixed(2)}</div>
+                                    <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
+                                        {t("common.total", "Total")}
+                                    </div>
+                                </div>
+
+                                <div className="border border-white/10 bg-black/20 px-3 py-3">
+                                    <div className="text-lg font-semibold text-white">{estimatedPrepTime}m</div>
+                                    <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
+                                        {t("checkoutPage.estimated", "Estimate")}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <CheckoutHeader
                         user={user}
                         isLoadingUser={isLoadingUser}
@@ -385,7 +435,7 @@ export default function CheckoutPage() {
                     />
 
                     {!isOpen && nextOpening && (
-                        <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 rounded mb-6">
+                        <div className="mb-6 border border-yellow-500/30 bg-yellow-500/10 p-4">
                             <p className="text-yellow-300 text-sm text-center">
                                 {t("checkoutPage.closedNow")}
                                 <br />

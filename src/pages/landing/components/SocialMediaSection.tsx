@@ -1,5 +1,6 @@
 import { Facebook, Instagram, MapPin, ExternalLink } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
 // Types
 interface SocialPlatform {
@@ -78,13 +79,11 @@ const SocialLink: React.FC<SocialLinkProps> = ({
                 style={{ animationDelay }}
             >
                 <div className={`
-                    relative bg-gradient-to-br from-white/95 to-white/75 
-                    backdrop-blur-xl border border-white/30 rounded-xl 
-                    p-3.5 sm:p-4 shadow-lg shadow-black/5 
+                    relative rounded-[4px] border border-white/12 bg-[#080808]/90
+                    p-3.5 shadow-xl shadow-black/35 backdrop-blur-xl
                     transition-all duration-500 ease-out
-                    hover:scale-110 hover:bg-white/95 hover:shadow-2xl 
-                    hover:shadow-black/20 hover:border-white/40
-                    active:scale-95
+                    hover:scale-110 hover:border-[#f26350]/55 hover:bg-[#111]/95 hover:shadow-2xl
+                    hover:shadow-[#f26350]/15 active:scale-95 sm:p-4
                 `}>
                     <div className={`
                         absolute inset-0 rounded-xl bg-gradient-to-br ${gradient} 
@@ -113,7 +112,7 @@ const SocialLink: React.FC<SocialLinkProps> = ({
 
                         <Icon className={`
                             w-4 h-4 sm:w-5 sm:h-5 
-                            text-[#0D0D0D]/70 transition-all duration-300
+                            text-white/76 transition-all duration-300
                             ${hoverColor} group-hover:scale-110
                             relative z-10
                         `} />
@@ -174,6 +173,7 @@ const SocialLink: React.FC<SocialLinkProps> = ({
 
 // Business info component
 const BusinessInfo: React.FC = () => {
+    const { t } = useTranslation()
     const [currentTime, setCurrentTime] = useState(new Date())
 
     useEffect(() => {
@@ -241,46 +241,45 @@ const BusinessInfo: React.FC = () => {
         } else if (currentMinutes < openMinutes) {
             nextOpeningTime = openingTime
         } else if (day === 6) {
-            nextOpeningTime = 'Tuesday 12:00 PM'
+            nextOpeningTime = t('landing.business.tuesdayNoon', 'Tuesday 12:00 PM')
         } else {
-            nextOpeningTime = 'Tomorrow 12:00 PM'
+            nextOpeningTime = t('landing.business.tomorrowNoon', 'Tomorrow 12:00 PM')
         }
     } else {
         isOpen = false
-        nextOpeningTime = 'Tuesday 12:00 PM'
+        nextOpeningTime = t('landing.business.tuesdayNoon', 'Tuesday 12:00 PM')
     }
 
-    const statusText = isOpen ? 'Open Now' : 'Closed'
+    const statusText = isOpen
+        ? t('landing.business.openNow', 'Open Now')
+        : t('landing.business.closed', 'Closed')
 
     const hoursText = isOpen
-        ? `Closes ${closingTime} · ${formatMinutesLeft(minutesToClose)}`
-        : `Opens ${nextOpeningTime}`
+        ? t('landing.business.closesAt', 'Closes {{time}} · {{remaining}}', {
+            time: closingTime,
+            remaining: formatMinutesLeft(minutesToClose)
+        })
+        : t('landing.business.opensAt', 'Opens {{time}}', { time: nextOpeningTime })
 
     return (
-        <div className="fixed left-3 sm:left-6 bottom-8 z-50 hidden lg:block">
+        <div className="fixed bottom-6 left-6 z-50 hidden lg:block">
             <div className="relative group">
-                <div className="relative bg-gradient-to-br from-white/90 to-white/70 
-                    backdrop-blur-xl border border-white/20 rounded-lg p-4
-                    shadow-lg shadow-black/5 hover:shadow-xl 
-                    transition-all duration-300 w-48">
+                <div className="relative w-52 overflow-hidden rounded-[4px] border border-white/12 bg-[#080808]/92 p-4 text-white shadow-2xl shadow-black/45 backdrop-blur-xl transition-all duration-300 hover:border-[#f26350]/45">
 
-                    <div className="absolute top-0 left-4 right-4 h-[1px] 
-                        bg-gradient-to-r from-transparent via-[#E62B2B]/30 
-                        to-transparent" />
+                    <div className="absolute left-0 top-0 h-[2px] w-full bg-[#f26350]" />
 
-                    <div className="text-[#0D0D0D] text-xs font-light tracking-[0.2em] 
-                        uppercase mb-3 text-center">
+                    <div className="mb-3 text-center text-[12px] font-extrabold uppercase tracking-[0.22em] text-white">
                         MaiSushi
                     </div>
 
-                    <div className="flex items-center justify-center gap-2 mb-2">
+                    <div className="mb-2 flex items-center justify-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-                        <span className="text-[10px] font-medium uppercase tracking-wider">
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/90">
                             {statusText}
                         </span>
                     </div>
 
-                    <div className="text-[9px] text-[#0D0D0D]/60 text-center font-light tracking-wide">
+                    <div className="text-center text-[10px] font-medium leading-4 text-white/62">
                         {hoursText}
                     </div>
 
@@ -288,18 +287,14 @@ const BusinessInfo: React.FC = () => {
                         href="https://maps.google.com/?q=MaiSushi"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-3 flex items-center justify-center gap-1 
-                            text-[8px] text-[#0D0D0D]/40 hover:text-[#E62B2B] 
-                            transition-colors duration-200 group/link"
+                        className="group/link mt-3 flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white/45 transition-colors duration-200 hover:text-[#f26350]"
                     >
                         <MapPin className="w-2 h-2" />
-                        <span className="tracking-wider uppercase">Find us</span>
+                        <span>{t('landing.business.findUs', 'Find us')}</span>
                     </a>
                 </div>
 
-                <div className="absolute -inset-1 bg-gradient-to-r from-[#E62B2B]/10 
-                    to-transparent rounded-lg blur opacity-0 
-                    group-hover:opacity-100 transition-opacity duration-500 -z-10" />
+                <div className="absolute -inset-1 -z-10 rounded-lg bg-[#f26350]/10 opacity-0 blur transition-opacity duration-500 group-hover:opacity-100" />
             </div>
         </div>
     )
@@ -307,6 +302,7 @@ const BusinessInfo: React.FC = () => {
 
 // Main Social Media Section Component
 export const SocialMediaSection: React.FC = () => {
+    const { t } = useTranslation()
     const [isVisible, setIsVisible] = useState(false)
 
     useEffect(() => {
@@ -316,19 +312,18 @@ export const SocialMediaSection: React.FC = () => {
     return (
         <>
             <div className={`
-                fixed left-3 sm:left-6 top-1/2 -translate-y-1/2 z-50 
+                fixed left-3 sm:left-5 top-1/2 -translate-y-1/2 z-50 
                 flex flex-col gap-2
                 transition-all duration-1000 transform
                 ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-10 opacity-0'}
             `}>
-                <div className="text-[8px] text-[#0D0D0D]/30 font-light tracking-[0.3em] 
-                    uppercase mb-2 text-center hidden sm:block">
-                    Connect
+                <div className="mb-2 hidden text-center text-[8px] font-bold uppercase tracking-[0.3em] text-white/35 sm:block">
+                    {t('landing.social.connect', 'Connect')}
                 </div>
 
                 <div className="relative">
                     <div className="absolute left-1/2 top-0 bottom-0 w-[1px] 
-                        bg-gradient-to-b from-transparent via-[#E62B2B]/20 
+                        bg-gradient-to-b from-transparent via-[#f26350]/35 
                         to-transparent -translate-x-1/2" />
 
                     {SOCIAL_PLATFORMS.map((platform, index) => (
@@ -341,13 +336,13 @@ export const SocialMediaSection: React.FC = () => {
 
                             {index < SOCIAL_PLATFORMS.length - 1 && (
                                 <div className="absolute left-1/2 -bottom-1 w-1 h-1 
-                                    bg-[#E62B2B]/30 rounded-full -translate-x-1/2" />
+                                    bg-[#f26350]/40 rounded-full -translate-x-1/2" />
                             )}
                         </div>
                     ))}
                 </div>
 
-                <div className="mt-4 text-[8px] text-[#0D0D0D]/20 font-light 
+                <div className="mt-4 text-[8px] text-white/20 font-light 
                     tracking-[0.2em] uppercase rotate-90 hidden sm:block">
                     <span className="animate-pulse">↗</span>
                 </div>

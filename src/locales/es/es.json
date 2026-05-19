@@ -22,8 +22,11 @@
   "hero": {
     "authentic": "Auténtico",
     "japaneseExperience": "Experiencia en Sushi",
-    "tagline": "La maestría del sushi se encuentra con la elegancia contemporánea",
-    "orderNow": "Ordenar Ahora"
+    "tagline": "El saber artesanal se encuentra con la elegancia contemporánea.",
+    "orderNow": "Ordenar ahora",
+    "eyebrow": "Una experiencia",
+    "sushi": "Sushi",
+    "viewMenu": "Ver el menú"
   },
   "cart": {
     "items": "ARTÍCULOS",
@@ -153,8 +156,19 @@
     "closedNow": "Actualmente estamos cerrados.",
     "ordersPreparedAt": "Los pedidos se prepararán a las {{time}}",
     "placeOrder": "Realizar pedido",
-    "scheduleOrder": "Programar pedido"
-  
+    "scheduleOrder": "Programar pedido",
+    "secureCheckoutEyebrow": "Pago seguro",
+    "completeOrderTitle": "Completa tu pedido",
+    "reviewPaymentTitle": "Revisa y paga",
+    "checkoutPromise": "Preparado fresco en Sherbrooke, pago seguro con tarjeta y una experiencia rapida para ordenar sin friccion.",
+    "estimated": "Estimado",
+    "customerDetails": "Datos del cliente",
+    "pickupInformation": "Informacion de pickup",
+    "customerDetailsDescription": "Agrega tus datos para que cocina pueda confirmar el horario y contactarte si hace falta.",
+    "onlineDeal": "Oferta online",
+    "onlineDealDescription": "Usa MAISUSHI10 antes del pago.",
+    "fulfillment": "Modo de pedido",
+    "finalStep": "Paso final"
   },
   "nav": {
     "salesTracking": "Seguimiento de Ventas",
@@ -281,7 +295,39 @@
     "hoursThursdaySaturday": "Vie-Sáb: 12:00 PM - 10:00 PM",
     "hoursSunday": "Dom: Cerrado",
     "hoursMonday": "Lun: Cerrado",
-    "email_placeholder": "tu.email@ejemplo.com"
+    "email_placeholder": "tu.email@ejemplo.com",
+    "promoPrefix": "Oferta en línea - 10% de descuento con el código",
+    "valueProps": {
+      "fresh": {
+        "title": "Ingredientes frescos",
+        "copy": "Seleccionados con cuidado cada día"
+      },
+      "handmade": {
+        "title": "Hecho a mano",
+        "copy": "Sushi preparado con pasión por nuestros chefs"
+      },
+      "flavors": {
+        "title": "Sabores únicos",
+        "copy": "Creaciones originales y refinadas"
+      },
+      "takeout": {
+        "title": "Para llevar",
+        "copy": "Ordene fácilmente en línea"
+      }
+    },
+    "social": {
+      "connect": "Síguenos"
+    },
+    "business": {
+      "openNow": "Abierto",
+      "closed": "Cerrado",
+      "closesAt": "Cierra a las {{time}} · {{remaining}}",
+      "opensAt": "Abre {{time}}",
+      "findUs": "Encontrarnos",
+      "tuesdayNoon": "Martes 12:00 PM",
+      "tomorrowNoon": "Mañana 12:00 PM"
+    },
+    "contactEyebrow": "Planifique algo fresco"
   },
   "catering": {
     "title": "Catering MaiSushi",

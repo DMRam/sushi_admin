@@ -399,37 +399,37 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
 
     if (loading) {
         return (
-            <section className="py-16 bg-white">
-                <div className="container mx-auto px-6">
-                    <div className="text-center mb-12">
-                        <h3 className="text-3xl font-light text-gray-900 mb-4">
-                            {t('featured.signatureCreations', 'Signature Creations')}
+            <section className="bg-[#060606] py-6 text-white">
+                <div className="mx-auto max-w-[1600px] px-6 lg:px-10">
+                    <div className="mb-5 text-center">
+                        <h3 className="mb-3 text-xl font-light uppercase tracking-[0.14em] text-white sm:text-2xl">
+                            {t('featured.signatureCreations', 'Nos créations signatures')}
                         </h3>
-                        <div className="w-20 h-0.5 bg-red-600 mx-auto" />
+                        <div className="mx-auto h-0.5 w-20 bg-[#f26350]" />
                     </div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                    <div className="grid gap-5 sm:grid-cols-3 lg:gap-8">
                         {[1, 2, 3].map((item) => (
                             <div
                                 key={item}
-                                className="bg-slate-50 border border-gray-200 rounded-lg overflow-hidden group hover:shadow-lg transition-all duration-300"
+                                className="group overflow-hidden rounded-[4px] border border-white/12 bg-[#0e0e0e] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#f26350]/45 hover:shadow-2xl hover:shadow-black/40"
                             >
-                                <div className="h-48 bg-linear-to-br from-slate-300 to-slate-400 relative overflow-hidden">
-                                    <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-sm font-medium">
+                                <div className="relative h-40 overflow-hidden bg-linear-to-br from-[#1e1e1e] to-[#2a1814] lg:h-48">
+                                    <div className="absolute left-3 top-3 rounded-[2px] bg-[#f26350] px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.06em] text-white">
                                         {t('featured.chefsPick', "Chef's Pick")}
                                     </div>
                                 </div>
                                 <div className="p-6">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h4 className="text-xl font-medium text-gray-900">
+                                    <div className="mb-2 flex items-start justify-between">
+                                        <h4 className="text-lg font-bold text-white">
                                             {t('featured.loading', 'Loading...')}
                                         </h4>
-                                        <span className="text-lg font-light text-red-600">$--</span>
+                                        <span className="text-lg font-bold text-[#f26350]">$--</span>
                                     </div>
-                                    <p className="text-gray-600 text-sm font-light mb-4 leading-relaxed">
+                                    <p className="mb-4 text-sm font-light leading-relaxed text-white/62">
                                         {t('featured.loadingDescription', 'Loading description...')}
                                     </p>
-                                    <button className="w-full bg-gray-900 text-white py-3 text-sm font-medium tracking-wide hover:bg-red-600 transition-colors duration-300 opacity-50 cursor-not-allowed">
+                                    <button className="w-full cursor-not-allowed rounded-[3px] bg-[#f26350] py-3 text-[11px] font-extrabold uppercase tracking-[0.08em] text-white opacity-50">
                                         {t('featured.loading', 'Loading...')}
                                     </button>
                                 </div>
@@ -443,19 +443,19 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
 
     if (error) {
         return (
-            <section className="py-16 bg-white">
-                <div className="container mx-auto px-6">
-                    <div className="text-center mb-12">
-                        <h3 className="text-3xl font-light text-gray-900 mb-4">
-                            {t('featured.signatureCreations', 'Signature Creations')}
+            <section className="bg-[#060606] py-6 text-white">
+                <div className="mx-auto max-w-[1600px] px-6 lg:px-10">
+                    <div className="mb-5 text-center">
+                        <h3 className="mb-3 text-xl font-light uppercase tracking-[0.14em] text-white sm:text-2xl">
+                            {t('featured.signatureCreations', 'Nos créations signatures')}
                         </h3>
-                        <div className="w-20 h-0.5 bg-red-600 mx-auto" />
+                        <div className="mx-auto h-0.5 w-20 bg-[#f26350]" />
                     </div>
-                    <div className="text-center text-red-600">
+                    <div className="text-center text-[#f26350]">
                         <p>{error}</p>
                         <button
                             onClick={() => window.location.reload()}
-                            className="mt-4 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                            className="mt-4 rounded-sm bg-[#f26350] px-6 py-2 text-white transition-colors hover:bg-[#ff725f]"
                         >
                             {t('featured.tryAgain', 'Try Again')}
                         </button>
@@ -467,19 +467,19 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
 
     if (featuredItems.length === 0) {
         return (
-            <section className="py-16 bg-white">
-                <div className="container mx-auto px-6">
-                    <div className="text-center mb-12">
-                        <h3 className="text-3xl font-light text-gray-900 mb-4">
-                            {t('featured.signatureCreations', 'Signature Creations')}
+            <section className="bg-[#060606] py-6 text-white">
+                <div className="mx-auto max-w-[1600px] px-6 lg:px-10">
+                    <div className="mb-5 text-center">
+                        <h3 className="mb-3 text-xl font-light uppercase tracking-[0.14em] text-white sm:text-2xl">
+                            {t('featured.signatureCreations', 'Nos créations signatures')}
                         </h3>
-                        <div className="w-20 h-0.5 bg-red-600 mx-auto" />
+                        <div className="mx-auto h-0.5 w-20 bg-[#f26350]" />
                     </div>
-                    <div className="text-center text-gray-600">
+                    <div className="text-center text-white/65">
                         <p>{t('featured.noItems', 'No featured items available')}</p>
                         <Link
                             to="/order"
-                            className="inline-block mt-4 bg-gray-900 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors"
+                            className="mt-4 inline-block rounded-sm bg-[#f26350] px-6 py-2 font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#ff725f]"
                         >
                             {t('featured.viewMenu', 'View Complete Menu')}
                         </Link>
@@ -491,34 +491,34 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
 
     return (
         <>
-            <section className="py-16 bg-white">
-                <div className="container mx-auto px-6">
-                    <div className="text-center mb-12">
-                        <h3 className="text-3xl font-light text-gray-900 mb-4">
-                            {t('featured.signatureCreations', 'Signature Creations')}
+            <section className="bg-[#060606] py-6 text-white">
+                <div className="mx-auto max-w-[1600px] px-6 lg:px-10">
+                    <div className="mb-5 text-center">
+                        <h3 className="mb-3 text-xl font-light uppercase tracking-[0.14em] text-white sm:text-2xl">
+                            {t('featured.signatureCreations', 'Nos créations signatures')}
                         </h3>
-                        <div className="w-20 h-0.5 bg-red-600 mx-auto" />
+                        <div className="mx-auto h-0.5 w-16 bg-[#f26350]" />
                     </div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                    <div className="grid gap-5 sm:grid-cols-3 lg:gap-8">
                         {featuredItems.map((item) => (
                             <div
                                 key={item.id}
-                                className="bg-slate-50 border border-gray-200 rounded-lg overflow-hidden group hover:shadow-lg transition-all duration-300 h-full flex flex-col"
+                                className="group flex h-full flex-col overflow-hidden rounded-[4px] border border-white/12 bg-[#0e0e0e] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#f26350]/45 hover:shadow-2xl hover:shadow-black/40"
                             >
                                 <div
-                                    className="h-48 bg-linear-to-br from-slate-300 to-slate-400 relative overflow-hidden cursor-pointer"
+                                    className="relative h-40 cursor-pointer overflow-hidden bg-linear-to-br from-[#1e1e1e] to-[#2a1814] lg:h-48"
                                     onClick={() => openItemModal(item)}
                                 >
                                     {item.image && item.image !== '/images/placeholder-food.jpg' ? (
                                         <img
                                             src={item.image}
                                             alt={item.name}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                         />
                                     ) : (
-                                        <div className="w-full h-full bg-linear-to-br from-slate-300 to-slate-400 flex items-center justify-center">
-                                            <span className="text-4xl text-slate-600 opacity-50">
+                                        <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-[#1e1e1e] to-[#2a1814]">
+                                            <span className="text-4xl text-white/40">
                                                 {item.category === 'ceviche'
                                                     ? '○'
                                                     : item.category === 'signature'
@@ -528,34 +528,34 @@ export const LandingFeatured = ({ handleAddToCart }: Props) => {
                                         </div>
                                     )}
 
-                                    <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-sm font-medium">
+                                    <div className="absolute left-3 top-3 rounded-[2px] bg-[#f26350] px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.06em] text-white">
                                         {item.popular
                                             ? t('featured.chefsPick', "Chef's Pick")
                                             : t('featured.featured', 'Featured')}
                                     </div>
 
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                        <span className="text-white font-medium bg-black/50 px-4 py-2 rounded-lg">
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all duration-300 group-hover:bg-black/35 group-hover:opacity-100">
+                                        <span className="rounded-[3px] border border-white/20 bg-black/70 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.08em] text-white">
                                             {t('featured.viewDetails', 'View Details')}
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="p-6 flex flex-col grow">
-                                    <div className="flex justify-between items-start mb-2 gap-4">
-                                        <h4 className="text-xl font-medium text-gray-900">{item.name}</h4>
-                                        <span className="text-lg font-light text-red-600 whitespace-nowrap">
+                                <div className="flex grow flex-col p-4 lg:p-5">
+                                    <div className="mb-2 flex items-start justify-between gap-4">
+                                        <h4 className="text-[15px] font-extrabold leading-snug text-white lg:text-[17px]">{item.name}</h4>
+                                        <span className="whitespace-nowrap text-[15px] font-extrabold text-[#f26350] lg:text-[17px]">
                                             ${item.price.toFixed(2)}
                                         </span>
                                     </div>
 
-                                    <p className="text-gray-600 text-sm font-light mb-4 leading-relaxed">
+                                    <p className="mb-4 text-[12px] font-medium leading-5 text-white/74 lg:text-[14px] lg:leading-6">
                                         {getCurrentLanguageDescription(item.description)}
                                     </p>
 
                                     <button
                                         onClick={() => handleAddToCart(item)}
-                                        className="w-full bg-gray-900 text-white py-3 text-sm font-medium tracking-wide hover:bg-red-600 transition-colors duration-300 mt-auto"
+                                        className="mt-auto w-full rounded-[3px] bg-[#f26350] py-3 text-[11px] font-extrabold uppercase tracking-[0.08em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#ff725f]"
                                     >
                                         {t('featured.addToCart', 'Add to Order')}
                                     </button>

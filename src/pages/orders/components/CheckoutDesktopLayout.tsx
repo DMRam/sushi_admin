@@ -19,7 +19,7 @@ export default function CheckoutDesktopLayout({
   handleBackToInfo,
 }: Props) {
   return (
-    <div className="hidden lg:grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-8 items-start">
+    <div className="hidden lg:grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-8 items-start">
       <div className="min-w-0 space-y-6">
         {currentStep === "info" ? (
           <>
@@ -33,7 +33,7 @@ export default function CheckoutDesktopLayout({
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
-                className="bg-white text-gray-900 px-8 py-3 rounded-sm hover:bg-white/90 transition-all text-sm font-medium"
+                className="bg-[#f26350] px-8 py-4 text-[12px] font-extrabold uppercase tracking-[0.1em] text-white shadow-lg shadow-[#f26350]/20 transition-all hover:bg-[#ff725f]"
               >
                 {t("checkoutPage.continueReview", "Continue to Review")}
               </button>
@@ -51,8 +51,8 @@ export default function CheckoutDesktopLayout({
         )}
       </div>
 
-      <aside className="w-full max-w-[360px] space-y-4 sticky top-6 self-start">
-        <div className="w-full overflow-hidden rounded-xl">
+      <aside className="w-full max-w-[420px] space-y-4 sticky top-[132px] self-start">
+        <div className="w-full overflow-hidden">
           <OrderSummary {...orderSummaryProps} />
         </div>
 

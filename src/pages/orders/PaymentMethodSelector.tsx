@@ -20,23 +20,31 @@ export default function PaymentMethodSelector({
     const { t } = useTranslation()
 
     return (
-        <div className="bg-white/5 border border-white/10 rounded-sm p-6">
-            <h3 className="text-lg font-light text-white tracking-wide mb-4">
-                {t('common.paymentMethod')}
-            </h3>
+        <div className="bg-[#0b0b0b] border border-white/10 p-5 shadow-2xl shadow-black/30 sm:p-6">
+            <div className="mb-5 border-b border-white/10 pb-4">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.24em] text-[#f26350]">
+                    {t('checkoutPage.finalStep', 'Final step')}
+                </p>
+                <h3 className="mt-2 text-2xl font-light text-white tracking-wide">
+                    {t('common.paymentMethod')}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-white/55">
+                    {t('paymentMethod.securePaymentDescription', 'Your card payment is handled through our secure checkout provider.')}
+                </p>
+            </div>
 
             <div className="space-y-4 mb-6">
                 {/* Credit Card Option */}
-                <label className="flex items-start space-x-3 cursor-pointer group p-4 rounded-sm border transition-all duration-200 hover:bg-white/5"
+                <label className="flex items-start space-x-3 cursor-pointer group p-4 border transition-all duration-200 hover:bg-white/5"
                     style={{
-                        borderColor: paymentMethod === "card" ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)',
-                        backgroundColor: paymentMethod === "card" ? 'rgba(255,255,255,0.1)' : 'transparent'
+                        borderColor: paymentMethod === "card" ? 'rgba(242,99,80,0.55)' : 'rgba(255,255,255,0.1)',
+                        backgroundColor: paymentMethod === "card" ? 'rgba(242,99,80,0.10)' : 'transparent'
                     }}
                 >
                     <div className="flex items-center h-5 mt-0.5">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${paymentMethod === "card" ? 'border-white bg-white' : 'border-white/30'}`}>
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${paymentMethod === "card" ? 'border-[#f26350] bg-[#f26350]' : 'border-white/30'}`}>
                             {paymentMethod === "card" && (
-                                <div className="w-2 h-2 rounded-full bg-gray-900"></div>
+                                <div className="w-2 h-2 rounded-full bg-white"></div>
                             )}
                         </div>
                         <input
@@ -85,7 +93,7 @@ export default function PaymentMethodSelector({
                     type="button"
                     onClick={onBack}
                     disabled={isProcessing}
-                    className="bg-white/5 border border-white/10 text-white px-6 py-3 rounded-sm hover:bg-white/10 transition-all duration-300 font-light tracking-wide text-sm flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-white/5 border border-white/10 text-white px-6 py-3 hover:bg-white/10 transition-all duration-300 font-bold uppercase tracking-[0.1em] text-xs flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {t('checkoutPage.backToInfo')}
                 </button>
@@ -93,7 +101,7 @@ export default function PaymentMethodSelector({
                     type="button"
                     onClick={onPlaceOrder}
                     disabled={isProcessing}
-                    className="bg-white text-gray-900 px-6 py-3 rounded-sm hover:bg-white/90 transition-all duration-300 font-light tracking-wide text-sm flex-1 disabled:bg-white/50 disabled:cursor-not-allowed"
+                    className="bg-[#f26350] text-white px-6 py-3 hover:bg-[#ff725f] transition-all duration-300 font-extrabold uppercase tracking-[0.1em] text-xs flex-1 shadow-lg shadow-[#f26350]/20 disabled:bg-[#f26350]/50 disabled:cursor-not-allowed"
                 >
                     {isProcessing ? (
                         <div className="flex items-center justify-center space-x-2">

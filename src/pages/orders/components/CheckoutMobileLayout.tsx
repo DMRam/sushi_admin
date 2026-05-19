@@ -36,8 +36,8 @@ export default function CheckoutMobileLayout({
 
           <OrderSummary {...orderSummaryProps} />
 
-          <div className="sticky bottom-0 bg-black/80 backdrop-blur-xl border-t border-white/10 pt-4 pb-4 -mx-4 px-4 mt-6">
-            <button type="submit" className="bg-[#E62B2B] text-white px-8 py-4 rounded-xl w-full">
+          <div className="sticky bottom-0 bg-black/85 backdrop-blur-xl border-t border-white/10 pt-4 pb-4 -mx-4 px-4 mt-6">
+            <button type="submit" className="bg-[#f26350] text-white px-8 py-4 w-full text-[12px] font-extrabold uppercase tracking-[0.1em] shadow-lg shadow-[#f26350]/20">
               {t("checkoutPage.continueReview", "Continue to Review")}
             </button>
           </div>
@@ -61,7 +61,7 @@ export default function CheckoutMobileLayout({
             />
           </div>
 
-          <div className="sticky bottom-0 bg-gray-900 border-t border-white/10 pt-4 pb-4 -mx-4 px-4">
+          <div className="sticky bottom-0 bg-black/85 backdrop-blur-xl border-t border-white/10 pt-4 pb-4 -mx-4 px-4">
             <PaymentMethodSelector
               paymentMethod="card"
               onPaymentMethodChange={() => {}}

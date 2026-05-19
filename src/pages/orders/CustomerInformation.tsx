@@ -64,7 +64,7 @@ const CustomerInformationComponent = ({
   const showArea = formData.city === "Sherbrooke";
   const addressRef = useRef<HTMLInputElement>(null);
 
-  console.log("Rendering CustomerInformation");
+  
 
   // Memoized lists
   const cityOptions = useMemo(() => CITIES, []);
@@ -101,12 +101,12 @@ const CustomerInformationComponent = ({
             ? t("checkout.delivery.deliveryLargeOrdersOnly", "Delivery (large orders only)")
             : t("checkout.delivery.pickup", "Pickup"),
           className: [
-            "px-6 py-3 text-sm border rounded-xl transition-all duration-300 font-light tracking-wide",
+            "px-6 py-3 text-sm border rounded-[4px] transition-all duration-300 font-light tracking-wide",
             isDelivery
-              ? "border-white/10 bg-white/5 text-white/30 cursor-not-allowed"
+              ? "border-white/10 bg-[#0e0e0e] text-white/30 cursor-not-allowed"
               : active
-                ? "border-[#E62B2B] bg-[#E62B2B] text-white shadow-lg shadow-[#E62B2B]/30"
-                : "border-white/15 bg-white/5 text-white/80 hover:border-[#E62B2B]/40 hover:bg-white/10",
+                ? "border-[#f26350] bg-[#f26350] text-white shadow-lg shadow-[#f26350]/30"
+                : "border-white/15 bg-[#0e0e0e] text-white/80 hover:border-[#f26350]/40 hover:bg-white/8",
           ].join(" "),
         };
       }),
@@ -131,7 +131,7 @@ const CustomerInformationComponent = ({
   // Pickup section
   const pickupSection = useMemo(
     () => (
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 bg-white/5 rounded-2xl border border-white/10">
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 bg-[#0e0e0e] rounded-[4px] border border-white/10">
         <div>
           <label className="block text-sm text-white/70 mb-2 font-light tracking-wide">
             {t("checkout.pickup.pickupTime", "Pickup time")}
@@ -141,7 +141,7 @@ const CustomerInformationComponent = ({
             name="pickupTime"
             value={formData.pickupTime || "asap"}
             onChange={onInputChange}
-            className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-white font-light focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300"
+            className="w-full bg-[#0e0e0e] border border-white/15 rounded-[3px] px-4 py-3 text-white font-light focus:outline-none focus:border-[#f26350] focus:bg-[#151515] transition-all duration-300"
           >
             {pickupTimeOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -151,7 +151,7 @@ const CustomerInformationComponent = ({
           </select>
 
           {errors.pickupTime && (
-            <p className="mt-2 text-xs text-[#E62B2B] font-light">
+            <p className="mt-2 text-xs text-[#f26350] font-light">
               {errors.pickupTime}
             </p>
           )}
@@ -170,17 +170,17 @@ const CustomerInformationComponent = ({
               "checkout.pickup.orderNotesPlaceholder",
               "Example: I will pick it up at 6:30 PM, no sesame, extra soy sauce..."
             )}
-            className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-white placeholder-white/30 min-h-[90px] resize-y font-light focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300"
+            className="w-full bg-[#0e0e0e] border border-white/15 rounded-[3px] px-4 py-3 text-white placeholder-white/30 min-h-[90px] resize-y font-light focus:outline-none focus:border-[#f26350] focus:bg-[#151515] transition-all duration-300"
           />
 
           {errors.orderNotes && (
-            <p className="mt-2 text-xs text-[#E62B2B] font-light">
+            <p className="mt-2 text-xs text-[#f26350] font-light">
               {errors.orderNotes}
             </p>
           )}
         </div>
 
-        <div className="lg:col-span-2 text-sm text-white/60 font-light bg-black/10 rounded-xl p-4 border border-white/10">
+        <div className="lg:col-span-2 text-sm text-white/60 font-light bg-black/10 rounded-[4px] p-4 border border-white/10">
           📍{" "}
           {t(
             "checkout.pickup.pickupMessage",
@@ -199,7 +199,7 @@ const CustomerInformationComponent = ({
     }
 
     return (
-      <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 bg-white/5 rounded-2xl border border-white/10">
+      <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 bg-[#0e0e0e] rounded-[4px] border border-white/10">
         {/* Address */}
         <div className="lg:col-span-2">
           <label className="block text-sm text-white/70 mb-2 font-light tracking-wide">
@@ -214,10 +214,10 @@ const CustomerInformationComponent = ({
               "customerInformation.addressPlaceholder",
               "123 Rue King Ouest, Apt 4B"
             )}
-            className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-white placeholder-white/30 font-light focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300"
+            className="w-full bg-[#0e0e0e] border border-white/15 rounded-[3px] px-4 py-3 text-white placeholder-white/30 font-light focus:outline-none focus:border-[#f26350] focus:bg-[#151515] transition-all duration-300"
           />
           {errors.address && (
-            <p className="mt-2 text-xs text-[#E62B2B] font-light">{errors.address}</p>
+            <p className="mt-2 text-xs text-[#f26350] font-light">{errors.address}</p>
           )}
         </div>
 
@@ -230,7 +230,7 @@ const CustomerInformationComponent = ({
             name="city"
             value={formData.city}
             onChange={onInputChange}
-            className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-white font-light focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300"
+            className="w-full bg-[#0e0e0e] border border-white/15 rounded-[3px] px-4 py-3 text-white font-light focus:outline-none focus:border-[#f26350] focus:bg-[#151515] transition-all duration-300"
           >
             <option value="">{t("orderPage.home", "Select city")}</option>
             {cityOptions.map((c) => (
@@ -240,7 +240,7 @@ const CustomerInformationComponent = ({
             ))}
           </select>
           {errors.city && (
-            <p className="mt-2 text-xs text-[#E62B2B] font-light">{errors.city}</p>
+            <p className="mt-2 text-xs text-[#f26350] font-light">{errors.city}</p>
           )}
         </div>
 
@@ -255,7 +255,7 @@ const CustomerInformationComponent = ({
             onChange={onInputChange}
             disabled={!showArea}
             className={[
-              "w-full bg-white/5 border rounded-lg px-4 py-3 text-white font-light focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300",
+              "w-full bg-[#0e0e0e] border rounded-[3px] px-4 py-3 text-white font-light focus:outline-none focus:border-[#f26350] focus:bg-[#151515] transition-all duration-300",
               showArea
                 ? "border-white/15"
                 : "border-white/5 opacity-60 cursor-not-allowed",
@@ -270,7 +270,7 @@ const CustomerInformationComponent = ({
               ))}
           </select>
           {errors.area && (
-            <p className="mt-2 text-xs text-[#E62B2B] font-light">{errors.area}</p>
+            <p className="mt-2 text-xs text-[#f26350] font-light">{errors.area}</p>
           )}
         </div>
 
@@ -287,10 +287,10 @@ const CustomerInformationComponent = ({
               "customerInformation.zipCodePlaceholder",
               "J1H 1A2"
             )}
-            className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-white placeholder-white/30 font-light focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300"
+            className="w-full bg-[#0e0e0e] border border-white/15 rounded-[3px] px-4 py-3 text-white placeholder-white/30 font-light focus:outline-none focus:border-[#f26350] focus:bg-[#151515] transition-all duration-300"
           />
           {errors.zipCode && (
-            <p className="mt-2 text-xs text-[#E62B2B] font-light">{errors.zipCode}</p>
+            <p className="mt-2 text-xs text-[#f26350] font-light">{errors.zipCode}</p>
           )}
         </div>
 
@@ -307,7 +307,7 @@ const CustomerInformationComponent = ({
               "customerInformation.instructionsPlaceholder",
               "Gate code, buzzer number, landmarks…"
             )}
-            className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-white placeholder-white/30 min-h-[100px] resize-y font-light focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300"
+            className="w-full bg-[#0e0e0e] border border-white/15 rounded-[3px] px-4 py-3 text-white placeholder-white/30 min-h-[100px] resize-y font-light focus:outline-none focus:border-[#f26350] focus:bg-[#151515] transition-all duration-300"
           />
         </div>
       </div>
@@ -343,11 +343,11 @@ const CustomerInformationComponent = ({
               value={formData[name as keyof CustomerFormData] as string}
               onChange={onInputChange}
               placeholder={t(placeholderKey, def)}
-              className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-3 text-white placeholder-white/30 font-light focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all duration-300"
+              className="w-full bg-[#0e0e0e] border border-white/15 rounded-[3px] px-4 py-3 text-white placeholder-white/30 font-light focus:outline-none focus:border-[#f26350] focus:bg-[#151515] transition-all duration-300"
               readOnly={name === "email" && !!clientProfile}
             />
             {errors[name as keyof CustomerFormData] && (
-              <p className="mt-2 text-xs text-[#E62B2B] font-light">
+              <p className="mt-2 text-xs text-[#f26350] font-light">
                 {errors[name as keyof CustomerFormData]}
               </p>
             )}
@@ -362,8 +362,8 @@ const CustomerInformationComponent = ({
   const deliveryMethodSection = useMemo(
     () => (
       <div className="mb-8">
-        <p className="text-sm uppercase tracking-[0.2em] text-white/60 mb-4 font-light">
-          {t("checkoutPage.information", "Information")}
+        <p className="text-[11px] uppercase tracking-[0.22em] text-white/50 mb-4 font-bold">
+          {t("checkoutPage.fulfillment", "Fulfillment")}
         </p>
 
         <div className="flex flex-wrap gap-3">
@@ -391,14 +391,14 @@ const CustomerInformationComponent = ({
         </p>
 
         {errors.deliveryMethod && (
-          <p className="mt-3 text-xs text-[#E62B2B] font-light">
+          <p className="mt-3 text-xs text-[#f26350] font-light">
             {errors.deliveryMethod}
           </p>
         )}
 
         {formData.deliveryMethod === "pickup" && (
-          <p className="mt-4 text-sm text-white/60 font-light">
-            ✅ {t("checkout.pickup.freePickup", "Free pickup at our Sherbrooke location.")}
+          <p className="mt-4 border-l-2 border-[#f26350] pl-3 text-sm text-white/60 font-light">
+            {t("checkout.pickup.freePickup", "Free pickup at our Sherbrooke location.")}
           </p>
         )}
       </div>
@@ -413,10 +413,39 @@ const CustomerInformationComponent = ({
   );
 
   return (
-    <section className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8">
+    <section className="bg-[#0b0b0b] backdrop-blur-md border border-white/10 p-5 shadow-2xl shadow-black/30 sm:p-8">
+      <div className="mb-8 border-b border-white/10 pb-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.26em] text-[#f26350]">
+              {t("checkoutPage.customerDetails", "Customer details")}
+            </p>
+
+            <h2 className="mt-3 text-2xl font-light tracking-wide text-white md:text-3xl">
+              {t("checkoutPage.pickupInformation", "Pickup information")}
+            </h2>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">
+              {t(
+                "checkoutPage.customerDetailsDescription",
+                "Add your contact details so the kitchen can confirm timing and reach you if anything needs attention."
+              )}
+            </p>
+          </div>
+
+          <div className="border border-[#f26350]/25 bg-[#f26350]/10 px-4 py-3 text-xs leading-5 text-white/70">
+            <span className="font-bold uppercase tracking-[0.18em] text-[#ff8a78]">
+              {t("checkoutPage.onlineDeal", "Online deal")}
+            </span>
+            <br />
+            {t("checkoutPage.onlineDealDescription", "Use MAISUSHI10 before payment.")}
+          </div>
+        </div>
+      </div>
+
       {/* Signed-in user indicator */}
       {clientProfile && (
-        <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+        <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20">
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
             <p className="text-emerald-400 text-sm font-light">

@@ -22,8 +22,11 @@
   "hero": {
     "authentic": "Authentique",
     "japaneseExperience": "Expérience Sushi",
-    "tagline": "L'artisanat du sushi rencontre l'élégance contemporaine",
-    "orderNow": "Commander Maintenant"
+    "tagline": "Un savoir-faire artisanal qui rencontre l'élégance contemporaine.",
+    "orderNow": "Commander maintenant",
+    "eyebrow": "Une expérience",
+    "sushi": "Sushi",
+    "viewMenu": "Voir le menu"
   },
   "cart": {
     "items": "ARTICLES",
@@ -153,8 +156,19 @@
     "closedNow": "Nous sommes actuellement fermés.",
     "ordersPreparedAt": "Les commandes seront préparées à {{time}}",
     "placeOrder": "Passer la commande",
-    "scheduleOrder": "Planifier la commande"
-  
+    "scheduleOrder": "Planifier la commande",
+    "secureCheckoutEyebrow": "Paiement securise",
+    "completeOrderTitle": "Completez votre commande",
+    "reviewPaymentTitle": "Verifier et payer",
+    "checkoutPromise": "Prepare frais a Sherbrooke, paiement par carte securise et parcours rapide pour commander sans friction.",
+    "estimated": "Estime",
+    "customerDetails": "Coordonnees client",
+    "pickupInformation": "Informations de cueillette",
+    "customerDetailsDescription": "Ajoutez vos coordonnees afin que la cuisine puisse confirmer l'heure et vous joindre au besoin.",
+    "onlineDeal": "Offre en ligne",
+    "onlineDealDescription": "Utilisez MAISUSHI10 avant le paiement.",
+    "fulfillment": "Mode de commande",
+    "finalStep": "Derniere etape"
   },
   "nav": {
     "salesTracking": "Suivi des Ventes",
@@ -281,7 +295,39 @@
     "hoursThursdaySaturday": "Ven-Sam: 12:00 PM - 10:00 PM",
     "hoursSunday": "Dim: Fermé",
     "hoursMonday": "Lun: Fermé",
-    "email_placeholder": "votre.email@example.com"
+    "email_placeholder": "votre.email@example.com",
+    "promoPrefix": "Offre en ligne - 10% de rabais avec le code",
+    "valueProps": {
+      "fresh": {
+        "title": "Ingrédients frais",
+        "copy": "Sélectionnés avec soin chaque jour"
+      },
+      "handmade": {
+        "title": "Fait à la main",
+        "copy": "Sushi préparé avec passion par nos chefs"
+      },
+      "flavors": {
+        "title": "Saveurs uniques",
+        "copy": "Des créations originales et raffinées"
+      },
+      "takeout": {
+        "title": "À emporter",
+        "copy": "Commandez facilement en ligne"
+      }
+    },
+    "social": {
+      "connect": "Suivez-nous"
+    },
+    "business": {
+      "openNow": "Ouvert",
+      "closed": "Fermé",
+      "closesAt": "Ferme à {{time}} · {{remaining}}",
+      "opensAt": "Ouvre {{time}}",
+      "findUs": "Nous trouver",
+      "tuesdayNoon": "Mardi 12:00",
+      "tomorrowNoon": "Demain 12:00"
+    },
+    "contactEyebrow": "Planifiez quelque chose de frais"
   },
   "common": {
     "unnamedProduct": "Produit Sans Nom",

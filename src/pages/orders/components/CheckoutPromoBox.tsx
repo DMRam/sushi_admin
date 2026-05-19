@@ -35,12 +35,12 @@ export default function CheckoutPromoBox({
 
   return (
     <div
-      className={`w-full box-border overflow-hidden bg-gradient-to-r from-[#E62B2B]/15 to-white/5 border border-[#E62B2B]/25 rounded-xl ${compact ? "p-3" : "p-4"
+      className={`w-full box-border overflow-hidden border border-[#f26350]/30 bg-[linear-gradient(135deg,rgba(242,99,80,0.20),rgba(14,14,14,0.96))] shadow-xl shadow-black/25 ${compact ? "p-4" : "p-5"
         }`}
     >
       <div className={`flex items-start gap-3 ${compact ? "mb-2" : "mb-3"}`}>
         <div
-          className={`rounded-full bg-[#E62B2B]/20 flex items-center justify-center shrink-0 ${compact ? "w-8 h-8" : "w-9 h-9"
+          className={`rounded-full bg-[#f26350]/20 flex items-center justify-center shrink-0 ${compact ? "w-8 h-8" : "w-9 h-9"
             }`}
         >
           {isGiftCardInput ? (
@@ -73,7 +73,7 @@ export default function CheckoutPromoBox({
           disabled={Boolean(appliedCode) || isApplyingDiscount}
           onChange={(e) => setDiscountCode(e.target.value)}
           placeholder={t("checkoutPage.discountCode", "Promo or gift card code")}
-          className="w-full min-w-0 box-border bg-black/30 border border-white/15 text-white placeholder:text-white/35 rounded-lg px-3 py-3 text-sm outline-none focus:border-[#E62B2B]/70 disabled:opacity-70"
+          className="w-full min-w-0 box-border bg-black/30 border border-white/15 text-white placeholder:text-white/35 rounded-[3px] px-3 py-3 text-sm outline-none focus:border-[#f26350]/70 disabled:opacity-70"
         />
 
         {appliedCode ? (
@@ -81,7 +81,7 @@ export default function CheckoutPromoBox({
             type="button"
             onClick={removeDiscount}
             disabled={isApplyingDiscount}
-            className="w-full inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white px-4 py-3 rounded-lg text-sm transition-colors disabled:opacity-70"
+            className="w-full inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white px-4 py-3 rounded-[3px] text-sm transition-colors disabled:opacity-70"
           >
             <X className="w-4 h-4" />
             {t("checkoutPage.remove", "Remove")}
@@ -91,7 +91,7 @@ export default function CheckoutPromoBox({
             type="button"
             onClick={applyDiscount}
             disabled={isApplyingDiscount}
-            className="w-full bg-[#E62B2B] hover:bg-[#c82020] text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full bg-[#f26350] hover:bg-[#ff725f] text-white px-4 py-3 text-[12px] font-extrabold uppercase tracking-[0.08em] transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isApplyingDiscount
               ? t("checkoutPage.applying", "Applying...")

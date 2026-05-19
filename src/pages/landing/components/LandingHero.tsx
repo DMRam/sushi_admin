@@ -1,4 +1,5 @@
 import type { RefObject } from "react"
+import { useTranslation } from "react-i18next"
 
 interface Props {
   currentVideoIndex: number
@@ -21,9 +22,10 @@ export const LandingHero = ({
   videoRef,
   videos
 }: Props) => {
+  const { t } = useTranslation()
+
   return (
-    <section className="relative h-72 sm:h-96 md:h-[28rem] overflow-hidden pt-16">
-      {/* Video Background */}
+    <section className="relative min-h-[456px] overflow-hidden pt-[100px] sm:min-h-[368px] lg:min-h-[388px]">
       <div className="absolute inset-0 z-0">
         {!videoError ? (
           <video
@@ -34,46 +36,57 @@ export const LandingHero = ({
             playsInline
             onLoadedData={handleVideoLoad}
             onError={handleVideoError}
-            className="w-full h-full object-cover"
+            className="h-full w-full object-cover opacity-100"
           >
             <source src={videos[currentVideoIndex]} type="video/mp4" />
           </video>
         ) : (
-          <div className="w-full h-full bg-gradient-to-r from-slate-900 to-slate-800 flex items-center justify-center">
-            <span className="text-white text-sm sm:text-lg">Video unavailable</span>
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-r from-[#050505] to-[#17110f]">
+            <span className="text-sm text-white sm:text-lg">Video unavailable</span>
           </div>
         )}
 
         {/* Loading overlay */}
         {!videoLoaded && !videoError && (
-          <div className="absolute inset-0 bg-slate-900 flex items-center justify-center">
-            <div className="animate-pulse text-white text-sm sm:text-lg">Loading...</div>
+          <div className="absolute inset-0 flex items-center justify-center bg-[#050505]">
+            <div className="animate-pulse text-sm text-white sm:text-lg">Loading...</div>
           </div>
         )}
       </div>
 
-      {/* Reduced darkness overlays */}
-      <div className="absolute inset-0 bg-black/20 z-10"></div>
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-900/50 to-slate-800/30 z-10"></div>
+      <div className="absolute inset-0 z-10 bg-black/10" />
+      <div className="absolute inset-0 z-10 bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.52)_42%,rgba(0,0,0,0.08)_100%)]" />
+      <div className="absolute inset-y-0 left-0 z-10 w-[58%] bg-[radial-gradient(circle_at_20%_52%,rgba(0,0,0,0.35),transparent_42%)]" />
 
-      {/* Hero content */}
-      <div className="relative z-20 container mx-auto px-4 sm:px-6 h-full flex items-center">
-        <div className="max-w-2xl text-white">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-light mb-3 sm:mb-4 tracking-tight">
-            Authentic
-            <span className="block font-medium mt-1 sm:mt-2">Sushi Experience</span>
+      <div className="relative z-20 mx-auto flex min-h-[356px] max-w-[1600px] items-center px-6 sm:min-h-[268px] lg:min-h-[288px] lg:px-10">
+        <div className="max-w-[780px] text-white sm:max-w-[720px]">
+          <div className="mb-3 text-[14px] font-light uppercase tracking-[0.38em] text-white/78 sm:text-[15px] lg:text-[17px]">
+            {t('hero.eyebrow', 'Une expérience')}
+          </div>
+          <h2 className="font-calligraphy mb-3 text-[43px] font-semibold uppercase leading-[0.95] tracking-normal sm:text-[42px] lg:text-[58px] xl:text-[64px]">
+            {t('hero.sushi', 'Sushi')} <span className="text-[#f26350]">{t('hero.authentic', 'authentique')}</span>
           </h2>
-          <p className="text-slate-200 text-sm sm:text-base md:text-lg font-light mb-6 sm:mb-8 max-w-md">
-            Masterful sushi craftsmanship meets contemporary elegance
+          <p className="mb-5 max-w-[390px] text-[14px] font-semibold leading-5 text-white/90 sm:text-[14px] sm:leading-5 lg:text-[16px] lg:leading-6">
+            {t('hero.tagline', "Un savoir-faire artisanal qui rencontre l'élégance contemporaine.")}
           </p>
-          {/* <button className="bg-white text-slate-900 px-6 sm:px-8 py-2 sm:py-3 text-sm sm:text-base font-medium tracking-wide hover:bg-slate-100 transition-all duration-300 transform hover:-translate-y-0.5 sm:hover:-translate-y-1">
-            Reserve Your Table
-          </button> */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            <a
+              href="/order"
+              className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-[3px] bg-[#f26350] px-7 text-[11px] font-extrabold uppercase tracking-[0.08em] text-white shadow-lg shadow-[#f26350]/25 transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#ff725f]"
+            >
+              {t('hero.orderNow', 'Commander maintenant')}
+            </a>
+            <a
+              href="/menu"
+              className="inline-flex h-11 min-w-[170px] items-center justify-center rounded-[3px] border border-white/35 bg-black/20 px-7 text-[11px] font-extrabold uppercase tracking-[0.08em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-white/60 hover:bg-white/10"
+            >
+              {t('hero.viewMenu', 'Voir le menu')}
+            </a>
+          </div>
         </div>
       </div>
 
-      {/* Video indicator dots - more subtle */}
-      <div className="absolute bottom-3 sm:bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex space-x-1">
+      <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 space-x-3">
         {videos.map((_, index) => (
           <button
             key={index}
@@ -81,7 +94,8 @@ export const LandingHero = ({
               setCurrentVideoIndex(index)
               handleVideoLoad()
             }}
-            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${index === currentVideoIndex ? 'bg-white' : 'bg-white/40'
+            aria-label={`Show hero video ${index + 1}`}
+            className={`h-2 w-2 rounded-full transition-all duration-300 ${index === currentVideoIndex ? 'bg-[#f26350]' : 'bg-white/70'
               }`}
           />
         ))}

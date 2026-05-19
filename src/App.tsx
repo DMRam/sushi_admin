@@ -140,6 +140,7 @@ function AppShell() {
   const location = useLocation()
 
   const hidePromoBanner =
+    location.pathname === '/' ||
     location.pathname.startsWith('/admin') ||
     location.pathname === '/checkout/success'
 

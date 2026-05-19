@@ -186,7 +186,7 @@ const ImageModal = ({
             onClick={onClose}
         >
             <div
-                className="relative bg-gradient-to-b from-gray-900 to-black w-full max-w-4xl max-h-[95vh] sm:rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+                className="relative bg-gradient-to-b from-gray-900 to-black w-full max-w-4xl max-h-[95vh] sm:rounded-[4px] overflow-hidden shadow-2xl border border-white/10"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
@@ -201,7 +201,7 @@ const ImageModal = ({
                         <div className="aspect-[4/3] lg:aspect-square w-full relative">
                             {!imageLoaded && (
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-8 h-8 border-2 border-[#E62B2B] rounded-full animate-spin border-t-transparent" />
+                                    <div className="w-8 h-8 border-2 border-[#f26350] rounded-full animate-spin border-t-transparent" />
                                 </div>
                             )}
                             <img
@@ -217,7 +217,7 @@ const ImageModal = ({
                                         <span className="text-white font-bold text-2xl">${item.price.toFixed(2)}</span>
                                     </div>
                                     {item.popular && (
-                                        <div className="bg-[#E62B2B] px-4 py-2 rounded-full flex items-center space-x-1">
+                                        <div className="bg-[#f26350] px-4 py-2 rounded-full flex items-center space-x-1">
                                             <Star className="w-4 h-4 fill-current" />
                                             <span className="text-white text-sm font-medium">{t('landing.popular', 'Popular')}</span>
                                         </div>
@@ -232,7 +232,7 @@ const ImageModal = ({
                             <h2 className="text-2xl font-bold text-white mb-2">{item.name}</h2>
                             <div className="flex items-center space-x-3 text-white/60 text-sm">
                                 <div className="flex items-center">
-                                    <Clock className="w-4 h-4 mr-1 text-[#E62B2B]" />
+                                    <Clock className="w-4 h-4 mr-1 text-[#f26350]" />
                                     <span>{item.preparationTime} min</span>
                                 </div>
                                 {item.spicyLevel > 0 && (
@@ -250,7 +250,7 @@ const ImageModal = ({
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center space-x-2 ${activeTab === tab.id
-                                        ? 'border-[#E62B2B] text-white'
+                                        ? 'border-[#f26350] text-white'
                                         : 'border-transparent text-white/40 hover:text-white/60'
                                         }`}
                                 >
@@ -270,7 +270,7 @@ const ImageModal = ({
                                     {item.ingredients?.map((ingredient, index) => (
                                         <span
                                             key={index}
-                                            className="px-3 py-1.5 bg-white/5 rounded-full text-white/80 text-sm border border-white/10"
+                                            className="px-3 py-1.5 bg-[#0e0e0e] rounded-full text-white/80 text-sm border border-white/10"
                                         >
                                             {ingredient}
                                         </span>
@@ -294,17 +294,17 @@ const ImageModal = ({
 
                         <div className="p-6 border-t border-white/10 bg-black/30">
                             <div className="flex items-center space-x-4">
-                                <div className="flex items-center bg-white/5 rounded-xl border border-white/10">
+                                <div className="flex items-center bg-[#0e0e0e] rounded-[4px] border border-white/10">
                                     <button
                                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                        className="w-10 h-10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/5 rounded-l-xl transition-colors"
+                                        className="w-10 h-10 flex items-center justify-center text-white/60 hover:text-white hover:bg-[#0e0e0e] rounded-l-xl transition-colors"
                                     >
                                         −
                                     </button>
                                     <span className="w-12 text-center text-white font-medium">{quantity}</span>
                                     <button
                                         onClick={() => setQuantity(quantity + 1)}
-                                        className="w-10 h-10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/5 rounded-r-xl transition-colors"
+                                        className="w-10 h-10 flex items-center justify-center text-white/60 hover:text-white hover:bg-[#0e0e0e] rounded-r-xl transition-colors"
                                     >
                                         +
                                     </button>
@@ -313,9 +313,9 @@ const ImageModal = ({
                                 <button
                                     onClick={handleAddToCart}
                                     disabled={isAddingToCart}
-                                    className={`flex-1 py-3 rounded-xl font-medium transition-all duration-300 flex items-center justify-center space-x-2 ${isAddingToCart
+                                    className={`flex-1 py-3 rounded-[4px] font-medium transition-all duration-300 flex items-center justify-center space-x-2 ${isAddingToCart
                                         ? 'bg-green-500 text-white'
-                                        : 'bg-[#E62B2B] text-white hover:bg-[#ff4444] active:scale-95'
+                                        : 'bg-[#f26350] text-white hover:bg-[#ff725f] active:scale-95'
                                         }`}
                                 >
                                     {isAddingToCart ? (
@@ -354,21 +354,23 @@ function ListItemCard({
     onAddToCart: (item: MenuItem) => void;
     getCurrentLanguageDescription: (description: { es: string; fr: string; en: string }) => string;
 }) {
+    const { t } = useTranslation();
+
     return (
         <div
-            className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden hover:border-white/20 transition-all cursor-pointer"
+            className="group cursor-pointer overflow-hidden border border-white/10 bg-[#0e0e0e] transition-all hover:-translate-y-0.5 hover:border-[#f26350]/45 hover:shadow-2xl hover:shadow-black/35"
             onClick={() => onOpen(item)}
         >
-            <div className="flex">
-                <div className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 relative">
+            <div className="flex h-full flex-col">
+                <div className="relative h-44 w-full flex-shrink-0 overflow-hidden lg:h-52">
                     <img
                         src={item.image}
                         alt={item.name}
-                        className="w-full h-full object-cover"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     {item.popular && (
                         <div className="absolute top-2 right-2 z-10">
-                            <div className="bg-[#E62B2B] px-2 py-1 rounded-full text-[10px] font-medium flex items-center space-x-1">
+                            <div className="flex items-center space-x-1 bg-[#f26350] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.06em]">
                                 <Star className="w-3 h-3 fill-current" />
                                 <span>Popular</span>
                             </div>
@@ -376,12 +378,12 @@ function ListItemCard({
                     )}
                 </div>
 
-                <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+                <div className="flex min-w-0 flex-1 flex-col justify-between p-4 lg:p-5">
                     <div>
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                                <h3 className="text-white font-medium truncate">{item.name}</h3>
-                                <p className="text-white/40 text-sm line-clamp-2 mt-1">
+                                <h3 className="truncate text-[16px] font-extrabold text-white">{item.name}</h3>
+                                <p className="mt-2 line-clamp-2 text-sm leading-5 text-white/62">
                                     {getCurrentLanguageDescription(item.description)}
                                 </p>
                             </div>
@@ -391,11 +393,11 @@ function ListItemCard({
                                         e.stopPropagation();
                                         onToggleFavorite(item.id);
                                     }}
-                                    className="w-9 h-9 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white/60 hover:text-white transition-all border border-white/10"
+                                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white/60 backdrop-blur-sm transition-all hover:text-white"
                                 >
-                                    <Heart className={`w-4 h-4 ${isFavorite ? 'fill-[#E62B2B] text-[#E62B2B]' : ''}`} />
+                                    <Heart className={`w-4 h-4 ${isFavorite ? 'fill-[#f26350] text-[#f26350]' : ''}`} />
                                 </button>
-                                <span className="text-[#E62B2B] font-bold whitespace-nowrap">${item.price.toFixed(2)}</span>
+                                <span className="text-[#f26350] font-bold whitespace-nowrap">${item.price.toFixed(2)}</span>
                             </div>
                         </div>
                     </div>
@@ -419,9 +421,9 @@ function ListItemCard({
                                 e.stopPropagation();
                                 onAddToCart(item);
                             }}
-                            className="bg-[#E62B2B] text-white px-3 py-1.5 rounded-lg text-sm hover:bg-[#ff4444] transition-colors shrink-0"
+                            className="shrink-0 bg-[#f26350] px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.08em] text-white transition-colors hover:bg-[#ff725f]"
                         >
-                            Add
+                            {t('landing.add', 'Add')}
                         </button>
                     </div>
                 </div>
@@ -717,8 +719,8 @@ export default function OrderPage() {
             <div className="min-h-screen bg-black flex items-center justify-center">
                 <div className="text-center">
                     <div className="relative">
-                        <div className="w-16 h-16 border-2 border-[#E62B2B] rounded-full animate-spin border-t-transparent mx-auto" />
-                        <Sparkles className="w-6 h-6 text-[#E62B2B] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+                        <div className="w-16 h-16 border-2 border-[#f26350] rounded-full animate-spin border-t-transparent mx-auto" />
+                        <Sparkles className="w-6 h-6 text-[#f26350] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
                     </div>
                     <p className="text-white/60 mt-4">{t('orderPage.loadingMenu')}</p>
                 </div>
@@ -730,14 +732,14 @@ export default function OrderPage() {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
                 <div className="text-center max-w-md mx-4">
-                    <div className="w-20 h-20 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+                    <div className="w-20 h-20 bg-red-500/10 rounded-[4px] flex items-center justify-center mx-auto mb-6 border border-red-500/20">
                         <AlertCircle className="w-8 h-8 text-red-500" />
                     </div>
                     <h3 className="text-xl text-white mb-2">{t('orderPage.failedToLoad')}</h3>
                     <p className="text-white/40 text-sm mb-8">{error}</p>
                     <button
                         onClick={() => window.location.reload()}
-                        className="bg-[#E62B2B] text-white px-8 py-3 rounded-xl hover:bg-[#ff4444] transition-colors"
+                        className="bg-[#f26350] text-white px-8 py-3 rounded-[4px] hover:bg-[#ff725f] transition-colors"
                     >
                         {t('orderPage.tryAgain')}
                     </button>
@@ -747,7 +749,7 @@ export default function OrderPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black">
+        <div className="min-h-screen bg-[#050505] text-white">
             {selectedItem && (
                 <ImageModal
                     item={selectedItem}
@@ -764,11 +766,49 @@ export default function OrderPage() {
                 <LandingHeader />
             </div>
 
-            <div className="h-20" />
+            <div className="h-28" />
 
-            <div className="sticky top-0 z-30 bg-black/95 backdrop-blur-xl border-b border-white/10">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                    <div className="py-4">
+            <section className="border-b border-white/10 bg-[radial-gradient(circle_at_70%_20%,rgba(242,99,80,0.16),transparent_28rem),linear-gradient(180deg,#080808_0%,#050505_100%)]">
+                <div className="mx-auto max-w-[1600px] px-6 py-10 lg:px-10">
+                    <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <div className="mb-3 text-[12px] font-bold uppercase tracking-[0.36em] text-[#f26350]">
+                                {t('orderPage.cevicheSushiBar', 'Ceviche & Sushi Bar')}
+                            </div>
+                            <h1 className="font-calligraphy text-4xl font-semibold uppercase leading-none text-white sm:text-5xl lg:text-6xl">
+                                {t('orderPage.ourMenu', 'Menu')}
+                            </h1>
+                            <p className="mt-4 max-w-2xl text-sm font-medium leading-6 text-white/68 sm:text-base">
+                                {t('orderPage.discoverDescription', 'Discover our authentic sushi creations. Tap on any dish to watch how it is made!')}
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3 text-center sm:min-w-[420px]">
+                            <div className="border border-white/10 bg-black/35 p-4">
+                                <div className="text-2xl font-extrabold text-white">{menuItems.length}</div>
+                                <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">
+                                    {t('orderPage.totalCreations', 'Creations')}
+                                </div>
+                            </div>
+                            <div className="border border-white/10 bg-black/35 p-4">
+                                <div className="text-2xl font-extrabold text-white">{categories.length}</div>
+                                <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">
+                                    {t('orderPage.categories', 'Categories')}
+                                </div>
+                            </div>
+                            <div className="border border-white/10 bg-black/35 p-4">
+                                <div className="text-2xl font-extrabold text-[#f26350]">{cart.length}</div>
+                                <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">
+                                    {t('orderPage.cart', 'Cart')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div className="sticky top-[108px] z-30 border-b border-white/10 bg-[#050505]/94 backdrop-blur-xl">
+                <div className="max-w-[1600px] mx-auto px-6 lg:px-10">
+                    <div className="py-5">
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
                             <input
@@ -776,7 +816,7 @@ export default function OrderPage() {
                                 placeholder={t('orderPage.searchPlaceholder')}
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-[#E62B2B] focus:bg-white/10 transition-all"
+                                className="w-full border border-white/10 bg-[#0e0e0e] py-4 pl-12 pr-4 text-white placeholder-white/40 transition-all focus:border-[#f26350] focus:bg-[#151515] focus:outline-none"
                             />
                             {searchInput && (
                                 <button
@@ -789,18 +829,18 @@ export default function OrderPage() {
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 pb-4">
+                    <div className="flex flex-wrap items-center gap-3 pb-5">
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`px-4 py-2 rounded-lg border transition-all flex items-center space-x-2 ${showFilters || activeFiltersCount > 0
-                                ? 'bg-[#E62B2B] border-[#E62B2B] text-white'
-                                : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
+                            className={`flex items-center space-x-2 border px-4 py-2.5 text-[12px] font-bold uppercase tracking-[0.08em] transition-all ${showFilters || activeFiltersCount > 0
+                                ? 'bg-[#f26350] border-[#f26350] text-white'
+                                : 'bg-[#0e0e0e] border-white/10 text-white/60 hover:text-white hover:bg-white/10'
                                 }`}
                         >
                             <Filter className="w-4 h-4" />
                             <span className="text-sm">Filters</span>
                             {activeFiltersCount > 0 && (
-                                <span className="bg-white text-[#E62B2B] text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                <span className="bg-white text-[#f26350] text-xs rounded-full w-5 h-5 flex items-center justify-center">
                                     {activeFiltersCount}
                                 </span>
                             )}
@@ -808,9 +848,9 @@ export default function OrderPage() {
 
                         <button
                             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                            className={`px-4 py-2 rounded-lg border transition-all flex items-center space-x-2 ${showFavoritesOnly
-                                ? 'bg-[#E62B2B] border-[#E62B2B] text-white'
-                                : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
+                            className={`flex items-center space-x-2 border px-4 py-2.5 text-[12px] font-bold uppercase tracking-[0.08em] transition-all ${showFavoritesOnly
+                                ? 'bg-[#f26350] border-[#f26350] text-white'
+                                : 'bg-[#0e0e0e] border-white/10 text-white/60 hover:text-white hover:bg-white/10'
                                 }`}
                         >
                             <Heart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
@@ -821,7 +861,7 @@ export default function OrderPage() {
                             <select
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value as SortBy)}
-                                className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white appearance-none pr-10 text-sm cursor-pointer"
+                                className="cursor-pointer appearance-none border border-white/10 bg-[#0e0e0e] px-4 py-2.5 pr-10 text-[12px] font-bold uppercase tracking-[0.08em] text-white/60 hover:text-white"
                             >
                                 <option value="popular">Popular</option>
                                 <option value="price-low">Price: Low to High</option>
@@ -835,7 +875,7 @@ export default function OrderPage() {
 
                         <button
                             onClick={() => setShowSushiBuilder(true)}
-                            className="bg-[#E62B2B] text-white px-4 py-2 rounded-lg hover:bg-[#ff4444] transition-all flex items-center space-x-2"
+                            className="flex items-center space-x-2 bg-[#f26350] px-5 py-2.5 text-[12px] font-extrabold uppercase tracking-[0.08em] text-white shadow-lg shadow-[#f26350]/20 transition-all hover:bg-[#ff725f]"
                         >
                             <ChefHat className="w-4 h-4" />
                             <span className="text-sm hidden sm:inline">{t('buildYourSushi.title')}</span>
@@ -844,12 +884,12 @@ export default function OrderPage() {
 
                     {showFilters && (
                         <div className="pb-6">
-                            <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+                            <div className="border border-white/10 bg-[#0e0e0e] p-6">
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-white font-medium">All Filters</h3>
                                     <button
                                         onClick={clearAllFilters}
-                                        className="text-sm text-[#E62B2B] hover:text-[#ff4444] transition-colors"
+                                        className="text-sm text-[#f26350] hover:text-[#ff725f] transition-colors"
                                     >
                                         Clear all
                                     </button>
@@ -858,7 +898,7 @@ export default function OrderPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                     <div>
                                         <h4 className="text-white/80 text-sm font-medium mb-3 flex items-center">
-                                            <Leaf className="w-4 h-4 mr-2 text-[#E62B2B]" />
+                                            <Leaf className="w-4 h-4 mr-2 text-[#f26350]" />
                                             Dietary
                                         </h4>
                                         <div className="space-y-2">
@@ -877,7 +917,7 @@ export default function OrderPage() {
                                                                 dietary: { ...prev.dietary, [key]: e.target.checked },
                                                             }))
                                                         }
-                                                        className="rounded border-white/20 bg-white/5 text-[#E62B2B] focus:ring-[#E62B2B]"
+                                                        className="rounded border-white/20 bg-[#0e0e0e] text-[#f26350] focus:ring-[#f26350]"
                                                     />
                                                     <span className="text-sm">{label}</span>
                                                 </label>
@@ -887,7 +927,7 @@ export default function OrderPage() {
 
                                     <div>
                                         <h4 className="text-white/80 text-sm font-medium mb-3 flex items-center">
-                                            <Flame className="w-4 h-4 mr-2 text-[#E62B2B]" />
+                                            <Flame className="w-4 h-4 mr-2 text-[#f26350]" />
                                             Spice Level
                                         </h4>
                                         <div className="space-y-2">
@@ -904,7 +944,7 @@ export default function OrderPage() {
                                                         onChange={() =>
                                                             setFilters((prev) => ({ ...prev, spicyLevel: level.value }))
                                                         }
-                                                        className="border-white/20 bg-white/5 text-[#E62B2B] focus:ring-[#E62B2B]"
+                                                        className="border-white/20 bg-[#0e0e0e] text-[#f26350] focus:ring-[#f26350]"
                                                     />
                                                     <span className="text-sm">{level.label}</span>
                                                 </label>
@@ -914,8 +954,8 @@ export default function OrderPage() {
 
                                     <div>
                                         <h4 className="text-white/80 text-sm font-medium mb-3 flex items-center">
-                                            <DollarSign className="w-4 h-4 mr-2 text-[#E62B2B]" />
-                                            Max Price: <span className="ml-2 text-[#E62B2B]">${filters.maxPrice}</span>
+                                            <DollarSign className="w-4 h-4 mr-2 text-[#f26350]" />
+                                            Max Price: <span className="ml-2 text-[#f26350]">${filters.maxPrice}</span>
                                         </h4>
                                         <input
                                             type="range"
@@ -944,13 +984,13 @@ export default function OrderPage() {
             </div>
 
             {/* {!showFavoritesOnly && (
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+                <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
                     <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
                         <button
                             onClick={() => setActiveCategory('all')}
                             className={`px-4 py-2 rounded-full whitespace-nowrap transition-all text-sm ${activeCategory === 'all'
-                                    ? 'bg-[#E62B2B] text-white'
-                                    : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
+                                    ? 'bg-[#f26350] text-white'
+                                    : 'bg-[#0e0e0e] text-white/60 hover:text-white hover:bg-white/10'
                                 }`}
                         >
                             All Categories
@@ -961,8 +1001,8 @@ export default function OrderPage() {
                                 key={category}
                                 onClick={() => setActiveCategory(category)}
                                 className={`px-4 py-2 rounded-full whitespace-nowrap transition-all text-sm ${activeCategory === category
-                                        ? 'bg-[#E62B2B] text-white'
-                                        : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
+                                        ? 'bg-[#f26350] text-white'
+                                        : 'bg-[#0e0e0e] text-white/60 hover:text-white hover:bg-white/10'
                                     }`}
                             >
                                 {category}
@@ -972,7 +1012,7 @@ export default function OrderPage() {
                 </div>
             )} */}
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-4">
+            <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-4 lg:px-10">
                 <div className="flex items-center justify-between text-sm">
                     <p className="text-white/60">
                         <span className="text-white font-medium">{filteredItems.length}</span> items found
@@ -982,7 +1022,7 @@ export default function OrderPage() {
                     {activeFiltersCount > 0 && (
                         <button
                             onClick={clearAllFilters}
-                            className="text-[#E62B2B] hover:text-[#ff4444] transition-colors"
+                            className="text-[#f26350] hover:text-[#ff725f] transition-colors"
                         >
                             Clear filters
                         </button>
@@ -990,7 +1030,7 @@ export default function OrderPage() {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-20 space-y-4">
+            <div className="max-w-[1600px] mx-auto px-6 pb-20 lg:px-10 space-y-4">
                 {filteredItems.length > 0 ? (
                     Object.entries(itemsByCategory).map(([section, items]) => {
                         const isOpen = openSections[section] ?? true;
@@ -998,18 +1038,18 @@ export default function OrderPage() {
                         return (
                             <div
                                 key={section}
-                                className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
+                                className="overflow-hidden border border-white/10 bg-[#0b0b0b]"
                             >
                                 <button
                                     onClick={() => toggleSection(section)}
-                                    className="w-full px-5 py-4 flex items-center justify-between bg-white/5 hover:bg-white/10 transition-colors"
+                                    className="w-full px-5 py-4 flex items-center justify-between bg-[#0e0e0e] hover:bg-white/10 transition-colors"
                                 >
                                     <div className="flex items-center gap-3 text-left">
-                                        <div className="w-8 h-8 rounded-full bg-[#E62B2B]/15 flex items-center justify-center">
+                                        <div className="w-8 h-8 rounded-full bg-[#f26350]/15 flex items-center justify-center">
                                             {showFavoritesOnly ? (
-                                                <Heart className="w-4 h-4 text-[#E62B2B] fill-current" />
+                                                <Heart className="w-4 h-4 text-[#f26350] fill-current" />
                                             ) : (
-                                                <ChefHat className="w-4 h-4 text-[#E62B2B]" />
+                                                <ChefHat className="w-4 h-4 text-[#f26350]" />
                                             )}
                                         </div>
                                         <div>
@@ -1024,7 +1064,7 @@ export default function OrderPage() {
                                 </button>
 
                                 {isOpen && (
-                                    <div className="p-4 space-y-4">
+                                    <div className="grid gap-5 p-5 sm:grid-cols-2 xl:grid-cols-3">
                                         {items.map((item) => (
                                             <ListItemCard
                                                 key={item.id}
@@ -1046,7 +1086,7 @@ export default function OrderPage() {
                     })
                 ) : (
                     <div className="text-center py-16">
-                        <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/10">
+                        <div className="w-20 h-20 bg-[#0e0e0e] rounded-[4px] flex items-center justify-center mx-auto mb-6 border border-white/10">
                             <Search className="w-8 h-8 text-white/30" />
                         </div>
                         <h3 className="text-xl text-white mb-3 font-light">No items found</h3>
@@ -1055,7 +1095,7 @@ export default function OrderPage() {
                         </p>
                         <button
                             onClick={clearAllFilters}
-                            className="bg-[#E62B2B] text-white px-6 py-3 rounded-xl hover:bg-[#ff4444] transition-colors inline-flex items-center space-x-2"
+                            className="bg-[#f26350] text-white px-6 py-3 rounded-[4px] hover:bg-[#ff725f] transition-colors inline-flex items-center space-x-2"
                         >
                             <span>Clear all filters</span>
                             <X className="w-4 h-4" />
@@ -1070,11 +1110,11 @@ export default function OrderPage() {
                 <div className="fixed bottom-6 right-6 z-40">
                     <Link
                         to="/checkout"
-                        className="bg-[#E62B2B] text-white px-6 py-4 rounded-xl hover:bg-[#ff4444] transition-all shadow-2xl shadow-[#E62B2B]/25 hover:shadow-[#E62B2B]/40 hover:scale-105 flex items-center space-x-4"
+                        className="bg-[#f26350] text-white px-6 py-4 rounded-[4px] hover:bg-[#ff725f] transition-all shadow-2xl shadow-[#f26350]/25 hover:shadow-[#f26350]/40 hover:scale-105 flex items-center space-x-4"
                     >
                         <div className="relative">
                             <ShoppingBag className="w-6 h-6" />
-                            <span className="absolute -top-2 -right-2 bg-white text-[#E62B2B] text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                            <span className="absolute -top-2 -right-2 bg-white text-[#f26350] text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
                                 {itemCount}
                             </span>
                         </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Mail, Phone, MapPin, Calendar, Gift, Zap } from 'lucide-react'
+import { Mail, Phone, MapPin, Calendar, Gift } from 'lucide-react'
 import { useZapierContactForms } from '../hooks/useZapierContactForms'
 
 interface FormData {
@@ -164,84 +164,87 @@ Submitted: ${new Date().toLocaleString()}
         }
     }
 
-    const quickQuestions = [
-        {
-            question: t('landing.quickQuestion1', 'What\'s the minimum order for catering?'),
-            answer: t('landing.quickAnswer1', 'Minimum order is $200 for parties of 10+ people.')
-        },
-        {
-            question: t('landing.quickQuestion2', 'Do you deliver to my area?'),
-            answer: t('landing.quickAnswer2', 'We deliver within 25km of Sherbrooke. Contact us for specific locations.')
-        },
-        {
-            question: t('landing.quickQuestion3', 'Can you accommodate dietary restrictions?'),
-            answer: t('landing.quickAnswer3', 'Yes! We offer vegetarian, gluten-free, and other custom options.')
-        },
-        {
-            question: t('landing.quickQuestion4', 'How far in advance should I book?'),
-            answer: t('landing.quickAnswer4', 'We recommend booking 2+ weeks in advance for best availability.')
-        }
-    ]
+    // const quickQuestions = [
+    //     {
+    //         question: t('landing.quickQuestion1', 'What\'s the minimum order for catering?'),
+    //         answer: t('landing.quickAnswer1', 'Minimum order is $200 for parties of 10+ people.')
+    //     },
+    //     {
+    //         question: t('landing.quickQuestion2', 'Do you deliver to my area?'),
+    //         answer: t('landing.quickAnswer2', 'We deliver within 25km of Sherbrooke. Contact us for specific locations.')
+    //     },
+    //     {
+    //         question: t('landing.quickQuestion3', 'Can you accommodate dietary restrictions?'),
+    //         answer: t('landing.quickAnswer3', 'Yes! We offer vegetarian, gluten-free, and other custom options.')
+    //     },
+    //     {
+    //         question: t('landing.quickQuestion4', 'How far in advance should I book?'),
+    //         answer: t('landing.quickAnswer4', 'We recommend booking 2+ weeks in advance for best availability.')
+    //     }
+    // ]
 
     return (
-        <section id="contact" className="py-20 bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="text-center mb-16">
-                    <h2 className="text-3xl font-light text-gray-900 mb-4">
+        <section id="contact" className="border-t border-white/10 py-16 bg-[#050505]">
+            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="text-center mb-12">
+                    <div className="mb-3 text-[12px] font-bold uppercase tracking-[0.32em] text-[#f26350]">
+                        {t('landing.contactEyebrow', 'Plan something fresh')}
+                    </div>
+                    <h2 className="text-3xl font-light uppercase tracking-[0.12em] text-white mb-4">
                         {t('landing.getInTouch', 'Get In Touch')}
                     </h2>
-                    <p className="text-gray-600 font-light max-w-2xl mx-auto">
+                    <p className="text-white/62 font-light max-w-2xl mx-auto">
                         {t('landing.contactDescription', 'Whether you need catering, want promotions, or just have questions - we\'re here to help.')}
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-[1500px] mx-auto">
                     {/* Contact Options Sidebar */}
                     <div className="lg:col-span-1 space-y-6">
                         {/* Quick Questions */}
-                        <div className="bg-white p-6 shadow-sm border border-gray-200">
-                            <h3 className="text-lg font-light text-gray-900 mb-4 flex items-center">
-                                <Zap className="w-5 h-5 mr-2 text-[#E62B2B]" />
+                        {/* <div className="bg-[#0e0e0e] p-6 shadow-2xl shadow-black/30 border border-white/10">
+                            <h3 className="text-lg font-light text-white mb-4 flex items-center">
+                                <Zap className="w-5 h-5 mr-2 text-[#f26350]" />
                                 {t('landing.quickQuestions', 'Quick Questions')}
                             </h3>
                             <div className="space-y-4">
                                 {quickQuestions.map((item, index) => (
                                     <details key={index} className="group">
-                                        <summary className="flex justify-between items-center cursor-pointer text-sm font-light text-gray-700 hover:text-gray-900">
+                                        <summary className="flex justify-between items-center cursor-pointer text-sm font-light text-white/78 hover:text-white">
                                             {item.question}
                                             <span className="text-gray-400 group-open:rotate-180 transition-transform">▼</span>
                                         </summary>
-                                        <p className="mt-2 text-sm text-gray-600 font-light pl-4 border-l-2 border-[#E62B2B]">
+                                        <p className="mt-2 text-sm text-white/62 font-light pl-4 border-l-2 border-[#f26350]">
                                             {item.answer}
                                         </p>
                                     </details>
                                 ))}
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* Contact Information */}
-                        <div className="bg-white p-6 shadow-sm border border-gray-200">
-                            <h3 className="text-lg font-light text-gray-900 mb-4">
+                        <div className="bg-[#0e0e0e] p-6 shadow-2xl shadow-black/30 border border-white/10">
+                            <h3 className="text-lg font-light text-white mb-4">
                                 {t('landing.directContact', 'Direct Contact')}
                             </h3>
                             <div className="space-y-4">
-                                <div className="flex items-center text-gray-600">
-                                    <Phone className="w-4 h-4 mr-3 text-[#E62B2B]" />
+                                <div className="flex items-center text-white/62">
+                                    <Phone className="w-4 h-4 mr-3 text-[#f26350]" />
                                     <span className="font-light">{t('landing.phoneNumberDisplay', '+1 (819) 861-3889')}</span>
                                 </div>
-                                <div className="flex items-center text-gray-600">
-                                    <Mail className="w-4 h-4 mr-3 text-[#E62B2B]" />
+                                <div className="flex items-center text-white/62">
+                                    <Mail className="w-4 h-4 mr-3 text-[#f26350]" />
                                     <span className="font-light">{t('landing.emailAddressDisplay', 'contact@maisushi.ca')}</span>
                                 </div>
-                                <div className="flex items-start text-gray-600">
-                                    <MapPin className="w-4 h-4 mr-3 mt-1 text-[#E62B2B]" />
+                                <div className="flex items-start text-white/62">
+                                    <MapPin className="w-4 h-4 mr-3 mt-1 text-[#f26350]" />
                                     <span className="font-light">
                                         {t('landing.addressLine1', '1975 King Ouest,')}<br />
                                         {t('landing.addressLine2', 'Sherbrooke, QC J1J 2E6')}
                                     </span>
                                 </div>
-                                <div className="flex items-start text-gray-600">
-                                    <Calendar className="w-4 h-4 mr-3 mt-1 text-[#E62B2B]" />
+                                <div className="flex items-start text-white/62">
+                                    <Calendar className="w-4 h-4 mr-3 mt-1 text-[#f26350]" />
                                     <div className="font-light space-y-1">
                                         <div>{t('landing.hoursTuesdayWednesday', 'Tue-Wed: 12:00 PM - 8:00 PM')}</div>
                                         <div>{t('landing.hoursThursday', 'Thu: 12:00 PM - 9:00 PM')}</div>
@@ -254,7 +257,7 @@ Submitted: ${new Date().toLocaleString()}
                         </div>
 
                         {/* Promotions Signup Mini - SIMPLIFIED */}
-                        <div className="bg-gradient-to-r from-[#E62B2B] to-[#ff6b6b] p-6 text-white">
+                        <div className="border border-[#f26350]/35 bg-[linear-gradient(135deg,#f26350_0%,#a62f25_100%)] p-6 text-white shadow-2xl shadow-[#f26350]/15">
                             <h3 className="text-lg font-light mb-3 flex items-center">
                                 <Gift className="w-5 h-5 mr-2" />
                                 {t('landing.getPromotions', 'Get Promotions')}
@@ -276,18 +279,18 @@ Submitted: ${new Date().toLocaleString()}
                                         required
                                         value={formData.email}
                                         onChange={handleChange}
-                                        className="w-full px-3 py-2.5 text-gray-900 placeholder-gray-600 bg-white rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#E62B2B] focus:border-transparent shadow-sm"
+                                        className="w-full border border-white/20 bg-white px-3 py-2.5 text-[#111] placeholder-gray-500 shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-white"
                                         placeholder={t("landing.email_placeholder")}
                                     />
                                 </div>
                                 <button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="w-full bg-white text-[#E62B2B] py-2.5 px-4 font-semibold text-sm hover:bg-gray-50 hover:shadow-md active:scale-[0.98] transition-all duration-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed rounded-lg shadow-sm border border-gray-200 hover:border-gray-300"
+                                    className="w-full border border-white/20 bg-white px-4 py-2.5 text-sm font-extrabold uppercase tracking-[0.08em] text-[#f26350] shadow-sm transition-all duration-200 hover:bg-white/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-white/45"
                                 >
                                     {isSubmitting ? (
                                         <span className="flex items-center justify-center gap-2">
-                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#E62B2B] border-t-transparent"></div>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#f26350] border-t-transparent"></div>
                                             Signing Up...
                                         </span>
                                     ) : (
@@ -301,21 +304,21 @@ Submitted: ${new Date().toLocaleString()}
                     {/* Main Form Area */}
                     <div className="lg:col-span-2">
                         {/* Tab Navigation */}
-                        <div className="flex border-b border-gray-200 mb-8">
+                        <div className="flex border border-white/10 bg-[#0b0b0b]">
                             <button
                                 onClick={() => setActiveTab('catering')}
-                                className={`flex-1 py-4 px-6 text-center font-light transition-colors ${activeTab === 'catering'
-                                    ? 'text-[#E62B2B] border-b-2 border-[#E62B2B]'
-                                    : 'text-gray-500 hover:text-gray-700'
+                                className={`flex-1 py-4 px-6 text-center text-[12px] font-extrabold uppercase tracking-[0.1em] transition-colors ${activeTab === 'catering'
+                                    ? 'text-[#f26350] border-b-2 border-[#f26350]'
+                                    : 'text-white/45 hover:text-white/78'
                                     }`}
                             >
                                 {t('landing.cateringEvents', 'Catering & Events')}
                             </button>
                             <button
                                 onClick={() => setActiveTab('general')}
-                                className={`flex-1 py-4 px-6 text-center font-light transition-colors ${activeTab === 'general'
-                                    ? 'text-[#E62B2B] border-b-2 border-[#E62B2B]'
-                                    : 'text-gray-500 hover:text-gray-700'
+                                className={`flex-1 py-4 px-6 text-center text-[12px] font-extrabold uppercase tracking-[0.1em] transition-colors ${activeTab === 'general'
+                                    ? 'text-[#f26350] border-b-2 border-[#f26350]'
+                                    : 'text-white/45 hover:text-white/78'
                                     }`}
                             >
                                 {t('landing.generalInquiry', 'General Inquiry')}
@@ -323,14 +326,14 @@ Submitted: ${new Date().toLocaleString()}
                         </div>
 
                         {/* Dynamic Form Content - Only for Catering & General */}
-                        <div className="bg-white p-8 shadow-sm border border-gray-200">
+                        <div className="bg-[#0e0e0e] p-8 shadow-2xl shadow-black/30 border-x border-b border-white/10">
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <input type="hidden" name="contactMethod" value={activeTab} />
 
                                 {/* Name & Email - Always Required */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label htmlFor="name" className="block text-sm font-light text-gray-700 mb-2">
+                                        <label htmlFor="name" className="block text-sm font-light text-white/78 mb-2">
                                             {t('landing.contactName', 'Contact Name *')}
                                         </label>
                                         <input
@@ -340,12 +343,12 @@ Submitted: ${new Date().toLocaleString()}
                                             required
                                             value={formData.name}
                                             onChange={handleChange}
-                                            className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-[#E62B2B] transition-colors"
+                                            className="w-full border border-white/12 bg-[#050505] px-4 py-3 font-light text-white placeholder-white/32 transition-colors focus:border-[#f26350] focus:outline-none"
                                             placeholder={t('landing.namePlaceholder', 'Your full name')}
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="email" className="block text-sm font-light text-gray-700 mb-2">
+                                        <label htmlFor="email" className="block text-sm font-light text-white/78 mb-2">
                                             {t('landing.emailAddress', 'Email Address *')}
                                         </label>
                                         <input
@@ -355,7 +358,7 @@ Submitted: ${new Date().toLocaleString()}
                                             required
                                             value={formData.email}
                                             onChange={handleChange}
-                                            className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-[#E62B2B] transition-colors"
+                                            className="w-full border border-white/12 bg-[#050505] px-4 py-3 font-light text-white placeholder-white/32 transition-colors focus:border-[#f26350] focus:outline-none"
                                             placeholder={t('landing.emailPlaceholder', 'your.email@example.com')}
                                         />
                                     </div>
@@ -363,7 +366,7 @@ Submitted: ${new Date().toLocaleString()}
 
                                 {/* Phone - Required for catering, optional for general */}
                                 <div>
-                                    <label htmlFor="phone" className="block text-sm font-light text-gray-700 mb-2">
+                                    <label htmlFor="phone" className="block text-sm font-light text-white/78 mb-2">
                                         {t('landing.phoneNumber', 'Phone Number')}
                                         {activeTab === 'catering' && ' *'}
                                     </label>
@@ -374,7 +377,7 @@ Submitted: ${new Date().toLocaleString()}
                                         required={activeTab === 'catering'}
                                         value={formData.phone}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-[#E62B2B] transition-colors"
+                                        className="w-full border border-white/12 bg-[#050505] px-4 py-3 font-light text-white placeholder-white/32 transition-colors focus:border-[#f26350] focus:outline-none"
                                         placeholder={t('landing.phonePlaceholder', '(555) 123-4567')}
                                     />
                                 </div>
@@ -384,7 +387,7 @@ Submitted: ${new Date().toLocaleString()}
                                     <>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div>
-                                                <label htmlFor="partySize" className="block text-sm font-light text-gray-700 mb-2">
+                                                <label htmlFor="partySize" className="block text-sm font-light text-white/78 mb-2">
                                                     {t('landing.partySize', 'Estimated Party Size *')}
                                                 </label>
                                                 <select
@@ -393,7 +396,7 @@ Submitted: ${new Date().toLocaleString()}
                                                     required
                                                     value={formData.partySize}
                                                     onChange={handleChange}
-                                                    className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-[#E62B2B] transition-colors"
+                                                    className="w-full border border-white/12 bg-[#050505] px-4 py-3 font-light text-white placeholder-white/32 transition-colors focus:border-[#f26350] focus:outline-none"
                                                 >
                                                     <option value="">{t('landing.selectSize', 'Select size')}</option>
                                                     <option value="10-25">{t('landing.size10_25', '10-25 people')}</option>
@@ -403,7 +406,7 @@ Submitted: ${new Date().toLocaleString()}
                                                 </select>
                                             </div>
                                             <div>
-                                                <label htmlFor="eventType" className="block text-sm font-light text-gray-700 mb-2">
+                                                <label htmlFor="eventType" className="block text-sm font-light text-white/78 mb-2">
                                                     {t('landing.eventType', 'Event Type *')}
                                                 </label>
                                                 <select
@@ -412,7 +415,7 @@ Submitted: ${new Date().toLocaleString()}
                                                     required
                                                     value={formData.eventType}
                                                     onChange={handleChange}
-                                                    className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-[#E62B2B] transition-colors"
+                                                    className="w-full border border-white/12 bg-[#050505] px-4 py-3 font-light text-white placeholder-white/32 transition-colors focus:border-[#f26350] focus:outline-none"
                                                 >
                                                     <option value="">{t('landing.selectType', 'Select type')}</option>
                                                     <option value="corporate">{t('landing.corporateEvent', 'Corporate Event')}</option>
@@ -428,7 +431,7 @@ Submitted: ${new Date().toLocaleString()}
 
                                 {/* Message */}
                                 <div>
-                                    <label htmlFor="message" className="block text-sm font-light text-gray-700 mb-2">
+                                    <label htmlFor="message" className="block text-sm font-light text-white/78 mb-2">
                                         {activeTab === 'catering'
                                             ? t('landing.eventDetails', 'Event Details *')
                                             : t('landing.yourMessage', 'Your Message *')
@@ -441,7 +444,7 @@ Submitted: ${new Date().toLocaleString()}
                                         rows={4}
                                         value={formData.message}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-3 border border-gray-300 font-light focus:outline-none focus:border-[#E62B2B] transition-colors resize-none"
+                                        className="w-full resize-none border border-white/12 bg-[#050505] px-4 py-3 font-light text-white placeholder-white/32 transition-colors focus:border-[#f26350] focus:outline-none"
                                         placeholder={
                                             activeTab === 'catering'
                                                 ? t('landing.messagePlaceholder', 'Tell us about your event date, dietary restrictions, and any special requests...')
@@ -453,7 +456,7 @@ Submitted: ${new Date().toLocaleString()}
                                 <button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="w-full bg-[#E62B2B] text-white py-4 px-6 font-light tracking-wide hover:bg-[#ff4444] disabled:bg-gray-400 transition-all duration-300 flex items-center justify-center"
+                                    className="flex w-full items-center justify-center bg-[#f26350] px-6 py-4 font-extrabold uppercase tracking-[0.1em] text-white transition-all duration-300 hover:bg-[#ff725f] disabled:bg-gray-400"
                                 >
                                     {isSubmitting ? (
                                         <>

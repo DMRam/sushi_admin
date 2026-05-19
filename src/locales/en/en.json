@@ -22,8 +22,11 @@
   "hero": {
     "authentic": "Authentic",
     "japaneseExperience": "Sushi Experience",
-    "tagline": "Masterful sushi craftsmanship meets contemporary elegance",
-    "orderNow": "Order Now"
+    "tagline": "Artisanal know-how meets contemporary elegance.",
+    "orderNow": "Order now",
+    "eyebrow": "An experience",
+    "sushi": "Sushi",
+    "viewMenu": "View menu"
   },
   "cart": {
     "items": "ITEMS",
@@ -156,7 +159,19 @@
     "closedNow": "We are currently closed.",
     "ordersPreparedAt": "Orders will be prepared at {{time}}",
     "placeOrder": "Place Order",
-    "scheduleOrder": "Schedule Order"
+    "scheduleOrder": "Schedule Order",
+    "secureCheckoutEyebrow": "Secure checkout",
+    "completeOrderTitle": "Complete your order",
+    "reviewPaymentTitle": "Review and pay",
+    "checkoutPromise": "Freshly prepared in Sherbrooke, secure card payment, and a fast pickup flow built for dinner decisions.",
+    "estimated": "Estimate",
+    "customerDetails": "Customer details",
+    "pickupInformation": "Pickup information",
+    "customerDetailsDescription": "Add your contact details so the kitchen can confirm timing and reach you if anything needs attention.",
+    "onlineDeal": "Online deal",
+    "onlineDealDescription": "Use MAISUSHI10 before payment.",
+    "fulfillment": "Fulfillment",
+    "finalStep": "Final step"
   },
   "nav": {
     "salesTracking": "Sales",
@@ -285,7 +300,39 @@
     "hoursThursdaySaturday": "Fri-Sat: 12:00 PM - 10:00 PM",
     "hoursSunday": "Sun: Closed",
     "hoursMonday": "Mon: Closed",
-    "email_placeholder": "your.email@example.com"
+    "email_placeholder": "your.email@example.com",
+    "promoPrefix": "Online offer - 10% off with code",
+    "valueProps": {
+      "fresh": {
+        "title": "Fresh ingredients",
+        "copy": "Selected with care every day"
+      },
+      "handmade": {
+        "title": "Handmade",
+        "copy": "Sushi prepared with passion by our chefs"
+      },
+      "flavors": {
+        "title": "Unique flavors",
+        "copy": "Original and refined creations"
+      },
+      "takeout": {
+        "title": "Takeout",
+        "copy": "Order easily online"
+      }
+    },
+    "social": {
+      "connect": "Connect"
+    },
+    "business": {
+      "openNow": "Open now",
+      "closed": "Closed",
+      "closesAt": "Closes {{time}} · {{remaining}}",
+      "opensAt": "Opens {{time}}",
+      "findUs": "Find us",
+      "tuesdayNoon": "Tuesday 12:00 PM",
+      "tomorrowNoon": "Tomorrow 12:00 PM"
+    },
+    "contactEyebrow": "Plan something fresh"
   },
   "catering": {
     "title": "MaiSushi Catering",
