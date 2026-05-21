@@ -19,9 +19,9 @@ interface Props {
 
 function mobileLinkClass(active: boolean) {
   return [
-    "flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-medium transition-all duration-200",
+    "flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-semibold transition-all duration-200",
     active
-      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100"
+      ? "bg-gray-950 text-white shadow-sm"
       : "text-gray-700 hover:bg-gray-50",
   ].join(" ");
 }
@@ -57,8 +57,11 @@ export default function MobileDrawer({
         aria-hidden={!isOpen}
       >
         <div className="flex h-full flex-col">
-          <div className="flex h-[76px] items-center justify-between border-b border-gray-100 px-4">
-            <div className="text-sm font-semibold text-gray-900">Menu</div>
+          <div className="flex h-[82px] items-center justify-between border-b border-gray-100 bg-[#f7f8fb] px-4">
+            <div>
+              <div className="text-sm font-semibold text-gray-950">Mai Sushi Ops</div>
+              <div className="mt-0.5 text-xs text-gray-400">Admin navigation</div>
+            </div>
 
             <button
               onClick={onClose}
@@ -77,7 +80,7 @@ export default function MobileDrawer({
                 onClick={onClose}
                 className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50/80 px-4 py-4 transition-colors hover:bg-gray-50"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-base font-semibold text-white">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-950 text-base font-semibold text-white">
                   {initials(displayName)}
                 </div>
 
@@ -110,10 +113,10 @@ export default function MobileDrawer({
                     key={link.path}
                     to={link.path}
                     onClick={onClose}
-                    className={mobileLinkClass(active)}
+                      className={mobileLinkClass(active)}
                   >
                     <Icon
-                      className={`h-5 w-5 ${active ? "text-blue-700" : "text-gray-400"
+                      className={`h-5 w-5 ${active ? "text-[#f26350]" : "text-gray-400"
                         }`}
                     />
                     <span>{link.label}</span>

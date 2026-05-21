@@ -7,6 +7,7 @@ import { useCartStore } from "../../stores/cartStore";
 import { supabase } from "../../lib/supabase";
 import { AuthModal } from "../components/AuthModal";
 import { LandingCTAFooter } from "../landing/components/LandingCTAFooter";
+import { LandingHeader } from "../landing/components/LandingHeader";
 
 import { useCheckoutForm } from "./hooks/useCheckoutForm";
 import { useCheckoutValidation, useDeliveryInfo } from "./hooks/useCheckoutCalculations";
@@ -302,8 +303,9 @@ export default function CheckoutPage() {
 
     if (safeCart.length === 0 && !orderComplete) {
         return (
-            <div className="min-h-screen bg-[#050505] flex items-center justify-center text-white">
-                <div className="container mx-auto px-6 text-center">
+            <div className="min-h-screen bg-[#050505] text-white">
+                <LandingHeader />
+                <div className="container mx-auto flex min-h-screen items-center justify-center px-6 pt-28 text-center">
                     <div className="max-w-md mx-auto border border-white/10 bg-[#0b0b0b] p-8 shadow-2xl shadow-black/40">
                         <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.28em] text-[#f26350]">
                             Mai Sushi
@@ -331,8 +333,9 @@ export default function CheckoutPage() {
 
     if (orderComplete) {
         return (
-            <div className="min-h-screen bg-[#050505] flex items-center justify-center">
-                <div className="container mx-auto px-6">
+            <div className="min-h-screen bg-[#050505]">
+                <LandingHeader />
+                <div className="container mx-auto flex min-h-screen items-center justify-center px-6 pt-28">
                     <div className="max-w-md mx-auto text-center border border-white/10 bg-[#0b0b0b] p-8 shadow-2xl shadow-black/40">
                         <div className="text-white">Order complete: {orderNumber}</div>
 
@@ -357,6 +360,8 @@ export default function CheckoutPage() {
 
     return (
         <div className="min-h-screen bg-[#050505] text-white">
+            <LandingHeader />
+
             {showAuthModal && (
                 <AuthModal
                     isLoginMode={isLoginMode}
@@ -372,7 +377,7 @@ export default function CheckoutPage() {
                 />
             )}
 
-            <div className="mx-auto w-full max-w-[1680px] px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+            <div className="mx-auto w-full max-w-[1680px] px-4 pb-6 pt-32 sm:px-6 lg:px-10 lg:pb-10 lg:pt-36">
                 <div className="mx-auto">
                     <div className="mb-6 border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(242,99,80,0.18),transparent_34%),linear-gradient(135deg,#101010,#050505)] px-5 py-5 shadow-2xl shadow-black/30 sm:px-7 lg:px-8">
                         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

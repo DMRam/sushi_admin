@@ -98,6 +98,15 @@ export interface OrderDetails {
     customer_email?: string;
     customer_phone?: string;
     delivery_address?: string;
+
+    // Checkout notes and fulfillment details used by webhooks/finalization
+    orderNotes?: string;
+    order_notes?: string;
+    pickupTime?: string;
+    pickup_time?: string;
+    deliveryInstructions?: string;
+    delivery_instructions?: string;
+    checkout_form?: Record<string, unknown>;
 }
 
 

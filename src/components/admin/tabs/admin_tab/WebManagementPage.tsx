@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDocs, updateDoc, addDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../../../../firebase/firebase'
 import type { WebProduct } from '../../../../types/types'
@@ -12,7 +12,7 @@ import { PREDEFINED_PAGES } from './constants'
 
 export default function WebManagementPage() {
     const [productSearch, setProductSearch] = useState('')
-    const [activeSection, setActiveSection] = useState<AdminSection>('products')
+    const [activeSection] = useState<AdminSection>('products')
     const [_pages, setPages] = useState<PageContent[]>([])
     const [products, setProducts] = useState<WebProduct[]>([])
     const [_siteConfig, setSiteConfig] = useState<SiteConfig>({
@@ -24,6 +24,18 @@ export default function WebManagementPage() {
     const [editingProduct, setEditingProduct] = useState<WebProduct | null>(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+
+    const productStats = useMemo(() => {
+        const active = products.filter((product) => product.isActive !== false).length
+        const featured = products.filter((product) => product.featured).length
+        const categories = new Set(products.map((product) => product.category || 'general')).size
+        return {
+            active,
+            inactive: Math.max(products.length - active, 0),
+            featured,
+            categories,
+        }
+    }, [products])
 
     useEffect(() => {
         void fetchAllData()
@@ -332,7 +344,7 @@ export default function WebManagementPage() {
     return (
         <div className="space-y-6">
             {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="border border-red-200 bg-red-50 p-4">
                     <div className="text-red-700 text-sm font-light">{error}</div>
                     <button
                         onClick={() => setError(null)}
@@ -342,29 +354,6 @@ export default function WebManagementPage() {
                     </button>
                 </div>
             )}
-
-           
-
-            <div className="border-b border-gray-200">
-                <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
-                    {[
-                        // { id: 'pages', name: 'PAGES' },
-                        { id: 'products', name: 'PRODUCTS' },
-                        // { id: 'settings', name: 'SETTINGS' },
-                    ].map((section) => (
-                        <button
-                            key={section.id}
-                            onClick={() => setActiveSection(section.id as AdminSection)}
-                            className={`py-4 px-1 border-b-2 font-light text-sm tracking-wide whitespace-nowrap flex-shrink-0 ${activeSection === section.id
-                                    ? 'border-gray-900 text-gray-900'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                        >
-                            {section.name}
-                        </button>
-                    ))}
-                </nav>
-            </div>
 
             {/* {activeSection === 'pages' && (
                 <PagesManager
@@ -378,48 +367,68 @@ export default function WebManagementPage() {
             )} */}
 
             {activeSection === 'products' && (
-                <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-light text-gray-900 tracking-wide">PRODUCTS MANAGEMENT</h3>
+                <div className="space-y-4">
+                    <div className="border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E62B2B]">
+                                    Products Management
+                                </p>
+                                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+                                    Menu catalog
+                                </h2>
+                                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+                                    Maintain pricing, visibility, categories, and kitchen details used by the website.
+                                </p>
+                            </div>
 
-                        <button
-                            onClick={() =>
-                                setEditingProduct({
-                                    name: '',
-                                    description: { en: '', es: '', fr: '' },
-                                    price: 0,
-                                    imageUrl: '',
-                                    category: 'general',
-                                    isActive: true,
-                                    featured: false,
-                                    sortOrder: products.length,
-                                    costPrice: 0,
-                                    sellingPrice: 0,
-                                    portionSize: '',
-                                    preparationTime: 0,
-                                    tags: [],
-                                    productType: 'directCost',
-                                    ingredients: [],
-                                    kitchen: {
-                                        rollType: '',
-                                        outerWrap: '',
-                                        innerIngredients: [],
-                                        finishes: [],
-                                        sauces: [],
-                                        displayNameKitchen: '',
-                                        notes: '',
-                                        containsCheese: false,
-                                        requiresFrying: false,
-                                    },
-                                } as any)
-                            }
-                            className="px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-light bg-gray-900 hover:bg-gray-800 text-white"
-                        >
-                            ADD PRODUCT
-                        </button>
+                            <button
+                                onClick={() =>
+                                    setEditingProduct({
+                                        name: '',
+                                        description: { en: '', es: '', fr: '' },
+                                        price: 0,
+                                        imageUrl: '',
+                                        category: 'general',
+                                        isActive: true,
+                                        featured: false,
+                                        sortOrder: products.length,
+                                        costPrice: 0,
+                                        sellingPrice: 0,
+                                        portionSize: '',
+                                        preparationTime: 0,
+                                        tags: [],
+                                        productType: 'ingredientBased',
+                                        ingredients: [],
+                                        kitchen: {
+                                            rollType: '',
+                                            outerWrap: '',
+                                            innerIngredients: [],
+                                            finishes: [],
+                                            sauces: [],
+                                            displayNameKitchen: '',
+                                            notes: '',
+                                            containsCheese: false,
+                                            requiresFrying: false,
+                                        },
+                                    } as any)
+                                }
+                                className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-950/20"
+                            >
+                                Add Product
+                            </button>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-5">
+                            <ProductStat label="Total" value={products.length} />
+                            <ProductStat label="Active" value={productStats.active} tone="green" />
+                            <ProductStat label="Hidden" value={productStats.inactive} tone="red" />
+                            <ProductStat label="Featured" value={productStats.featured} tone="amber" />
+                            <ProductStat label="Categories" value={productStats.categories} />
+                        </div>
                     </div>
 
-                    {editingProduct ? (
+                    {editingProduct && (
                         <ProductForm
                             product={editingProduct}
                             onChange={setEditingProduct}
@@ -427,7 +436,9 @@ export default function WebManagementPage() {
                             onCancel={() => setEditingProduct(null)}
                             loading={loading}
                         />
-                    ) : (
+                    )}
+
+                    <div className={editingProduct ? 'hidden' : 'block'}>
                         <ProductList
                             products={products}
                             onEdit={setEditingProduct}
@@ -436,7 +447,7 @@ export default function WebManagementPage() {
                             search={productSearch}
                             setSearch={setProductSearch}
                         />
-                    )}
+                    </div>
                 </div>
             )}
 
@@ -448,6 +459,32 @@ export default function WebManagementPage() {
                     loading={loading}
                 />
             )} */}
+        </div>
+    )
+}
+
+function ProductStat({
+    label,
+    value,
+    tone = 'slate',
+}: {
+    label: string
+    value: number
+    tone?: 'slate' | 'green' | 'red' | 'amber'
+}) {
+    const toneClass = {
+        slate: 'text-slate-950',
+        green: 'text-emerald-700',
+        red: 'text-red-700',
+        amber: 'text-amber-700',
+    }[tone]
+
+    return (
+        <div className="border border-slate-200 bg-slate-50 px-3 py-3">
+            <div className={`text-xl font-semibold ${toneClass}`}>{value}</div>
+            <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                {label}
+            </div>
         </div>
     )
 }

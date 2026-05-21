@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Menu, LogOut } from "lucide-react";
+import { Menu, LogOut, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../context/AuthContext";
 import { useUserProfile, UserRole } from "../../context/UserProfileContext";
@@ -51,9 +51,9 @@ export default function NavBar() {
 
     return (
         <>
-            <header className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-                <div className="mx-auto max-w-[1700px] px-3 sm:px-5 lg:px-6 xl:px-8">
-                    <div className="flex min-h-[72px] items-center justify-between gap-3 sm:min-h-[76px] sm:gap-4">
+            <header className="sticky top-0 z-50 border-b border-gray-200 bg-[#f7f8fb]/95 shadow-[0_1px_0_rgba(15,23,42,0.03),0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur supports-[backdrop-filter]:bg-[#f7f8fb]/88">
+                <div className="mx-auto max-w-[1760px] px-3 sm:px-5 lg:px-6 xl:px-8">
+                    <div className="flex min-h-[82px] items-center justify-between gap-3 sm:min-h-[88px] sm:gap-4">
                         <div className="flex min-w-0 items-center gap-3">
                             <button
                                 onClick={() => setIsMenuOpen(true)}
@@ -64,8 +64,19 @@ export default function NavBar() {
                                 <Menu className="h-5 w-5" />
                             </button>
 
-                            {/* Optional brand/title block can go here */}
-                            {/* <BrandBlock userRole={userRole} hasProfile={!!userProfile} /> */}
+                            <div className="hidden min-w-0 items-center gap-3 xl:flex">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-gray-950 text-white shadow-sm">
+                                    <Sparkles className="h-5 w-5 text-[#f26350]" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold tracking-tight text-gray-950">
+                                        Mai Sushi Ops
+                                    </p>
+                                    <p className="mt-0.5 truncate text-xs font-medium text-gray-400">
+                                        Restaurant command center
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="hidden min-w-0 flex-1 justify-center xl:flex">
@@ -78,7 +89,7 @@ export default function NavBar() {
                         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                             <button
                                 onClick={handleLogout}
-                                className="hidden xl:inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:text-gray-900 hover:shadow-md"
+                                className="hidden xl:inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:border-gray-300 hover:bg-gray-950 hover:text-white hover:shadow-md"
                                 title={t("nav.logout", "Logout")}
                                 type="button"
                             >

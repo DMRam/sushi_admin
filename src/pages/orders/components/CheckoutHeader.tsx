@@ -60,18 +60,6 @@ export default function CheckoutHeader({
         )}
       </div>
 
-      <div className="my-4 border border-[#f26350]/25 bg-[#f26350]/10 p-4">
-        <p className="text-[11px] font-extrabold uppercase tracking-[0.22em] text-[#ff8a78]">
-          {t("checkoutPage.webPickupDeal", "Online pickup deal")}
-        </p>
-        <p className="text-white/70 text-sm mt-2">
-          {t(
-            "checkoutPage.webPickupDealDescription",
-            "Use code MAISUSHI10 and get 10% off pickup orders over $25."
-          )}
-        </p>
-      </div>
-
       {banner}
     </header>
   );

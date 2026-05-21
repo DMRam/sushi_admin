@@ -252,13 +252,13 @@ export const LandingHeader = () => {
         <>
             <header
                 className={[
-                    "fixed inset-x-0 top-7 z-40",
+                    "fixed inset-x-0 top-8 z-[70]",
                     "border-b transition-all duration-300",
-                    "supports-[backdrop-filter]:backdrop-blur-md",
-                    scrolled ? "bg-[#030303]/96 border-white/10 shadow-xl shadow-black/30" : "bg-[#030303]/94 border-white/10 shadow-sm",
+                    "bg-[#030303] supports-[backdrop-filter]:backdrop-blur-md",
+                    scrolled ? "border-white/10 shadow-xl shadow-black/35" : "border-white/10 shadow-sm",
                 ].join(" ")}
             >
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-full bg-gradient-to-b from-white/5 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-full bg-gradient-to-b from-white/[0.06] to-transparent" />
 
                 <div className="relative mx-auto max-w-[1600px] px-5 py-3 overflow-x-clip lg:px-10">
                     <div className="flex h-[52px] items-center justify-between gap-3">

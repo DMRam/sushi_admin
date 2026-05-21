@@ -184,7 +184,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#050505] font-sans text-white">
-      <PromoBanner />
       <LandingHeader />
 
       <main className="relative overflow-hidden">
@@ -268,29 +267,6 @@ export default function LandingPage() {
           }
         }
       `}</style>
-    </div>
-  )
-}
-
-const PromoBanner: React.FC = () => {
-  const { t } = useTranslation()
-
-  return (
-    <div className="fixed left-0 right-0 top-0 z-[70] h-7 bg-[#f26350] px-4 text-center shadow-[0_1px_0_rgba(255,255,255,0.18)_inset]">
-      <Link
-        to="/menu"
-        className="
-          inline-flex h-full max-w-full items-center justify-center gap-2
-          truncate text-[10px] font-extrabold uppercase leading-none tracking-[0.1em] text-white
-          sm:text-[11px] sm:tracking-[0.12em]
-        "
-      >
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white" />
-        <span className="truncate">
-          {t('landing.promoPrefix', 'Offre en ligne - 10% de rabais avec le code')}{' '}
-          <span className="underline underline-offset-2">MAISUSHI10</span>
-        </span>
-      </Link>
     </div>
   )
 }

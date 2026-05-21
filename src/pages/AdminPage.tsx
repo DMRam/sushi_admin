@@ -14,11 +14,26 @@ export default function AdminPage() {
 
     const tabs = useMemo(
         () => [
-            { id: 'invitations' as const, name: 'Invitations' },
-            { id: 'users' as const, name: 'Users' },
-            { id: 'web' as const, name: 'Products' }
+            {
+                id: 'invitations' as const,
+                name: 'Invitations',
+                description: 'Registration access',
+                metric: invitationCodes.length,
+            },
+            {
+                id: 'users' as const,
+                name: 'Users',
+                description: 'Roles and access',
+                metric: null,
+            },
+            {
+                id: 'web' as const,
+                name: 'Products',
+                description: 'Menu catalog',
+                metric: null,
+            },
         ],
-        []
+        [invitationCodes.length]
     )
 
     const handleGenerateCode = async () => {
@@ -42,21 +57,43 @@ export default function AdminPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
-                {/* Header */}
-                <div className="mb-4 sm:mb-6 lg:mb-8">
-                    <h1 className="text-2xl sm:text-3xl font-light text-gray-900 tracking-wide">Admin Panel</h1>
-                    <p className="text-sm sm:text-base text-gray-500 font-light mt-1 sm:mt-2">
-                        Manage invitation codes and products
-                    </p>
+        <div className="min-h-screen bg-[#f4f5f7] text-slate-950">
+            <div className="mx-auto max-w-[1600px] px-3 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
+                <div className="mb-4 overflow-hidden border border-slate-200 bg-white shadow-sm">
+                    <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#E62B2B]">
+                                Mai Sushi Operations
+                            </p>
+                            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                                Admin Panel
+                            </h1>
+                            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+                                Manage access, staff users, and the live menu catalog from one focused workspace.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 sm:min-w-[280px]">
+                            <div className="border border-slate-200 bg-slate-50 px-3 py-3">
+                                <div className="text-xl font-semibold text-slate-950">{invitationCodes.length}</div>
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                    Invites
+                                </div>
+                            </div>
+                            <div className="border border-slate-200 bg-slate-950 px-3 py-3">
+                                <div className="text-xl font-semibold text-white">Live</div>
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
+                                    Firebase
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                    {/* Tabs */}
-                    <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
-                        <div className="px-3 sm:px-4 lg:px-6 py-2">
-                            <nav className="flex gap-2 sm:gap-3 overflow-x-auto">
+                <div className="overflow-hidden border border-slate-200 bg-white shadow-sm">
+                    <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
+                        <div className="p-2">
+                            <nav className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                                 {tabs.map((tab) => {
                                     const active = activeTab === tab.id
                                     return (
@@ -64,13 +101,34 @@ export default function AdminPage() {
                                             key={tab.id}
                                             onClick={() => setActiveTab(tab.id)}
                                             className={[
-                                                'px-3 sm:px-4 py-2 rounded-full text-sm whitespace-nowrap transition flex-shrink-0',
+                                                'group flex items-center justify-between border px-4 py-2.5 text-left transition',
                                                 active
-                                                    ? 'bg-gray-900 text-white shadow-sm'
-                                                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                    ? 'border-slate-950 bg-slate-950 text-white shadow-sm'
+                                                    : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white'
                                             ].join(' ')}
                                         >
-                                            {tab.name}
+                                            <span>
+                                                <span className="block text-sm font-semibold">{tab.name}</span>
+                                                <span
+                                                    className={[
+                                                        'mt-1 block text-xs',
+                                                        active ? 'text-white/55' : 'text-slate-500',
+                                                    ].join(' ')}
+                                                >
+                                                    {tab.description}
+                                                </span>
+                                            </span>
+
+                                            {tab.metric !== null && (
+                                                <span
+                                                    className={[
+                                                        'ml-4 min-w-8 px-2 py-1 text-center text-xs font-semibold',
+                                                        active ? 'bg-white/10 text-white' : 'bg-white text-slate-600',
+                                                    ].join(' ')}
+                                                >
+                                                    {tab.metric}
+                                                </span>
+                                            )}
                                         </button>
                                     )
                                 })}
@@ -79,7 +137,7 @@ export default function AdminPage() {
                     </div>
 
                     {/* Content */}
-                    <div className="p-3 sm:p-4 lg:p-6">
+                    <div className="p-3 sm:p-4 lg:p-5">
                         {activeTab === 'invitations' && (
                             <div className="space-y-4 sm:space-y-6">
                                 {/* Generate */}

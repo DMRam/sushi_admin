@@ -11,60 +11,78 @@ export default function StockPage() {
 
   // Get unique categories for filter
   const categories = useMemo(() => {
-    const uniqueCategories = [...new Set(ingredients.map(ing => ing.category))]
+    const uniqueCategories = [...new Set(ingredients.map(ing => ing.category || 'Uncategorized'))]
     return uniqueCategories.sort()
   }, [ingredients])
 
   // Filter ingredients based on search and filters
   const filteredIngredients = useMemo(() => {
     return ingredients.filter(ingredient => {
-      const matchesSearch = ingredient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ingredient.category.toLowerCase().includes(searchTerm.toLowerCase())
+      const name = String(ingredient.name || '').toLowerCase()
+      const category = String(ingredient.category || 'Uncategorized').toLowerCase()
+      const query = searchTerm.toLowerCase()
+      const currentStock = Number(ingredient.currentStock) || 0
+      const minimumStock = Number(ingredient.minimumStock) || 0
 
-      const matchesCategory = categoryFilter === 'all' || ingredient.category === categoryFilter
+      const matchesSearch = name.includes(query) || category.includes(query)
+
+      const matchesCategory = categoryFilter === 'all' || (ingredient.category || 'Uncategorized') === categoryFilter
 
       const matchesStockStatus = stockStatusFilter === 'all' ||
-        (stockStatusFilter === 'out-of-stock' && ingredient.currentStock === 0) ||
-        (stockStatusFilter === 'low-stock' && ingredient.currentStock > 0 && ingredient.currentStock <= ingredient.minimumStock) ||
-        (stockStatusFilter === 'in-stock' && ingredient.currentStock > ingredient.minimumStock)
+        (stockStatusFilter === 'out-of-stock' && currentStock === 0) ||
+        (stockStatusFilter === 'low-stock' && currentStock > 0 && currentStock <= minimumStock) ||
+        (stockStatusFilter === 'in-stock' && currentStock > minimumStock)
 
       return matchesSearch && matchesCategory && matchesStockStatus
     })
   }, [ingredients, searchTerm, categoryFilter, stockStatusFilter])
 
   // Format numbers to avoid scientific notation
-  const formatStockQuantity = (quantity: number, unit: string): string => {
-    if (quantity === 0) return `0 ${unit}`
+  const formatStockQuantity = (quantity: number | undefined | null, unit: string | undefined): string => {
+    const safeQuantity = Number(quantity) || 0
+    const safeUnit = unit || 'unit'
+
+    if (safeQuantity === 0) return `0 ${safeUnit}`
 
     // If it's a very large number, format it properly
-    if (quantity >= 1000) {
-      return `${quantity.toLocaleString()} ${unit}`
+    if (safeQuantity >= 1000) {
+      return `${safeQuantity.toLocaleString()} ${safeUnit}`
     }
 
     // For normal numbers, show 2 decimal places
-    return `${quantity.toFixed(2)} ${unit}`
+    return `${safeQuantity.toFixed(2)} ${safeUnit}`
   }
 
-  const formatCurrency = (amount: number): string => {
-    if (amount === 0) return '$0.00'
-    if (amount >= 1000) {
-      return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const formatCurrency = (amount: number | undefined | null): string => {
+    const safeAmount = Number(amount) || 0
+
+    if (safeAmount === 0) return '$0.00'
+    if (safeAmount >= 1000) {
+      return `$${safeAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     }
-    return `$${amount.toFixed(2)}`
+    return `$${safeAmount.toFixed(2)}`
   }
 
   const getStockStatus = (ingredient: any) => {
-    if (ingredient.currentStock === 0) return { status: 'out-of-stock', color: 'bg-red-100 text-red-800 border border-red-200' }
-    if (ingredient.currentStock <= ingredient.minimumStock) return { status: 'low-stock', color: 'bg-yellow-100 text-yellow-800 border border-yellow-200' }
+    const currentStock = Number(ingredient.currentStock) || 0
+    const minimumStock = Number(ingredient.minimumStock) || 0
+
+    if (currentStock === 0) return { status: 'out-of-stock', color: 'bg-red-100 text-red-800 border border-red-200' }
+    if (currentStock <= minimumStock) return { status: 'low-stock', color: 'bg-yellow-100 text-yellow-800 border border-yellow-200' }
     return { status: 'in-stock', color: 'bg-green-100 text-green-800 border border-green-200' }
   }
 
   const totalInventoryValue = filteredIngredients.reduce((total, ing) => {
-    return total + (ing.currentStock * ing.pricePerKg)
+    return total + ((Number(ing.currentStock) || 0) * (Number(ing.pricePerKg) || 0))
   }, 0)
 
-  const lowStockCount = filteredIngredients.filter(ing => ing.currentStock > 0 && ing.currentStock <= ing.minimumStock).length
-  const outOfStockCount = filteredIngredients.filter(ing => ing.currentStock === 0).length
+  const lowStockCount = filteredIngredients.filter((ing) => {
+    const currentStock = Number(ing.currentStock) || 0
+    const minimumStock = Number(ing.minimumStock) || 0
+    return currentStock > 0 && currentStock <= minimumStock
+  }).length
+
+  const outOfStockCount = filteredIngredients.filter(ing => (Number(ing.currentStock) || 0) === 0).length
 
   // Clear all filters
   const clearFilters = () => {
@@ -279,7 +297,7 @@ export default function StockPage() {
             ) : (
               <div className="p-4 space-y-4">
                 {filteredIngredients.map((ingredient) => {
-                  const stockValue = ingredient.currentStock * ingredient.pricePerKg
+                  const stockValue = (Number(ingredient.currentStock) || 0) * (Number(ingredient.pricePerKg) || 0)
                   const stockStatus = getStockStatus(ingredient)
 
                   return (
@@ -384,7 +402,7 @@ export default function StockPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {filteredIngredients.map((ingredient) => {
-                    const stockValue = ingredient.currentStock * ingredient.pricePerKg
+                    const stockValue = (Number(ingredient.currentStock) || 0) * (Number(ingredient.pricePerKg) || 0)
                     const stockStatus = getStockStatus(ingredient)
 
                     return (

@@ -54,6 +54,7 @@ function AppContent() {
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
             <Route path="/sales-tracking" element={<SalesTrackingPage />} />
+            <Route path="/dashboard" element={<SalesTrackingPage />} />
             <Route path="/purchases" element={<PurchasesPage />} />
             <Route path="/stock" element={<StockPage />} />
             <Route path="/products" element={<ProductsPage />} />
@@ -62,7 +63,7 @@ function AppContent() {
             <Route path="/payroll" element={<PayrollPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/" element={<Navigate to="/sales-tracking" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Suspense>
       </main>
@@ -140,8 +141,9 @@ function AppShell() {
   const location = useLocation()
 
   const hidePromoBanner =
-    location.pathname === '/' ||
     location.pathname.startsWith('/admin') ||
+    location.pathname === '/admin-login' ||
+    location.pathname === '/register' ||
     location.pathname === '/checkout/success'
 
   return (

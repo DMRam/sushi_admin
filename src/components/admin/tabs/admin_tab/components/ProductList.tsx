@@ -109,17 +109,24 @@ export default function ProductList({
         setPage(1)
     }
 
+    const formatMargin = (product: any) => {
+        const margin = Number(product.profitMargin)
+        if (Number.isFinite(margin) && margin > 0) return `${margin.toFixed(0)}%`
+
+        const price = Number(product.price) || 0
+        const cost = Number(product.costPrice) || 0
+        if (price <= 0) return '0%'
+        return `${(((price - cost) / price) * 100).toFixed(0)}%`
+    }
+
     return (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 space-y-4">
-            <div className="sticky top-[56px] z-10 bg-white border border-gray-200 rounded-xl p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="space-y-3">
+            <div className="sticky top-[76px] z-10 border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <div className="text-sm font-light text-gray-900">
-                            Showing <span className="text-gray-700">{total}</span> of{' '}
-                            <span className="text-gray-700">{products.length}</span>
-                        </div>
-                        <div className="text-xs text-gray-500 font-light mt-1">
-                            Search + filters + sorting for large catalogs
+                        <div className="text-sm font-semibold text-slate-950">
+                            Showing <span className="text-[#E62B2B]">{total}</span> of{' '}
+                            <span className="text-slate-700">{products.length}</span> products
                         </div>
                     </div>
 
@@ -127,28 +134,34 @@ export default function ProductList({
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="px-3 py-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-sm font-light"
+                            className="border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
                         >
                             Reset
                         </button>
                     </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-12 gap-2">
-                    <div className="sm:col-span-6">
+                <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-12">
+                    <div className="lg:col-span-5">
+                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            Search
+                        </label>
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search name / category / tags / description…"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                            className="w-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
                         />
                     </div>
 
-                    <div className="sm:col-span-2">
+                    <div className="lg:col-span-2">
+                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            Status
+                        </label>
                         <select
                             value={status}
                             onChange={(e) => setStatus(e.target.value as any)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                            className="w-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
                         >
                             <option value="all">All status</option>
                             <option value="active">Active</option>
@@ -156,11 +169,14 @@ export default function ProductList({
                         </select>
                     </div>
 
-                    <div className="sm:col-span-2">
+                    <div className="lg:col-span-2">
+                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            Featured
+                        </label>
                         <select
                             value={featured}
                             onChange={(e) => setFeatured(e.target.value as any)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                            className="w-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
                         >
                             <option value="all">All</option>
                             <option value="featured">Featured</option>
@@ -168,11 +184,14 @@ export default function ProductList({
                         </select>
                     </div>
 
-                    <div className="sm:col-span-2">
+                    <div className="lg:col-span-3">
+                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            Page size
+                        </label>
                         <select
                             value={pageSize}
                             onChange={(e) => setPageSize(parseInt(e.target.value) || 25)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                            className="w-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
                         >
                             <option value={10}>10 / page</option>
                             <option value={25}>25 / page</option>
@@ -182,12 +201,12 @@ export default function ProductList({
                     </div>
                 </div>
 
-                <div className="mt-2 grid grid-cols-1 sm:grid-cols-12 gap-2">
-                    <div className="sm:col-span-4">
+                <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-12">
+                    <div className="lg:col-span-4">
                         <select
                             value={category}
                             onChange={(e) => setCategory(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                            className="w-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
                         >
                             {categories.map((c) => (
                                 <option key={c} value={c}>
@@ -197,11 +216,11 @@ export default function ProductList({
                         </select>
                     </div>
 
-                    <div className="sm:col-span-4">
+                    <div className="lg:col-span-4">
                         <select
                             value={tag}
                             onChange={(e) => setTag(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                            className="w-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
                         >
                             {tags.map((t) => (
                                 <option key={t} value={t}>
@@ -211,11 +230,11 @@ export default function ProductList({
                         </select>
                     </div>
 
-                    <div className="sm:col-span-3">
+                    <div className="lg:col-span-3">
                         <select
                             value={sortKey}
                             onChange={(e) => setSortKey(e.target.value as any)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 font-light"
+                            className="w-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
                         >
                             <option value="sortOrder">Sort order</option>
                             <option value="name">Name</option>
@@ -224,11 +243,11 @@ export default function ProductList({
                         </select>
                     </div>
 
-                    <div className="sm:col-span-1">
+                    <div className="lg:col-span-1">
                         <button
                             type="button"
                             onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}
-                            className="w-full px-3 py-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-sm font-light"
+                            className="w-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                             title="Toggle sort direction"
                         >
                             {sortDir === 'asc' ? 'Asc' : 'Desc'}
@@ -239,40 +258,43 @@ export default function ProductList({
 
             <div className="sm:hidden space-y-3">
                 {paged.map((product: any) => (
-                    <div key={product.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div key={product.id} className="border border-slate-200 bg-white p-4 shadow-sm">
                         <div className="flex justify-between items-start mb-3">
-                            <div className="min-w-0 flex-1">
-                                <div className="font-light text-gray-900 text-sm mb-1 truncate">
+                            <div className="flex min-w-0 flex-1 gap-3">
+                                <ProductThumb product={product} />
+                                <div className="min-w-0">
+                                <div className="truncate text-sm font-semibold text-slate-950">
                                     {product.name || 'Unnamed Product'}
                                 </div>
-                                <div className="text-xs text-gray-500 font-light truncate">
+                                <div className="truncate text-xs text-slate-500">
                                     {product.category || 'No category'}
+                                </div>
                                 </div>
                             </div>
 
                             <div className="flex flex-col items-end space-y-1 flex-shrink-0 ml-2">
                                 <span
-                                    className={`inline-flex px-2 py-1 text-xs font-light rounded-full ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    className={`inline-flex px-2 py-1 text-xs font-semibold ${product.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
                                         }`}
                                 >
                                     {product.isActive ? 'Active' : 'Inactive'}
                                 </span>
 
                                 {product.featured && (
-                                    <span className="inline-flex px-2 py-1 text-xs font-light rounded-full bg-yellow-100 text-yellow-800">
+                                    <span className="inline-flex px-2 py-1 text-xs font-semibold bg-amber-50 text-amber-700">
                                         Featured
                                     </span>
                                 )}
                             </div>
                         </div>
 
-                        <div className="text-xs text-gray-600 mb-2 font-light line-clamp-2" title={getDescriptionForTitle(product)}>
+                        <div className="mb-3 text-xs leading-5 text-slate-600 line-clamp-2" title={getDescriptionForTitle(product)}>
                             {truncateText(getDescription(product), 80)}
                         </div>
 
                         <div className="flex justify-between items-center mb-3">
-                            <div className="text-sm font-light text-green-600">{formatPrice(product.price)}</div>
-                            <div className="text-xs text-gray-500 font-light">Cost: {formatPrice(product.costPrice)}</div>
+                            <div className="text-base font-semibold text-slate-950">{formatPrice(product.price)}</div>
+                            <div className="text-xs text-slate-500">Cost: {formatPrice(product.costPrice)} · {formatMargin(product)}</div>
                         </div>
 
                         {product.portionSize && (
@@ -284,12 +306,12 @@ export default function ProductList({
                         {Array.isArray(product.tags) && product.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mb-3">
                                 {product.tags.slice(0, 4).map((t: string) => (
-                                    <span key={t} className="text-xs px-2 py-1 rounded-full border border-gray-200 bg-white text-gray-600">
+                                    <span key={t} className="border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
                                         {t}
                                     </span>
                                 ))}
                                 {product.tags.length > 4 && (
-                                    <span className="text-xs px-2 py-1 rounded-full border border-gray-200 bg-white text-gray-500">
+                                    <span className="border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-500">
                                         +{product.tags.length - 4}
                                     </span>
                                 )}
@@ -299,58 +321,61 @@ export default function ProductList({
                         <div className="flex space-x-2">
                             <button
                                 onClick={() => onEdit(product)}
-                                className="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm font-light hover:bg-blue-700"
+                                className="flex-1 bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
                             >
-                                EDIT
+                                Edit
                             </button>
                             <button
                                 onClick={() => product.id && onDelete(product.id)}
-                                className="flex-1 bg-red-600 text-white px-3 py-2 rounded text-sm font-light hover:bg-red-700"
+                                className="flex-1 border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
                             >
-                                DELETE
+                                Delete
                             </button>
                         </div>
                     </div>
                 ))}
             </div>
 
-            <div className="hidden sm:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 table-fixed">
-                    <thead className="bg-gray-50">
+            <div className="hidden overflow-hidden border border-slate-200 bg-white shadow-sm sm:block">
+                <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200 table-fixed">
+                    <thead className="bg-slate-50">
                         <tr>
-                            <th className="px-4 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider w-2/5">
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[42%]">
                                 Product
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider w-1/6">
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[16%]">
                                 Category
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider w-1/6">
-                                Price
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[16%]">
+                                Pricing
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider w-1/6">
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[14%]">
                                 Status
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-light text-gray-500 uppercase tracking-wider w-1/6">
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider w-[12%]">
                                 Actions
                             </th>
                         </tr>
                     </thead>
 
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-slate-100">
                         {paged.map((product: any) => (
-                            <tr key={product.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-4 w-2/5 min-w-0 overflow-hidden">
-                                    <div className="flex flex-col min-w-0 overflow-hidden">
-                                        <div className="text-sm font-light text-gray-900 truncate" title={product.name}>
+                            <tr key={product.id} className="hover:bg-slate-50/80">
+                                <td className="px-4 py-4 min-w-0 overflow-hidden">
+                                    <div className="flex min-w-0 items-start gap-3 overflow-hidden">
+                                        <ProductThumb product={product} />
+                                        <div className="min-w-0 flex-1">
+                                        <div className="truncate text-sm font-semibold text-slate-950" title={product.name}>
                                             {product.name || 'Unnamed Product'}
                                         </div>
 
-                                        <div className="text-xs text-gray-500 font-light mt-1" title={getDescriptionForTitle(product)}>
+                                        <div className="mt-1 text-xs leading-5 text-slate-500" title={getDescriptionForTitle(product)}>
                                             {truncateText(getDescription(product), 80)}
                                         </div>
 
                                         {product.portionSize && (
-                                            <div className="text-xs text-gray-400 font-light truncate mt-1" title={product.portionSize}>
+                                            <div className="text-xs text-slate-400 truncate mt-1" title={product.portionSize}>
                                                 {product.portionSize}
                                             </div>
                                         )}
@@ -360,60 +385,65 @@ export default function ProductList({
                                                 {product.tags.slice(0, 3).map((t: string) => (
                                                     <span
                                                         key={t}
-                                                        className="text-xs px-2 py-1 rounded-full border border-gray-200 bg-white text-gray-600"
+                                                        className="border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600"
                                                         title={t}
                                                     >
                                                         {t}
                                                     </span>
                                                 ))}
                                                 {product.tags.length > 3 && (
-                                                    <span className="text-xs px-2 py-1 rounded-full border border-gray-200 bg-white text-gray-500">
+                                                    <span className="border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-500">
                                                         +{product.tags.length - 3}
                                                     </span>
                                                 )}
                                             </div>
                                         )}
+                                        </div>
                                     </div>
                                 </td>
 
-                                <td className="px-4 py-4 w-1/6">
-                                    <div className="text-sm text-gray-600 font-light truncate" title={product.category}>
+                                <td className="px-4 py-4">
+                                    <div className="truncate text-sm font-medium text-slate-700" title={product.category}>
                                         {product.category || 'No category'}
                                     </div>
+                                    <div className="mt-1 text-xs text-slate-400">
+                                        Order {product.sortOrder ?? 0}
+                                    </div>
                                 </td>
 
-                                <td className="px-4 py-4 w-1/6">
-                                    <div className="text-sm font-light text-green-600">{formatPrice(product.price)}</div>
-                                    <div className="text-xs text-gray-500 font-light">Cost: {formatPrice(product.costPrice)}</div>
+                                <td className="px-4 py-4">
+                                    <div className="text-sm font-semibold text-slate-950">{formatPrice(product.price)}</div>
+                                    <div className="text-xs text-slate-500">Cost {formatPrice(product.costPrice)}</div>
+                                    <div className="mt-1 text-xs font-medium text-emerald-700">Margin {formatMargin(product)}</div>
                                 </td>
 
-                                <td className="px-4 py-4 w-1/6">
+                                <td className="px-4 py-4">
                                     <div className="flex flex-col space-y-1">
                                         <span
-                                            className={`inline-flex px-2 py-1 text-xs font-light rounded-full ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                            className={`inline-flex w-fit px-2 py-1 text-xs font-semibold ${product.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
                                                 }`}
                                         >
                                             {product.isActive ? 'Active' : 'Inactive'}
                                         </span>
                                         {product.featured && (
-                                            <span className="inline-flex px-2 py-1 text-xs font-light rounded-full bg-yellow-100 text-yellow-800">
+                                            <span className="inline-flex w-fit px-2 py-1 text-xs font-semibold bg-amber-50 text-amber-700">
                                                 Featured
                                             </span>
                                         )}
                                     </div>
                                 </td>
 
-                                <td className="px-4 py-4 w-1/6">
-                                    <div className="flex space-x-2">
+                                <td className="px-4 py-4">
+                                    <div className="flex justify-end gap-2">
                                         <button
                                             onClick={() => onEdit(product)}
-                                            className="text-blue-600 hover:text-blue-900 font-light text-sm px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                                            className="border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                                         >
                                             Edit
                                         </button>
                                         <button
                                             onClick={() => product.id && onDelete(product.id)}
-                                            className="text-red-600 hover:text-red-900 font-light text-sm px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                                            className="border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
                                         >
                                             Delete
                                         </button>
@@ -423,23 +453,24 @@ export default function ProductList({
                         ))}
                     </tbody>
                 </table>
+                </div>
             </div>
 
             <div className="flex items-center justify-between pt-2">
-                <p className="text-xs text-gray-500 font-light">
+                <p className="text-xs text-slate-500">
                     Page {safePage} / {totalPages} · {total} results
                 </p>
 
                 <div className="flex gap-2">
                     <button
-                        className="px-3 py-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-sm font-light disabled:opacity-50"
+                        className="border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                         disabled={safePage <= 1}
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                     >
                         Prev
                     </button>
                     <button
-                        className="px-3 py-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-sm font-light disabled:opacity-50"
+                        className="border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                         disabled={safePage >= totalPages}
                         onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     >
@@ -449,12 +480,33 @@ export default function ProductList({
             </div>
 
             {products.length === 0 && (
-                <div className="text-center py-8">
-                    <div className="text-gray-400 text-sm font-light">
+                <div className="border border-dashed border-slate-300 bg-white py-10 text-center">
+                    <div className="text-sm text-slate-400">
                         No products found. Add your first product to get started.
                     </div>
                 </div>
             )}
         </div>
+    )
+}
+
+function ProductThumb({ product }: { product: any }) {
+    const imageUrl = product.imageUrl || product.imageUrls?.[0]
+
+    if (!imageUrl) {
+        return (
+            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center border border-slate-200 bg-slate-100 text-xs font-semibold text-slate-400">
+                IMG
+            </div>
+        )
+    }
+
+    return (
+        <img
+            src={imageUrl}
+            alt={product.name || 'Product image'}
+            className="h-14 w-14 flex-shrink-0 border border-slate-200 object-cover"
+            loading="lazy"
+        />
     )
 }

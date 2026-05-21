@@ -1,5 +1,5 @@
 import {
-    BarChart3,
+    LayoutDashboard,
     // ChefHat,
     ShoppingCart,
     Package,
@@ -17,10 +17,10 @@ export function buildNavLinks(t: TFunction): NavLink[] {
     return [
         {
             path: "/admin/sales-tracking",
-            label: t("nav.salesTracking", "Sales Tracking"),
-            shortLabel: t("nav.sales", "Sales"),
+            label: t("nav.dashboard", "Dashboard"),
+            shortLabel: t("nav.dashboardShort", "Dash"),
             allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
-            icon: BarChart3,
+            icon: LayoutDashboard,
         },
         // {
         //     path: "/admin/kitchen",
