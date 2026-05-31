@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Menu, X, LayoutDashboard, ShoppingCart } from "lucide-react";
+import { CalendarDays, Menu, X, LayoutDashboard, ShoppingCart } from "lucide-react";
 import { AuthModal } from "../../components/AuthModal";
 import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../../firebase/firebase";
@@ -278,6 +278,11 @@ export const LandingHeader = () => {
                                 {t("header.menu", "Menu")}
                             </Link>
 
+                            <Link to="/booking" className="flex items-center gap-1 whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/86 transition-colors duration-300 hover:text-[#f26350]">
+                                <CalendarDays size={15} />
+                                <span>{t("header.booking", "Booking")}</span>
+                            </Link>
+
                             <a href="#contact" className="whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/86 transition-colors duration-300 hover:text-[#f26350]">
                                 {t("header.contact", "Contact")}
                             </a>
@@ -364,6 +369,11 @@ export const LandingHeader = () => {
                     <div className="flex flex-col px-4 py-4 space-y-4">
                         <Link to="/order" onClick={() => setIsOpen(false)} className="text-sm font-semibold uppercase tracking-[0.16em] text-white/82 transition hover:text-[#f26350]">
                             {t("header.menu", "Menu")}
+                        </Link>
+
+                        <Link to="/booking" onClick={() => setIsOpen(false)} className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-white/82 transition hover:text-[#f26350]">
+                            <CalendarDays size={16} />
+                            <span>{t("header.booking", "Booking")}</span>
                         </Link>
 
                         <a href="#contact" onClick={() => setIsOpen(false)} className="text-sm font-semibold uppercase tracking-[0.16em] text-white/82 transition hover:text-[#f26350]">

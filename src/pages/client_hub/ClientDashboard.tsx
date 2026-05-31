@@ -1,13 +1,33 @@
-// ClientDashboard.tsx
+import { Link } from 'react-router-dom'
+import {
+    CalendarDays,
+    Gift,
+    History,
+    LayoutDashboard,
+    ReceiptText,
+    RefreshCw,
+    User,
+} from 'lucide-react'
+
 import { useClientAuth } from './hooks/useClientAuth'
 import { RewardsTabs } from './components/RewardsTabs'
 import { EnhancedHeader } from './components/EnhancedHeader'
 import { useClientDashboard } from './hooks/useClientDashboard'
+import logo from '../../assets/logo/final/maisushi-logo-white.svg'
+
+const tabs = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'booking', label: 'Booking', icon: CalendarDays },
+    { id: 'orders', label: 'Orders', icon: ReceiptText },
+    { id: 'points', label: 'Points', icon: History },
+    { id: 'rewards', label: 'Rewards', icon: Gift },
+    { id: 'quick-reorder', label: 'Reorder', icon: RefreshCw },
+    { id: 'profile', label: 'Profile', icon: User },
+]
 
 export default function ClientDashboard() {
     const { isClient, clientProfile, loading, setClientProfile } = useClientAuth()
-    
-    // Use the custom hook
+
     const {
         activeTab,
         setActiveTab,
@@ -20,15 +40,18 @@ export default function ClientDashboard() {
         isMobile,
         handleProfileUpdate,
         formatDate,
-        formatCurrency
+        formatCurrency,
     } = useClientDashboard(clientProfile, setClientProfile)
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center overflow-hidden">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-emerald-400/20 border-t-emerald-400 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-white/60 font-light tracking-wide">Loading your dashboard...</p>
+            <div className="min-h-screen bg-[#050505] text-white">
+                <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 text-center">
+                    <img src={logo} alt="MaiSushi" className="mb-7 h-20 w-auto" />
+                    <div className="h-12 w-12 animate-spin rounded-full border-2 border-white/10 border-t-[#F45D4F]" />
+                    <p className="mt-5 text-sm font-medium uppercase tracking-[0.18em] text-white/48">
+                        Loading your account
+                    </p>
                 </div>
             </div>
         )
@@ -36,38 +59,54 @@ export default function ClientDashboard() {
 
     if (!isClient) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center overflow-hidden">
-                <div className="text-center max-w-md mx-4">
-                    <div className="w-20 h-20 bg-emerald-400/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <span className="text-2xl">🍣</span>
+            <div className="min-h-screen bg-[#050505] text-white">
+                <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center px-5 text-center">
+                    <img src={logo} alt="MaiSushi" className="mb-8 h-20 w-auto" />
+                    <div className="mb-5 inline-flex items-center gap-2 border border-[#F45D4F]/35 bg-[#F45D4F]/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#ff8a7b]">
+                        <User size={16} />
+                        Customer account
                     </div>
-                    <h2 className="text-2xl font-light text-white mb-4">Client Access Required</h2>
-                    <p className="text-white/60 font-light tracking-wide mb-8">
-                        This area is exclusively for our valued clients. Please log in to your client account.
+                    <h1 className="text-4xl font-semibold tracking-tight">Sign in to continue</h1>
+                    <p className="mt-4 max-w-md text-sm leading-6 text-white/58">
+                        Access rewards, order history, profile details, and faster checkout from one MaiSushi account.
                     </p>
-                    <div className="space-y-3">
-                        <a
-                            href="/client-login"
-                            className="block bg-emerald-500 text-white px-8 py-3 rounded-lg hover:bg-emerald-600 transition-all duration-300 font-light shadow-lg shadow-emerald-500/20"
+                    <div className="mt-8 grid w-full gap-3 sm:grid-cols-2">
+                        <Link
+                            to="/client-login"
+                            className="bg-[#F45D4F] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#de4f43]"
                         >
-                            Client Login
-                        </a>
-                        <a
-                            href="/client-register"
-                            className="block border border-white/20 text-white/60 px-8 py-3 rounded-lg hover:bg-white/10 hover:text-white transition-all duration-300 font-light"
+                            Sign in
+                        </Link>
+                        <Link
+                            to="/client-register"
+                            className="border border-white/14 px-5 py-4 text-sm font-semibold text-white/72 transition hover:bg-white/8 hover:text-white"
                         >
-                            Become a Client
-                        </a>
+                            Create account
+                        </Link>
                     </div>
-                </div>
+                </main>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 py-4 md:py-8 overflow-x-hidden">
-            <div className="container mx-auto px-3 sm:px-4 max-w-7xl w-full">
-                {/* Enhanced Header */}
+        <div className="min-h-screen bg-[#050505] text-white">
+            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(244,93,79,0.18),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(255,255,255,0.06),transparent_28%)]" />
+            <div className="relative mx-auto max-w-[1440px] px-4 py-5 sm:px-6 lg:px-10">
+                <header className="mb-6 flex items-center justify-between border-b border-white/10 pb-4">
+                    <Link to="/" className="inline-flex items-center">
+                        <img src={logo} alt="MaiSushi" className="h-14 w-auto" />
+                    </Link>
+                    <div className="flex items-center gap-3">
+                        <Link
+                            to="/order"
+                            className="hidden bg-[#F45D4F] px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-[#de4f43] sm:inline-flex"
+                        >
+                            Order
+                        </Link>
+                    </div>
+                </header>
+
                 <EnhancedHeader
                     activeTab={activeTab}
                     clientProfile={clientProfile}
@@ -81,23 +120,27 @@ export default function ClientDashboard() {
                     onProfileUpdate={handleProfileUpdate}
                 />
 
-                {/* Navigation Tabs */}
-                <div className="flex space-x-1 bg-white/5 border border-white/10 rounded-xl p-1 mb-6 md:mb-8 backdrop-blur-sm overflow-x-auto">
-                    {['overview', 'orders', 'points', 'rewards', 'quick-reorder', 'profile'].map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`flex-1 min-w-max py-3 px-4 rounded-lg font-light transition-all duration-300 whitespace-nowrap ${activeTab === tab
-                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                : 'text-white/60 hover:text-white hover:bg-white/5'
-                                }`}
-                        >
-                            {tab.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                        </button>
-                    ))}
-                </div>
+                <nav className="mb-5 overflow-x-auto border border-white/10 bg-white/[0.035] p-1">
+                    <div className="flex min-w-max gap-1">
+                        {tabs.map(({ id, label, icon: Icon }) => (
+                            <button
+                                key={id}
+                                type="button"
+                                onClick={() => setActiveTab(id)}
+                                className={[
+                                    'inline-flex items-center justify-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-[0.1em] transition',
+                                    activeTab === id
+                                        ? 'bg-white text-slate-950'
+                                        : 'text-white/58 hover:bg-white/8 hover:text-white',
+                                ].join(' ')}
+                            >
+                                <Icon size={16} />
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </nav>
 
-                {/* Enhanced Tab Content */}
                 <RewardsTabs
                     activeTab={activeTab}
                     clientProfile={clientProfile}

@@ -15,6 +15,8 @@ type Params = {
   discountedSubtotal: number;
   discountAmount: number;
   appliedCode: string | null;
+  discountType: "promo" | "gift_card" | null;
+  giftCardBalance: number | null;
   pointsEarned: number;
   user: any;
   updateClientProfile: () => Promise<void>;
@@ -34,6 +36,8 @@ export function useCloverCheckout({
   discountedSubtotal,
   discountAmount,
   appliedCode,
+  discountType,
+  giftCardBalance,
   pointsEarned,
   user,
   updateClientProfile,
@@ -88,9 +92,11 @@ export function useCloverCheckout({
 
         const note = [
           getLocalizedDescription(item.description)?.substring(0, 150) ?? "",
+          item.preparation ? `Prep: ${item.preparation}` : "",
+          item.ingredients?.length ? `Items: ${item.ingredients.join(", ")}` : "",
           `Pickup: ${formData.pickupTime || "asap"}`,
           formData.orderNotes ? `Notes: ${formData.orderNotes}` : "",
-          appliedCode ? `Promo: ${appliedCode} (-$${discountAmount.toFixed(2)})` : "",
+          appliedCode ? `${discountType === "gift_card" ? "Gift card" : "Promo"}: ${appliedCode} (-$${discountAmount.toFixed(2)})` : "",
           IS_TEST_CHECKOUT ? "TEST ORDER - DO NOT PREPARE" : "",
         ]
           .filter(Boolean)
@@ -137,6 +143,7 @@ export function useCloverCheckout({
       const realTotals = {
         subtotal: calculatedSubtotal,
         discountCode: appliedCode || "",
+        discountType: discountType || "",
         discountAmount,
         discountedSubtotal,
         gst,
@@ -150,13 +157,18 @@ export function useCloverCheckout({
       // Add before payload
       const localCheckoutId = crypto.randomUUID();
 
-      const publicBaseUrl =
-        window.location.hostname === "localhost"
-          ? "https://maisushi.ca"
-          : window.location.origin;
+      const configuredReturnBaseUrl = String(
+        import.meta.env.VITE_CHECKOUT_RETURN_BASE_URL || ""
+      ).replace(/\/$/, "");
+      const currentOrigin = window.location.origin.replace(/\/$/, "");
+      const checkoutReturnBaseUrl =
+        configuredReturnBaseUrl ||
+        (currentOrigin.startsWith("https://")
+          ? currentOrigin
+          : "https://sushi-admin.web.app");
 
-      const successUrl = `${publicBaseUrl}/checkout/success?localCheckoutId=${localCheckoutId}`;
-      const cancelUrl = `${publicBaseUrl}/checkout/cancel?localCheckoutId=${localCheckoutId}`;
+      const successUrl = `${checkoutReturnBaseUrl}/checkout/success?localCheckoutId=${localCheckoutId}`;
+      const cancelUrl = `${checkoutReturnBaseUrl}/checkout/cancel?localCheckoutId=${localCheckoutId}`;
 
       const payload = {
         merchantId,
@@ -177,7 +189,10 @@ export function useCloverCheckout({
           customerEmail: fullForm.email,
           customerPhone: fullForm.phone,
           discountCode: appliedCode || "",
+          discountType: discountType || "",
           discountAmount: String(discountAmount),
+          giftCardCode: discountType === "gift_card" ? appliedCode || "" : "",
+          giftCardBalance: discountType === "gift_card" ? String(giftCardBalance || 0) : "",
           discountedSubtotal: String(discountedSubtotal),
           localCheckoutId,
           totals: JSON.stringify(
@@ -185,6 +200,7 @@ export function useCloverCheckout({
               ? {
                 subtotal: 1,
                 discountCode: appliedCode || "",
+                discountType: discountType || "",
                 discountAmount: 0,
                 discountedSubtotal: 1,
                 gst: 0.05,
@@ -272,16 +288,18 @@ export function useCloverCheckout({
         customerEmail: customer.email,
         promo: {
           code: appliedCode,
+          type: discountType,
           amount: discountAmount,
         },
       };
 
+      localStorage.setItem(
+        `pendingCloverCheckout:${localCheckoutId}`,
+        JSON.stringify(pendingCheckoutData)
+      );
+
       if (checkoutSessionId) {
         localStorage.setItem("cloverCheckoutSessionId", checkoutSessionId);
-        localStorage.setItem(
-          `pendingCloverCheckout:${localCheckoutId}`,
-          JSON.stringify(pendingCheckoutData)
-        );
 
         console.log("✅ Saved Clover checkout locally:", {
           localCheckoutId,
@@ -331,6 +349,8 @@ export function useCloverCheckout({
     discountedSubtotal,
     discountAmount,
     appliedCode,
+    discountType,
+    giftCardBalance,
     pointsEarned,
     user,
     updateClientProfile,

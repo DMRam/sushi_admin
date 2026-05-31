@@ -185,6 +185,8 @@ export const useCheckoutPage = () => {
           sellingPrice: it.price,
           quantity: it.quantity || 1,
           ...(it.description && { description: it.description }),
+          ...(it.ingredients?.length && { ingredients: it.ingredients }),
+          ...(it.preparation && { preparation: it.preparation, notes: it.preparation }),
           ...(it.category && { category: it.category }),
           ...(imgs.length > 0 && { image: imgs[0], images: imgs }),
         };

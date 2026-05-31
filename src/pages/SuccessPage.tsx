@@ -7,6 +7,7 @@ import { db } from "../firebase/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { PointsService } from "./client_hub/service/PointsService";
 import type { OrderDetails } from "./client_hub/interfaces/IClientHub";
+import type { ClientProfile } from "../types/types";
 
 interface PointsData {
     pointsEarned: number;
@@ -36,6 +37,7 @@ type PointsTxnResult =
 type CreatedGiftCard = {
     code: string;
     amount: number;
+    imageUrl?: string;
 };
 
 const ENABLE_SUPABASE_SYNC = true;
@@ -80,6 +82,56 @@ function firstText(...values: unknown[]) {
     return "";
 }
 
+function isGiftCardItem(item: { name?: string } = {}) {
+    const name = String(item.name || "").toLowerCase();
+
+    return (
+        name.includes("gift card") ||
+        name.includes("carte cadeau") ||
+        name.includes("tarjeta regalo")
+    );
+}
+
+function firstNumber(...values: unknown[]) {
+    for (const value of values) {
+        const numeric = Number(value);
+        if (Number.isFinite(numeric)) return numeric;
+    }
+
+    return 0;
+}
+
+function calculateEligiblePointsSubtotal(order: OrderDetails) {
+    const checkoutForm = (order.checkout_form || {}) as Record<string, unknown>;
+    const giftCardSubtotal = money2(
+        (order.items || []).reduce((sum, item) => {
+            if (!isGiftCardItem(item)) return sum;
+            return sum + Number(item.price || 0) * Number(item.quantity || 1);
+        }, 0)
+    );
+    const subtotal = money2(Math.max(0, Number(order.subtotal || 0) - giftCardSubtotal));
+    const discountedSubtotal = firstNumber(
+        order.discounted_subtotal,
+        checkoutForm.discountedSubtotal,
+        checkoutForm.discounted_subtotal,
+    );
+    const discountAmount = firstNumber(
+        order.discount_amount,
+        checkoutForm.discountAmount,
+        checkoutForm.discount_amount,
+    );
+
+    if (discountedSubtotal > 0 || discountAmount > 0) {
+        return money2(Math.max(0, discountedSubtotal || subtotal - discountAmount));
+    }
+
+    return subtotal;
+}
+
+function calculatePointsEarned(order: OrderDetails) {
+    return Math.floor(calculateEligiblePointsSubtotal(order));
+}
+
 export default function SuccessPage() {
     const [searchParams] = useSearchParams();
 
@@ -116,8 +168,8 @@ export default function SuccessPage() {
             : storedSessionId || pending?.checkoutSessionId || null;
 
     const targetOrderId = useMemo(() => {
-        return orderIdParam || pending?.orderId || sessionId || paymentIntent || null;
-    }, [orderIdParam, pending?.orderId, sessionId, paymentIntent]);
+        return orderIdParam || pending?.orderId || sessionId || paymentIntent || localCheckoutId || null;
+    }, [orderIdParam, pending?.orderId, sessionId, paymentIntent, localCheckoutId]);
 
     const clearCart = useCartStore((state) => state.clearCart);
     const { isClient, clientProfile, loading: authLoading } = useClientAuth();
@@ -156,6 +208,8 @@ export default function SuccessPage() {
         const gst = money2(pendingTotals?.gst ?? 0);
         const qst = money2(pendingTotals?.qst ?? 0);
         const deliveryFee = money2(pendingTotals?.deliveryFee ?? 0);
+        const discountedSubtotal = subtotal;
+        const discountAmount = 0;
         const finalTotal = money2(
             pendingTotals?.finalTotal ?? subtotal + gst + qst + deliveryFee
         );
@@ -168,12 +222,125 @@ export default function SuccessPage() {
             qst,
             delivery_fee: deliveryFee,
             final_total: finalTotal,
+            discount_amount: discountAmount,
+            discount_type: "",
+            discounted_subtotal: discountedSubtotal,
             created_at: new Date().toISOString(),
             items: [],
             status: "completed",
             delivery_type: "pickup",
             totals: { subtotal, gst, qst, deliveryFee, finalTotal },
+            checkout_form: {
+                discountAmount,
+                discountType: "",
+                discountedSubtotal,
+            },
             type: "pickup",
+        };
+    };
+
+    const createOrderFromFinalizeResponse = (
+        id: string,
+        finalizedOrder: any
+    ): OrderDetails => {
+        const totals = finalizedOrder?.totals || {};
+        const subtotal = money2(firstNumber(finalizedOrder?.subtotal, totals.subtotal));
+        const gst = money2(firstNumber(finalizedOrder?.gst, totals.gst));
+        const qst = money2(firstNumber(finalizedOrder?.qst, totals.qst));
+        const deliveryFee = money2(firstNumber(
+            finalizedOrder?.delivery_fee,
+            finalizedOrder?.deliveryFee,
+            totals.deliveryFee
+        ));
+        const finalTotal = money2(firstNumber(
+            finalizedOrder?.final_total,
+            finalizedOrder?.total,
+            totals.finalTotal,
+            subtotal + gst + qst + deliveryFee
+        ));
+        const discountAmount = money2(firstNumber(
+            finalizedOrder?.discount_amount,
+            totals.discountAmount,
+            finalizedOrder?.checkout_form?.discountAmount
+        ));
+        const discountType = firstText(
+            finalizedOrder?.discount_type,
+            totals.discountType,
+            finalizedOrder?.checkout_form?.discountType
+        );
+        const discountedSubtotal = money2(firstNumber(
+            finalizedOrder?.discounted_subtotal,
+            totals.discountedSubtotal,
+            subtotal - discountAmount
+        ));
+        const items = (finalizedOrder?.items || []).map((item: any, index: number) => {
+            const rawPrice = firstNumber(item.priceCents, item.price, 0);
+            const price = rawPrice > 100 ? rawPrice / 100 : rawPrice;
+
+            return {
+                id: item.productId || item.id || `item_${index}`,
+                name: item.name || "Product",
+                price: money2(price),
+                quantity: Number(item.quantity || item.unitQty || 1) || 1,
+            };
+        });
+        const itemTotal = items.reduce(
+            (sum: number, item: { price: number; quantity: number }) =>
+                sum + item.price * item.quantity,
+            0
+        );
+        const normalizedItems =
+            subtotal > 0 && itemTotal > subtotal * 1.5
+                ? items.map((item: { price: number; quantity: number }) => ({
+                    ...item,
+                    price: money2(subtotal / Math.max(1, item.quantity)),
+                }))
+                : items;
+
+        return {
+            id,
+            amount: finalTotal,
+            subtotal,
+            gst,
+            qst,
+            delivery_fee: deliveryFee,
+            final_total: finalTotal,
+            discount_amount: discountAmount,
+            discount_type: discountType,
+            discounted_subtotal: discountedSubtotal,
+            created_at: finalizedOrder?.created_at || new Date().toISOString(),
+            items: normalizedItems,
+            status: finalizedOrder?.status || "completed",
+            delivery_type: finalizedOrder?.delivery_type || finalizedOrder?.deliveryMethod || "pickup",
+            type: finalizedOrder?.type || finalizedOrder?.deliveryMethod || "pickup",
+            customerInfo: finalizedOrder?.customerInfo || {
+                name: finalizedOrder?.customer_name || finalizedOrder?.customerName || "",
+                email: finalizedOrder?.customer_email || finalizedOrder?.customerEmail || "",
+                phone: finalizedOrder?.customer_phone || finalizedOrder?.customerPhone || "",
+            },
+            customer_name: finalizedOrder?.customer_name || finalizedOrder?.customerName || "",
+            customer_email: finalizedOrder?.customer_email || finalizedOrder?.customerEmail || "",
+            customer_phone: finalizedOrder?.customer_phone || finalizedOrder?.customerPhone || "",
+            delivery_address: finalizedOrder?.delivery_address || "",
+            orderNotes: finalizedOrder?.orderNotes || finalizedOrder?.notes || "",
+            order_notes: finalizedOrder?.orderNotes || finalizedOrder?.notes || "",
+            pickupTime: finalizedOrder?.pickupTime || "",
+            pickup_time: finalizedOrder?.pickupTime || "",
+            deliveryInstructions: finalizedOrder?.deliveryInstructions || "",
+            delivery_instructions: finalizedOrder?.deliveryInstructions || "",
+            checkout_form: {
+                ...(finalizedOrder?.checkout_form || {}),
+                discountAmount,
+                discountType,
+                discountedSubtotal,
+            },
+            totals: {
+                subtotal,
+                gst,
+                qst,
+                deliveryFee,
+                finalTotal,
+            },
         };
     };
 
@@ -290,6 +457,30 @@ export default function SuccessPage() {
             )
         );
 
+        const discountAmount = money2(
+            firstNumber(
+                metadataTotals.discountAmount,
+                metadata.discountAmount,
+                data.discountAmount,
+                0
+            )
+        );
+
+        const discountType = firstText(
+            metadataTotals.discountType,
+            metadata.discountType,
+            data.discountType
+        );
+
+        const discountedSubtotal = money2(
+            firstNumber(
+                metadataTotals.discountedSubtotal,
+                metadata.discountedSubtotal,
+                data.discountedSubtotal,
+                subtotal - discountAmount
+            )
+        );
+
         const finalTotal = money2(
             Number(
                 metadataTotals.finalTotal ??
@@ -382,6 +573,9 @@ export default function SuccessPage() {
             pickupTime,
             deliveryInstructions,
             deliveryMethod,
+            discountAmount,
+            discountType,
+            discountedSubtotal,
         };
 
         const deliveryAddress =
@@ -408,6 +602,9 @@ export default function SuccessPage() {
             qst,
             delivery_fee: deliveryFee,
             final_total: finalTotal,
+            discount_amount: discountAmount,
+            discount_type: discountType,
+            discounted_subtotal: discountedSubtotal,
 
             created_at: createdAtISO,
 
@@ -449,8 +646,8 @@ export default function SuccessPage() {
     const processGiftCardPurchase = useCallback(async () => {
         console.log("🎁 Starting gift card processing...");
 
-        if (!sessionId) {
-            console.warn("⚠️ No sessionId found. Skipping gift card creation.", {
+        if (!sessionId && !localCheckoutId) {
+            console.warn("⚠️ No sessionId/localCheckoutId found. Skipping gift card creation.", {
                 rawSessionId,
                 storedSessionId,
                 pendingCheckoutSessionId: pending?.checkoutSessionId,
@@ -468,7 +665,8 @@ export default function SuccessPage() {
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        checkoutSessionId: sessionId,
+                        checkoutSessionId: sessionId || null,
+                        localCheckoutId: localCheckoutId || null,
                     }),
                 }
             );
@@ -506,10 +704,47 @@ export default function SuccessPage() {
         localCheckoutId,
     ]);
 
+    const finalizeWebsiteCheckout = async (checkoutId: string) => {
+        const finalizeRes = await fetch("https://us-central1-sushi-admin.cloudfunctions.net/finalizeWebsiteOrder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                checkoutSessionId: sessionId || checkoutId,
+                localCheckoutId: localCheckoutId || null,
+            }),
+        });
+
+        const finalizeBody = await finalizeRes.text();
+        let finalizeData: any = {};
+
+        try {
+            finalizeData = finalizeBody ? JSON.parse(finalizeBody) : {};
+        } catch {
+            finalizeData = { raw: finalizeBody };
+        }
+
+        console.log("📡 finalizeWebsiteOrder response:", {
+            status: finalizeRes.status,
+            ok: finalizeRes.ok,
+            body: finalizeData,
+        });
+
+        if (!finalizeRes.ok) {
+            throw new Error(
+                finalizeData?.error || `finalizeWebsiteOrder failed (${finalizeRes.status})`
+            );
+        }
+
+        return {
+            checkoutSessionId: String(finalizeData?.checkoutSessionId || sessionId || checkoutId),
+            order: finalizeData?.order || null,
+        };
+    };
+
     const syncOrderToSupabase = async (
         userId: string,
         order: OrderDetails,
-        profile: any
+        profile: Partial<ClientProfile> | null
     ) => {
         try {
             const { data: existingOrder, error: checkError } = await supabase
@@ -559,6 +794,37 @@ export default function SuccessPage() {
             console.error("💥 Supabase sync error:", error);
             return null;
         }
+    };
+
+    const resolveClientProfileForOrder = async (
+        order: OrderDetails
+    ): Promise<ClientProfile | null> => {
+        if (isClient && clientProfile?.id) {
+            return clientProfile;
+        }
+
+        const email = firstText(
+            order.customer_email,
+            order.customerInfo?.email
+        ).toLowerCase();
+
+        if (!email) return null;
+
+        const { data, error } = await supabaseAdmin
+            .from("client_profiles")
+            .select("*")
+            .ilike("email", email)
+            .maybeSingle();
+
+        if (error) {
+            console.warn("Could not resolve client profile by email", {
+                email,
+                error,
+            });
+            return null;
+        }
+
+        return (data as ClientProfile | null) || null;
     };
 
     const trackConversion = (order: OrderDetails) => {
@@ -621,35 +887,37 @@ export default function SuccessPage() {
             try {
                 setLoading(true);
 
-                const orderData = await fetchOrderFromFirestore(targetOrderId, pending);
+                const finalizedCheckout = await finalizeWebsiteCheckout(targetOrderId);
+                let orderData: OrderDetails;
+
+                try {
+                    orderData = await fetchOrderFromFirestore(
+                        finalizedCheckout.checkoutSessionId,
+                        pending
+                    );
+                } catch (fetchError) {
+                    console.warn("Could not read checkout session directly, using finalized order", fetchError);
+                    orderData = finalizedCheckout.order
+                        ? createOrderFromFinalizeResponse(
+                            finalizedCheckout.checkoutSessionId,
+                            finalizedCheckout.order
+                        )
+                        : createFallbackOrder(finalizedCheckout.checkoutSessionId, pending);
+                }
+
                 setOrderDetails(orderData);
-
-                await fetch("https://us-central1-sushi-admin.cloudfunctions.net/finalizeWebsiteOrder", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        checkoutSessionId: sessionId || targetOrderId,
-                        orderNotes: orderData.orderNotes || "",
-                        pickupTime: orderData.pickupTime || "",
-                        deliveryInstructions: orderData.deliveryInstructions || "",
-                    }),
-                });
-
-                fetch("https://automation.ulogicit.com/webhook/maisushi-web-sales", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ order: orderData }),
-                }).catch((err) => console.warn("Staff notification failed:", err));
 
                 await processGiftCardPurchase();
 
                 setProcessedKey(key);
 
-                if (ENABLE_SUPABASE_SYNC && isClient && clientProfile?.id && orderData) {
+                const orderClientProfile = await resolveClientProfileForOrder(orderData);
+
+                if (ENABLE_SUPABASE_SYNC && orderClientProfile?.id && orderData) {
                     const supabaseOrder = await syncOrderToSupabase(
-                        clientProfile.id,
+                        orderClientProfile.id,
                         orderData,
-                        clientProfile
+                        orderClientProfile
                     );
 
                     if (supabaseOrder) {
@@ -657,17 +925,26 @@ export default function SuccessPage() {
                     }
                 }
 
-                if (isClient && clientProfile?.id && orderData) {
-                    const pointsEarned = Math.floor(money2(orderData.final_total));
+                if (orderClientProfile?.id && orderData) {
+                    const alreadyAwarded = await PointsService.hasEarnedPointsForOrder(
+                        orderClientProfile.id,
+                        orderData.id
+                    );
+                    const eligibleSubtotal = calculateEligiblePointsSubtotal(orderData);
+                    const pointsEarned = alreadyAwarded ? 0 : calculatePointsEarned(orderData);
 
                     if (pointsEarned > 0) {
                         const result = (await PointsService.addTransaction({
-                            userId: clientProfile.id,
+                            userId: orderClientProfile.id,
                             orderId: orderData.id,
                             points: pointsEarned,
                             type: "order",
                             metadata: {
-                                amount: orderData.final_total,
+                                amount: eligibleSubtotal,
+                                orderTotal: orderData.final_total,
+                                subtotal: orderData.subtotal,
+                                discountAmount: orderData.discount_amount || 0,
+                                discountType: orderData.discount_type || "",
                                 orderNumber: `#${orderData.id.slice(-8)}`,
                             },
                         })) as PointsTxnResult;
@@ -682,7 +959,7 @@ export default function SuccessPage() {
                             setPointsError(result.error || "Points transaction failed");
                         }
 
-                        const history = await PointsService.getUserPointsHistory(clientProfile.id);
+                        const history = await PointsService.getUserPointsHistory(orderClientProfile.id);
                         setPointsHistory(history);
                     }
                 } else {
@@ -938,6 +1215,13 @@ export default function SuccessPage() {
                                     <div className="mt-4 space-y-3">
                                         {giftCardsCreated.map((card) => (
                                             <div key={card.code} className="border border-white/10 bg-black/30 p-4">
+                                                {card.imageUrl && (
+                                                    <img
+                                                        src={card.imageUrl}
+                                                        alt={`Mai Sushi gift card ${card.code}`}
+                                                        className="mb-4 w-full border border-[#f26350]/30 object-contain"
+                                                    />
+                                                )}
                                                 <SummaryRow label="Amount" value={formatMoney(card.amount)} />
                                                 <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-3">
                                                     <span className="text-sm text-white/60">Code</span>

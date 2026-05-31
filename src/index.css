@@ -13,6 +13,12 @@ body {
   color: #1a1a1a;
 }
 
+.byos-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
 /* Japanese-inspired color palette */
 :root {
   --color-wasabi: #9daf6c;

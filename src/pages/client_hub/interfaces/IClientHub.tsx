@@ -46,6 +46,9 @@ export interface OrderDetails {
     qst: number;
     delivery_fee: number;
     final_total: number;
+    discount_amount?: number;
+    discount_type?: string;
+    discounted_subtotal?: number;
 
     totals: {
         subtotal: number

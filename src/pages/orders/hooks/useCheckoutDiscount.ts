@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { doc, getDoc } from "firebase/firestore";
 import {
   PROMO_CODE,
@@ -23,6 +24,7 @@ type GiftCardData = {
 type DiscountType = "promo" | "gift_card" | null;
 
 export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
+  const { t } = useTranslation();
   const [discountCode, setDiscountCode] = useState("");
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<DiscountType>(null);
@@ -59,13 +61,13 @@ export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
 
       if (deliveryMethod !== "pickup") {
         resetDiscount();
-        setDiscountError("This promo code is valid for pickup orders only.");
+        setDiscountError(t("checkoutPage.promoPickupOnly", "This promo code is valid for pickup orders only."));
         return true;
       }
 
       if (subtotal < PROMO_MIN_SUBTOTAL) {
         resetDiscount();
-        setDiscountError("Minimum subtotal of $25 required.");
+        setDiscountError(t("checkoutPage.promoMinimumSubtotal", "Minimum subtotal of $25 required."));
         return true;
       }
 
@@ -75,11 +77,11 @@ export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
       setDiscountType("promo");
       setGiftCardBalance(null);
       setDiscountAmount(amount);
-      setDiscountMessage(`Promo applied: ${PROMO_CODE}`);
+      setDiscountMessage(t("checkoutPage.promoApplied", "Promo applied: {{code}}", { code: PROMO_CODE }));
 
       return true;
     },
-    [deliveryMethod, resetDiscount, subtotal]
+    [deliveryMethod, resetDiscount, subtotal, t]
   );
 
   const applyGiftCardCode = useCallback(
@@ -94,7 +96,7 @@ export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
 
       if (!giftCardSnap.exists()) {
         resetDiscount();
-        setDiscountError("Invalid gift card code.");
+        setDiscountError(t("checkoutPage.invalidGiftCard", "Invalid gift card code."));
         return true;
       }
 
@@ -102,7 +104,7 @@ export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
 
       if (giftCard.status && giftCard.status !== "active") {
         resetDiscount();
-        setDiscountError("This gift card is not active.");
+        setDiscountError(t("checkoutPage.giftCardInactive", "This gift card is not active."));
         return true;
       }
 
@@ -110,7 +112,7 @@ export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
 
       if (balance <= 0) {
         resetDiscount();
-        setDiscountError("This gift card has no remaining balance.");
+        setDiscountError(t("checkoutPage.giftCardEmpty", "This gift card has no remaining balance."));
         return true;
       }
 
@@ -120,13 +122,15 @@ export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
       setDiscountType("gift_card");
       setGiftCardBalance(balance);
       setDiscountAmount(amount);
-      setDiscountMessage(
-        `Gift card applied: ${normalizedCode} ($${amount.toFixed(2)} used)`
-      );
+      setDiscountMessage(t(
+        "checkoutPage.giftCardApplied",
+        "Gift card applied: {{code}} (${{amount}} used)",
+        { code: normalizedCode, amount: amount.toFixed(2) }
+      ));
 
       return true;
     },
-    [resetDiscount, subtotal]
+    [resetDiscount, subtotal, t]
   );
 
   const applyDiscount = useCallback(async () => {
@@ -136,7 +140,7 @@ export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
     setDiscountMessage(null);
 
     if (!normalizedCode) {
-      setDiscountError("Enter a promo code or gift card code.");
+      setDiscountError(t("checkoutPage.enterDiscountCode", "Enter a promo code or gift card code."));
       return;
     }
 
@@ -150,11 +154,11 @@ export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
       if (giftCardHandled) return;
 
       resetDiscount();
-      setDiscountError("Invalid promo code or gift card code.");
+      setDiscountError(t("checkoutPage.invalidDiscountCode", "Invalid promo code or gift card code."));
     } catch (error) {
       console.error("Error applying discount:", error);
       resetDiscount();
-      setDiscountError("Could not apply this code. Please try again.");
+      setDiscountError(t("checkoutPage.discountApplyFailed", "Could not apply this code. Please try again."));
     } finally {
       setIsApplyingDiscount(false);
     }
@@ -163,6 +167,7 @@ export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
     applyPromoCode,
     applyGiftCardCode,
     resetDiscount,
+    t,
   ]);
 
   useEffect(() => {
@@ -177,7 +182,7 @@ export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
       if (!stillEligible) {
         removeDiscount();
         setDiscountError(
-          "Promo removed. This code requires pickup and a minimum subtotal of $25."
+          t("checkoutPage.promoRemoved", "Promo removed. This code requires pickup and a minimum subtotal of $25.")
         );
         return;
       }
@@ -197,6 +202,7 @@ export function useCheckoutDiscount({ subtotal, deliveryMethod }: Params) {
     deliveryMethod,
     subtotal,
     removeDiscount,
+    t,
   ]);
 
   return {

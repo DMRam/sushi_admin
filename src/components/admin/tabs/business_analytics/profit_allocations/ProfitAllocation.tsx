@@ -9,7 +9,20 @@ import { ProfitAllocationComponent } from './components/ProfitAllocationComponen
 const fmtCurrency = (v: number, digits = 0) =>
   `$${Number.isFinite(v) ? v.toFixed(digits) : '0'}`
 
-export default function ProfitAllocation() {
+type ProfitAllocationFinancials = {
+  totalRevenue: number
+  monthlyExpenses: number
+  cogs: number
+  grossProfit: number
+  netProfit: number
+  salesCount: number
+}
+
+type ProfitAllocationProps = {
+  actualFinancials?: ProfitAllocationFinancials
+}
+
+export default function ProfitAllocation({ actualFinancials }: ProfitAllocationProps) {
   const { getRecentSales } = useSales()
   const { getMonthlyExpenses } = useExpenses()
   const { products } = useProducts()
@@ -61,7 +74,7 @@ export default function ProfitAllocation() {
     const grossProfit = Math.max(0, totalRevenue - cogs)
     const netProfit = grossProfit - monthlyExpenses
 
-    return {
+    const manualFinancials = {
       totalRevenue,
       monthlyExpenses,
       cogs,
@@ -69,7 +82,9 @@ export default function ProfitAllocation() {
       netProfit,
       salesCount: monthlySales.length
     }
-  }, [getRecentSales, getMonthlyExpenses, products])
+
+    return actualFinancials ?? manualFinancials
+  }, [actualFinancials, getRecentSales, getMonthlyExpenses, products])
 
   // Calculate profit allocation - return the format expected by ProfitAllocationComponent
   const profitAllocation = useMemo(() => {

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Activity,
   AlertTriangle,
@@ -9,14 +11,15 @@ import {
   Clock,
   CreditCard,
   DatabaseZap,
+  ExternalLink,
   Package,
   RefreshCw,
   ShoppingBag,
-  Sparkles,
   Star,
   Trophy,
   Users,
   WalletCards,
+  X,
 } from 'lucide-react'
 import { collection, limit, onSnapshot, orderBy, query, type Unsubscribe } from 'firebase/firestore'
 import { db } from '../../firebase/firebase'
@@ -43,6 +46,17 @@ type CheckoutSession = {
     quantity: number
     price: number
   }>
+}
+
+type UberEatsOrder = {
+  id: string
+  receivedAt: Date
+  orderId: string
+  status: string
+  eventType: string
+  detailsStatus: string
+  revenueIncluded: boolean
+  total: number
 }
 
 type LoyaltyStats = {
@@ -87,6 +101,8 @@ type CloverRecentOrder = {
   raw: any
 }
 
+type DashboardDatePreset = 'today' | 'yesterday' | '7' | '30' | 'custom'
+
 const CLOVER_CASH_EVENTS_PROXY_URL =
   import.meta.env.VITE_CLOVER_CASH_EVENTS_PROXY_URL ||
   import.meta.env.VITE_CLOVER_DASHBOARD_URL ||
@@ -94,6 +110,30 @@ const CLOVER_CASH_EVENTS_PROXY_URL =
 
 function money(value: number) {
   return `$${(Number.isFinite(value) ? value : 0).toFixed(2)}`
+}
+
+function dateInputValue(date: Date) {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function fullDateLabel(date: Date, locale = 'en-CA') {
+  return date.toLocaleDateString(locale, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function shortDateLabel(date: Date, locale = 'en-CA') {
+  return date.toLocaleDateString(locale, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 function quantityLabel(value: number) {
@@ -125,6 +165,17 @@ function numberFromCents(value: unknown) {
   return Number.isFinite(numeric) ? numeric / 100 : 0
 }
 
+function normalizeUnitPrice(raw: any) {
+  if (raw.priceCents !== undefined) return numberFromCents(raw.priceCents)
+  if (raw.unitPriceCents !== undefined) return numberFromCents(raw.unitPriceCents)
+
+  const numeric = Number(raw.price ?? raw.unitPrice ?? raw.sellingPrice ?? 0)
+  if (!Number.isFinite(numeric)) return 0
+
+  // Website orders sometimes carry item prices as cents in `price`.
+  return Number.isInteger(numeric) && Math.abs(numeric) >= 100 ? numeric / 100 : numeric
+}
+
 function arrayFromElements(value: any): any[] {
   if (Array.isArray(value)) return value
   if (Array.isArray(value?.elements)) return value.elements
@@ -151,7 +202,7 @@ function readSessionTotal(data: any) {
   const metadata = data.metadata || {}
   const metadataTotals = parseJSON(metadata.totals) || metadata.totals || {}
   const totals = data.totals || metadataTotals || {}
-  const directTotal = totals.finalTotal ?? metadataTotals.finalTotal ?? data.finalTotal
+  const directTotal = totals.finalTotal ?? totals.total ?? metadataTotals.finalTotal ?? data.finalTotal ?? data.total
 
   return Number((directTotal ?? numberFromCents(data.expectedTotalCents)) || numberFromCents(metadata.expectedTotalCents) || 0)
 }
@@ -170,13 +221,14 @@ function normalizeCheckoutSession(id: string, data: any): CheckoutSession {
   const fullForm = typeof data.fullForm === 'string' ? parseJSON(data.fullForm) || {} : data.fullForm || {}
   const metadataFullForm = typeof metadata.fullForm === 'string' ? parseJSON(metadata.fullForm) || {} : metadata.fullForm || {}
   const customerInfo = typeof metadata.customerInfo === 'string' ? parseJSON(metadata.customerInfo) || {} : metadata.customerInfo || {}
+  const directCustomerInfo = typeof data.customerInfo === 'string' ? parseJSON(data.customerInfo) || {} : data.customerInfo || {}
   const rawItems = Array.isArray(data.items) ? data.items : []
 
   return {
     id,
     createdAt: normalizeDate(data.createdAt || metadata.createdAt),
-    customerName: data.customerName || metadata.customerName || customerInfo.name || fullForm.firstName || 'Guest',
-    customerEmail: data.customerEmail || metadata.customerEmail || customerInfo.email || fullForm.email || '',
+    customerName: data.customerName || directCustomerInfo.name || metadata.customerName || customerInfo.name || fullForm.firstName || 'Guest',
+    customerEmail: data.customerEmail || directCustomerInfo.email || metadata.customerEmail || customerInfo.email || fullForm.email || '',
     total: readSessionTotal(data),
     subtotal: readSessionSubtotal(data),
     paymentStatus: data.paymentStatus || data.status || metadata.paymentStatus || 'unknown',
@@ -186,8 +238,21 @@ function normalizeCheckoutSession(id: string, data: any): CheckoutSession {
     items: rawItems.map((item: any) => ({
       name: item.name || 'Product',
       quantity: Number(item.quantity ?? item.unitQty ?? 1) || 1,
-      price: Number(item.priceCents ? item.priceCents / 100 : item.price ?? 0) || 0,
+      price: normalizeUnitPrice(item),
     })),
+  }
+}
+
+function normalizeUberEatsOrder(id: string, data: any): UberEatsOrder {
+  return {
+    id,
+    receivedAt: normalizeDate(data.receivedAt || data.updatedAt || data.createdAt),
+    orderId: data.orderId || id,
+    status: data.status || 'NEW',
+    eventType: data.eventType || 'unknown',
+    detailsStatus: data.detailsStatus || 'pending_credentials',
+    revenueIncluded: Boolean(data.revenueIncluded),
+    total: Number(data.total || data.orderTotal || data.totalAmount || 0),
   }
 }
 
@@ -335,6 +400,59 @@ function isWithinDays(date: Date, days: number) {
   return date >= cutoff
 }
 
+function startOfDay(date: Date) {
+  const next = new Date(date)
+  next.setHours(0, 0, 0, 0)
+  return next
+}
+
+function endOfDay(date: Date) {
+  const next = new Date(date)
+  next.setHours(23, 59, 59, 999)
+  return next
+}
+
+function dashboardDateRange(
+  preset: DashboardDatePreset,
+  customStart: string,
+  customEnd: string,
+  labels: { today: string; yesterday: string; last7: string; last30: string },
+  locale: string
+) {
+  const now = new Date()
+  const today = startOfDay(now)
+
+  if (preset === 'today') return { start: today, end: endOfDay(now), label: labels.today }
+
+  if (preset === 'yesterday') {
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    return { start: startOfDay(yesterday), end: endOfDay(yesterday), label: labels.yesterday }
+  }
+
+  if (preset === '7' || preset === '30') {
+    const days = Number(preset)
+    const start = new Date(today)
+    start.setDate(start.getDate() - (days - 1))
+    return { start, end: endOfDay(now), label: days === 7 ? labels.last7 : labels.last30 }
+  }
+
+  const fallbackStart = new Date(today)
+  fallbackStart.setDate(fallbackStart.getDate() - 6)
+  const start = customStart ? startOfDay(new Date(`${customStart}T00:00:00`)) : fallbackStart
+  const end = customEnd ? endOfDay(new Date(`${customEnd}T00:00:00`)) : endOfDay(now)
+
+  return {
+    start,
+    end,
+    label: `${shortDateLabel(start, locale)} - ${shortDateLabel(end, locale)}`,
+  }
+}
+
+function isInRange(date: Date, start: Date, end: Date) {
+  return date >= start && date <= end
+}
+
 function isOperationalProductName(name: string) {
   return !/^test\b/i.test(name.trim())
 }
@@ -345,6 +463,22 @@ function startOfDayKey(date: Date) {
 
 function dayLabel(date: Date) {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+function mergeCloverRecentOrders(orders: CloverRecentOrder[], payments: CloverRecentOrder[]) {
+  const byKey = new Map<string, CloverRecentOrder>()
+
+  ;[...orders, ...payments].forEach((order) => {
+    const key = order.id || `${order.source}-${order.createdAt.getTime()}-${order.total}`
+    const existing = byKey.get(key)
+
+    if (!existing || (!existing.lineItems.length && order.lineItems.length)) {
+      byKey.set(key, order)
+    }
+  })
+
+  return Array.from(byKey.values())
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 }
 
 function toTimestampMs(value: any) {
@@ -368,22 +502,22 @@ function StatCard({
   tone?: 'dark' | 'green' | 'orange' | 'blue' | 'amber'
 }) {
   const toneClass = {
-    dark: 'bg-gray-950 text-white',
-    green: 'bg-emerald-600 text-white',
-    orange: 'bg-[#f26350] text-white',
+    dark: 'bg-slate-950 text-white',
+    green: 'bg-emerald-700 text-white',
+    orange: 'bg-slate-700 text-white',
     blue: 'bg-blue-600 text-white',
-    amber: 'bg-amber-500 text-white',
+    amber: 'bg-amber-600 text-white',
   }[tone]
 
   return (
-    <div className="rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</p>
-          <p className="mt-3 text-3xl font-semibold tracking-tight text-gray-950">{value}</p>
-          <p className="mt-2 text-sm leading-5 text-gray-500">{detail}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
+          <p className="mt-2 text-sm leading-5 text-slate-500">{detail}</p>
         </div>
-        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${toneClass}`}>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center ${toneClass}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -393,37 +527,67 @@ function StatCard({
 
 function RevenueChart({
   data,
+  title = 'Revenue',
+  subtitle = 'Selected period',
 }: {
-  data: Array<{ label: string; value: number; orders: number }>
+  data: Array<{ label: string; web: number; pos: number; webOrders: number; posOrders: number }>
+  title?: string
+  subtitle?: string
 }) {
-  const max = Math.max(...data.map((item) => item.value), 1)
+  const { t } = useTranslation()
+  const max = Math.max(...data.flatMap((item) => [item.web, item.pos]), 1)
+  const webTotal = data.reduce((sum, item) => sum + item.web, 0)
+  const posTotal = data.reduce((sum, item) => sum + item.pos, 0)
+  const chartMinWidth = Math.max(640, data.length * 76)
 
   return (
-    <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-w-0 overflow-hidden border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Trend</p>
-          <h2 className="mt-1 text-xl font-semibold text-gray-950">7 day web revenue</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t('adminDashboard.salesChart.trend', 'Trend')}</p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-950">{title}</h2>
+          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
         </div>
-        <BarChart3 className="h-5 w-5 text-[#f26350]" />
+        <div className="flex shrink-0 flex-wrap items-center gap-3 text-xs font-semibold text-slate-600">
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 bg-blue-600" />
+            {t('adminDashboard.web', 'Web')} {money(webTotal)}
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 bg-slate-900" />
+            {t('adminDashboard.pos', 'POS')} {money(posTotal)}
+          </span>
+          <BarChart3 className="h-5 w-5 text-blue-700" />
+        </div>
       </div>
 
-      <div className="mt-6 flex h-64 items-end gap-3">
-        {data.map((item) => (
-          <div key={item.label} className="flex min-w-0 flex-1 flex-col items-center gap-3">
-            <div className="flex h-48 w-full items-end rounded-t-2xl bg-gray-50 px-1.5">
-              <div
-                className="w-full rounded-t-xl bg-gradient-to-t from-[#f26350] to-[#ff9b87] shadow-[0_10px_28px_rgba(242,99,80,0.22)] transition-all"
-                style={{ height: `${Math.max(8, (item.value / max) * 100)}%` }}
-                title={`${item.label}: ${money(item.value)}`}
-              />
+      <div className="mt-6 overflow-x-auto overscroll-x-contain pb-3">
+        <div className="flex h-64 items-end gap-3" style={{ minWidth: chartMinWidth }}>
+          {data.map((item) => (
+            <div key={item.label} className="flex w-[64px] shrink-0 flex-col items-center gap-3">
+              <div className="flex h-48 w-full items-end justify-center gap-1.5 bg-slate-50 px-1.5">
+                <div
+                  className="w-full max-w-8 border border-blue-700 bg-blue-600 transition-all hover:bg-blue-700"
+                  style={{ height: `${Math.max(8, (item.web / max) * 100)}%` }}
+                  title={`${item.label} ${t('adminDashboard.web', 'Web')}: ${money(item.web)}`}
+                />
+                <div
+                  className="w-full max-w-8 border border-slate-950 bg-slate-900 transition-all hover:bg-slate-800"
+                  style={{ height: `${Math.max(8, (item.pos / max) * 100)}%` }}
+                  title={`${item.label} ${t('adminDashboard.pos', 'POS')}: ${money(item.pos)}`}
+                />
+              </div>
+              <div className="w-full text-center">
+                <p className="text-xs font-semibold leading-4 text-slate-800">{item.label}</p>
+                <p className="mt-0.5 truncate text-[11px] font-semibold text-blue-700" title={money(item.web)}>{money(item.web)}</p>
+                <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-700" title={money(item.pos)}>{money(item.pos)}</p>
+                <p className="mt-0.5 text-[11px] leading-4 text-slate-400">
+                  {item.webOrders + item.posOrders} {t('adminDashboard.ordersShort', 'orders')}
+                </p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-xs font-semibold text-gray-700">{item.label}</p>
-              <p className="mt-0.5 text-[11px] text-gray-400">{item.orders} orders</p>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -441,7 +605,7 @@ function MixChart({
   const deliveryPct = 100 - pickupPct
 
   return (
-    <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Fulfillment mix</p>
       <h2 className="mt-1 text-xl font-semibold text-gray-950">Pickup vs delivery</h2>
       <div className="mt-6 flex items-center gap-5">
@@ -461,6 +625,62 @@ function MixChart({
         <div className="min-w-0 flex-1 space-y-3">
           <MixLegend color="bg-[#f26350]" label="Pickup" value={`${pickup} orders`} percent={pickupPct} />
           <MixLegend color="bg-gray-950" label="Delivery" value={`${delivery} orders`} percent={deliveryPct} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function UberSalesSourcePanel({
+  orders,
+  events,
+  revenue,
+}: {
+  orders: number
+  events: number
+  revenue: number
+}) {
+  const hasWebhookTraffic = events > 0 || orders > 0
+
+  return (
+    <div className="min-w-0 border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Sales source</p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-950">Uber Eats integration</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+            Uber Eats is planned for revenue accuracy, but it is not included in dashboard totals yet. Once credentials are available, sales from Uber should be imported beside Web and Clover/POS so total restaurant sales, product demand, and analytics are complete.
+          </p>
+        </div>
+        <div className="grid gap-2 text-sm sm:grid-cols-3 lg:min-w-[520px]">
+          <div className="border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Status</p>
+            <p className={`mt-1 font-semibold ${hasWebhookTraffic ? 'text-emerald-700' : 'text-amber-700'}`}>
+              {hasWebhookTraffic ? 'Webhook receiving' : 'Waiting for webhook'}
+            </p>
+          </div>
+          <div className="border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Events</p>
+            <p className="mt-1 font-semibold text-slate-950">{events} received · {orders} orders</p>
+          </div>
+          <div className="border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Revenue</p>
+            <p className="mt-1 font-semibold text-slate-950">{money(revenue)} · excluded</p>
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
+        <div className="border border-dashed border-slate-200 bg-slate-50/70 p-3">
+          <p className="font-semibold text-slate-900">1. Order import</p>
+          <p className="mt-1 leading-5">Pull accepted/completed Uber orders with totals, fees, taxes, tips, and item lines.</p>
+        </div>
+        <div className="border border-dashed border-slate-200 bg-slate-50/70 p-3">
+          <p className="font-semibold text-slate-900">2. Product mapping</p>
+          <p className="mt-1 leading-5">Match Uber item names to MaiSushi products so demand and food-cost analytics stay useful.</p>
+        </div>
+        <div className="border border-dashed border-slate-200 bg-slate-50/70 p-3">
+          <p className="font-semibold text-slate-900">3. Reconciliation</p>
+          <p className="mt-1 leading-5">Keep Uber separate from POS/web while still rolling it into total restaurant revenue.</p>
         </div>
       </div>
     </div>
@@ -501,6 +721,7 @@ function HorizontalBars({
   items,
   emptyTitle,
   headerAction,
+  onItemClick,
 }: {
   title: string
   label: string
@@ -508,39 +729,48 @@ function HorizontalBars({
   items: Array<{ name: string; value: number; detail: string }>
   emptyTitle: string
   headerAction?: ReactNode
+  onItemClick?: (name: string) => void
 }) {
   const max = Math.max(...items.map((item) => item.value), 1)
 
   return (
-    <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="max-h-[520px] overflow-hidden border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</p>
-          <h2 className="mt-1 text-xl font-semibold text-gray-950">{title}</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-950">{title}</h2>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {headerAction}
-          <Icon className="h-5 w-5 text-[#f26350]" />
+          <Icon className="h-5 w-5 text-blue-700" />
         </div>
       </div>
 
-      <div className="mt-5 space-y-4">
+      <div className="mt-5 max-h-[395px] space-y-3 overflow-y-auto pr-1">
         {items.length ? items.map((item, index) => (
-          <div key={item.name}>
+          <button
+            key={item.name}
+            type="button"
+            onClick={() => onItemClick?.(item.name)}
+            className="block w-full border border-transparent p-2 text-left transition hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-950/15"
+          >
             <div className="mb-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-gray-950">{index + 1}. {item.name}</p>
-                <p className="text-xs text-gray-500">{item.detail}</p>
+                <p className="truncate text-sm font-semibold text-slate-950">{index + 1}. {item.name}</p>
+                <p className="text-xs text-slate-500">{item.detail}</p>
               </div>
-              <p className="shrink-0 text-sm font-semibold text-gray-950">{quantityLabel(item.value)}</p>
+              <div className="flex shrink-0 items-center gap-2 text-sm font-semibold text-slate-950">
+                {quantityLabel(item.value)}
+                <ExternalLink className="h-3.5 w-3.5 text-slate-300" />
+              </div>
             </div>
-            <div className="h-2.5 overflow-hidden rounded-full bg-gray-100">
+            <div className="h-2 overflow-hidden bg-slate-100">
               <div
-                className="h-full rounded-full bg-[#f26350]"
+                className="h-full bg-blue-600"
                 style={{ width: `${Math.max(8, (item.value / max) * 100)}%` }}
               />
             </div>
-          </div>
+          </button>
         )) : (
           <EmptyState icon={ShoppingBag} title={emptyTitle} description="Data will appear as Clover/web orders are processed." />
         )}
@@ -556,6 +786,7 @@ function CloverCashEventsPanel({
   loading,
   error,
   connected,
+  onSelectOrder,
 }: {
   events: CloverCashEvent[]
   orders: CloverRecentOrder[]
@@ -563,22 +794,9 @@ function CloverCashEventsPanel({
   loading: boolean
   error: string | null
   connected: boolean
+  onSelectOrder: (order: CloverRecentOrder) => void
 }) {
-  const mergedOrders = useMemo(() => {
-    const byKey = new Map<string, CloverRecentOrder>()
-
-    ;[...orders, ...payments].forEach((order) => {
-      const key = order.id || `${order.source}-${order.createdAt.getTime()}-${order.total}`
-      const existing = byKey.get(key)
-
-      if (!existing || (!existing.lineItems.length && order.lineItems.length)) {
-        byKey.set(key, order)
-      }
-    })
-
-    return Array.from(byKey.values())
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-  }, [orders, payments])
+  const mergedOrders = useMemo(() => mergeCloverRecentOrders(orders, payments), [orders, payments])
 
   const todayEvents = events.filter((event) => isSameDay(event.createdAt))
   const todayCash = todayEvents.reduce((sum, event) => sum + event.amount, 0)
@@ -586,16 +804,16 @@ function CloverCashEventsPanel({
   const todayOrderRevenue = todayOrders.reduce((sum, order) => sum + order.total, 0)
 
   return (
-    <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="max-h-[520px] overflow-hidden border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Clover API</p>
-          <h2 className="mt-1 text-xl font-semibold text-gray-950">Recent orders</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Clover API</p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-950">Recent orders</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
             Live Clover order feed with date, customer details, totals, and items sold.
           </p>
         </div>
-        <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${connected ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+        <span className={`inline-flex w-fit items-center gap-2 border px-3 py-1.5 text-xs font-semibold ${connected ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
           {connected ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
           {connected ? 'Connected' : 'Proxy needed'}
         </span>
@@ -620,11 +838,16 @@ function CloverCashEventsPanel({
         </div>
       )}
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-5 max-h-[300px] space-y-3 overflow-y-auto pr-1">
         {loading ? (
           <SkeletonRows />
-        ) : mergedOrders.length ? mergedOrders.slice(0, 10).map((order) => (
-          <div key={order.id} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+        ) : mergedOrders.length ? mergedOrders.slice(0, 8).map((order) => (
+          <button
+            key={order.id}
+            type="button"
+            onClick={() => onSelectOrder(order)}
+            className="block w-full border border-slate-100 bg-slate-50 px-4 py-3 text-left transition hover:border-slate-300 hover:bg-white hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-950/15"
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-gray-950">
@@ -660,7 +883,7 @@ function CloverCashEventsPanel({
                   </p>
                 </div>
                 <div className="space-y-2">
-                  {order.lineItems.slice(0, 5).map((item) => (
+                  {order.lineItems.slice(0, 3).map((item) => (
                     <div key={`${order.id}-${item.id}`} className="flex items-center justify-between gap-3 text-xs">
                       <p className="min-w-0 truncate font-semibold text-gray-800">
                         {quantityLabel(item.quantity)}x {item.name}
@@ -668,8 +891,8 @@ function CloverCashEventsPanel({
                       <p className="shrink-0 font-semibold text-gray-950">{money(item.total || item.price * item.quantity)}</p>
                     </div>
                   ))}
-                  {order.lineItems.length > 5 && (
-                    <p className="text-xs font-medium text-gray-400">+{order.lineItems.length - 5} more items</p>
+                  {order.lineItems.length > 3 && (
+                    <p className="text-xs font-medium text-gray-400">+{order.lineItems.length - 3} more items</p>
                   )}
                 </div>
               </div>
@@ -678,7 +901,7 @@ function CloverCashEventsPanel({
                 No line items returned for this Clover order yet.
               </p>
             )}
-          </div>
+          </button>
         )) : events.length ? events.slice(0, 5).map((event) => (
           <div key={event.id} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
             <div className="flex items-start justify-between gap-4">
@@ -751,6 +974,90 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
   )
 }
 
+function OrderDetailsPanel({
+  order,
+  onClose,
+}: {
+  order: CloverRecentOrder | null
+  onClose: () => void
+}) {
+  if (!order) return null
+
+  const totalItems = order.lineItems.reduce((sum, item) => sum + item.quantity, 0)
+
+  return (
+    <div className="fixed inset-0 z-[80] bg-gray-950/35 p-3 backdrop-blur-sm sm:p-5" role="dialog" aria-modal="true">
+      <div className="ml-auto flex h-full w-full max-w-xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+        <div className="border-b border-gray-100 px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                {order.source === 'web' ? 'Website order' : 'POS order'}
+              </p>
+              <h2 className="mt-1 truncate text-2xl font-semibold tracking-tight text-gray-950">
+                {order.customerName}
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                {order.createdAt.toLocaleString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                {' '}· {order.paymentState} · {order.employeeName}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-gray-200 text-gray-500 transition hover:bg-gray-50 hover:text-gray-950"
+              aria-label="Close order details"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MiniMetric label="Total" value={money(order.total)} />
+            <MiniMetric label="Items" value={quantityLabel(totalItems)} />
+            <MiniMetric label="Source" value={order.source === 'web' ? 'Web' : 'POS'} />
+          </div>
+
+          {(order.customerPhone || order.customerEmail) && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <DetailPill label="Phone" value={order.customerPhone || 'No phone'} />
+              <DetailPill label="Email" value={order.customerEmail || 'No email'} />
+            </div>
+          )}
+
+          <div className="mt-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Items</p>
+            <div className="mt-3 divide-y divide-gray-100 rounded-2xl border border-gray-100">
+              {order.lineItems.length ? order.lineItems.map((item) => (
+                <div key={`${order.id}-detail-${item.id}`} className="flex items-start justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-950">{item.name}</p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {quantityLabel(item.quantity)} x {money(item.price)}
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-semibold text-gray-950">
+                    {money(item.total || item.price * item.quantity)}
+                  </p>
+                </div>
+              )) : (
+                <p className="px-4 py-5 text-sm text-gray-500">No item details were returned for this order.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DetailPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 rounded-xl bg-white px-3 py-2 ring-1 ring-gray-100">
@@ -776,9 +1083,9 @@ function InsightCard({
   loading?: boolean
 }) {
   return (
-    <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="flex items-start gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gray-950 text-white">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-950 text-white">
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
@@ -824,23 +1131,43 @@ function SkeletonRows() {
 }
 
 export default function SalesTrackingPage() {
+  const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
   const [checkoutSessions, setCheckoutSessions] = useState<CheckoutSession[]>([])
+  const [webOrderSessions, setWebOrderSessions] = useState<CheckoutSession[]>([])
+  const [uberEatsOrders, setUberEatsOrders] = useState<UberEatsOrder[]>([])
+  const [uberEatsEventCount, setUberEatsEventCount] = useState(0)
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([])
   const [loyalty, setLoyalty] = useState<LoyaltyStats>({ customers: 0, pointsIssued: 0 })
   const [cashEvents, setCashEvents] = useState<CloverCashEvent[]>([])
   const [recentCloverOrders, setRecentCloverOrders] = useState<CloverRecentOrder[]>([])
   const [recentCloverPayments, setRecentCloverPayments] = useState<CloverRecentOrder[]>([])
+  const [selectedOrder, setSelectedOrder] = useState<CloverRecentOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [cashEventsLoading, setCashEventsLoading] = useState(false)
   const [cashEventsError, setCashEventsError] = useState<string | null>(null)
   const [dataError, setDataError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [demandDays, setDemandDays] = useState<7 | 14 | 30>(14)
+  const [datePreset, setDatePreset] = useState<DashboardDatePreset>('today')
+  const [customStart, setCustomStart] = useState(() => dateInputValue(new Date()))
+  const [customEnd, setCustomEnd] = useState(() => dateInputValue(new Date()))
 
   const { products, loading: productsLoading } = useProducts()
   const { ingredients, loading: ingredientsLoading } = useIngredients()
   const { purchases } = usePurchases()
   const { sales } = useSales()
+  const dateRangeLabels = useMemo(() => ({
+    today: t('adminDashboard.filters.today', 'Today'),
+    yesterday: t('adminDashboard.filters.yesterday', 'Yesterday'),
+    last7: t('adminDashboard.filters.last7', 'Last 7 days'),
+    last30: t('adminDashboard.filters.last30', 'Last 30 days'),
+  }), [t])
+  const todayLabel = useMemo(() => fullDateLabel(new Date(), i18n.language || 'en-CA'), [i18n.language])
+  const selectedRange = useMemo(
+    () => dashboardDateRange(datePreset, customStart, customEnd, dateRangeLabels, i18n.language || 'en-CA'),
+    [datePreset, customStart, customEnd, dateRangeLabels, i18n.language]
+  )
 
   useEffect(() => {
     setLoading(true)
@@ -854,10 +1181,26 @@ export default function SalesTrackingPage() {
       limit(180)
     )
 
+    const webOrdersQuery = query(
+      collection(db, 'webOrders'),
+      orderBy('createdAt', 'desc'),
+      limit(180)
+    )
+
     const tableOrderQuery = query(
       collection(db, 'tableOrders'),
       orderBy('createdAt', 'desc'),
       limit(140)
+    )
+
+    const uberEatsOrderQuery = query(
+      collection(db, 'uberEatsOrders'),
+      limit(180)
+    )
+
+    const uberEatsEventQuery = query(
+      collection(db, 'uberEatsWebhookEvents'),
+      limit(240)
     )
 
     unsubscribers.push(onSnapshot(
@@ -869,6 +1212,19 @@ export default function SalesTrackingPage() {
       (error) => {
         console.error('Failed to load checkout sessions', error)
         setDataError('Checkout session metrics are unavailable.')
+        setLoading(false)
+      }
+    ))
+
+    unsubscribers.push(onSnapshot(
+      webOrdersQuery,
+      (snapshot) => {
+        setWebOrderSessions(snapshot.docs.map((docSnap) => normalizeCheckoutSession(docSnap.id, docSnap.data())))
+        setLoading(false)
+      },
+      (error) => {
+        console.error('Failed to load web orders', error)
+        setDataError('Website order metrics are unavailable.')
         setLoading(false)
       }
     ))
@@ -886,10 +1242,66 @@ export default function SalesTrackingPage() {
       }
     ))
 
+    unsubscribers.push(onSnapshot(
+      uberEatsOrderQuery,
+      (snapshot) => {
+        setUberEatsOrders(snapshot.docs.map((docSnap) => normalizeUberEatsOrder(docSnap.id, docSnap.data())))
+      },
+      (error) => {
+        console.error('Failed to load Uber Eats orders', error)
+      }
+    ))
+
+    unsubscribers.push(onSnapshot(
+      uberEatsEventQuery,
+      (snapshot) => {
+        setUberEatsEventCount(snapshot.size)
+      },
+      (error) => {
+        console.error('Failed to load Uber Eats webhook events', error)
+      }
+    ))
+
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe())
     }
   }, [refreshKey])
+
+  const onlineSessions = useMemo(() => {
+    const byId = new Map<string, CheckoutSession>()
+
+    checkoutSessions.forEach((session) => byId.set(session.id, session))
+    webOrderSessions.forEach((session) => byId.set(session.id, session))
+
+    return Array.from(byId.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+  }, [checkoutSessions, webOrderSessions])
+
+  const filteredOnlineSessions = useMemo(
+    () => onlineSessions.filter((session) => isInRange(session.createdAt, selectedRange.start, selectedRange.end)),
+    [onlineSessions, selectedRange]
+  )
+
+  const cloverOrders = useMemo(
+    () => mergeCloverRecentOrders(recentCloverOrders, recentCloverPayments),
+    [recentCloverOrders, recentCloverPayments]
+  )
+
+  const filteredCloverOrders = useMemo(
+    () => cloverOrders.filter((order) => isInRange(order.createdAt, selectedRange.start, selectedRange.end)),
+    [cloverOrders, selectedRange]
+  )
+
+  const filteredUberEatsOrders = useMemo(
+    () => uberEatsOrders.filter((order) => isInRange(order.receivedAt, selectedRange.start, selectedRange.end)),
+    [uberEatsOrders, selectedRange]
+  )
+
+  const uberEatsIncludedRevenue = useMemo(
+    () => filteredUberEatsOrders
+      .filter((order) => order.revenueIncluded)
+      .reduce((sum, order) => sum + order.total, 0),
+    [filteredUberEatsOrders]
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -993,8 +1405,8 @@ export default function SalesTrackingPage() {
   }, [refreshKey])
 
   const metrics = useMemo(() => {
-    const todaySessions = checkoutSessions.filter((session) => isSameDay(session.createdAt))
-    const weekSessions = checkoutSessions.filter((session) => isWithinDays(session.createdAt, 7))
+    const todaySessions = filteredOnlineSessions
+    const weekSessions = onlineSessions.filter((session) => isWithinDays(session.createdAt, 7))
     const todayRevenue = todaySessions.reduce((sum, session) => sum + session.total, 0)
     const weekRevenue = weekSessions.reduce((sum, session) => sum + session.total, 0)
     const todayAverage = todaySessions.length ? todayRevenue / todaySessions.length : 0
@@ -1006,8 +1418,10 @@ export default function SalesTrackingPage() {
     const paidTableOrdersToday = tableOrders.filter(
       (order) => order.paymentStatus === 'paid' && isSameDay(new Date(toTimestampMs(order.paidAt || order.updatedAt || order.createdAt)))
     )
-    const pickup = weekSessions.filter((session) => session.deliveryMethod !== 'delivery').length
-    const delivery = weekSessions.filter((session) => session.deliveryMethod === 'delivery').length
+    const pickup = filteredOnlineSessions.filter((session) => session.deliveryMethod !== 'delivery').length
+    const delivery = filteredOnlineSessions.filter((session) => session.deliveryMethod === 'delivery').length
+    const selectedPosRevenue = filteredCloverOrders.reduce((sum, order) => sum + order.total, 0)
+    const selectedPosAverage = filteredCloverOrders.length ? selectedPosRevenue / filteredCloverOrders.length : 0
 
     return {
       todaySessions,
@@ -1015,6 +1429,8 @@ export default function SalesTrackingPage() {
       todayRevenue,
       weekRevenue,
       todayAverage,
+      selectedPosRevenue,
+      selectedPosAverage,
       activeKitchen,
       readyPickup,
       paymentPending,
@@ -1022,29 +1438,33 @@ export default function SalesTrackingPage() {
       pickup,
       delivery,
     }
-  }, [checkoutSessions, tableOrders])
+  }, [onlineSessions, filteredOnlineSessions, filteredCloverOrders, tableOrders])
 
-  const sevenDayRevenue = useMemo(() => {
-    return Array.from({ length: 7 }, (_, index) => {
-      const date = new Date()
-      date.setDate(date.getDate() - (6 - index))
+  const selectedRevenue = useMemo(() => {
+    const days = Math.max(1, Math.ceil((selectedRange.end.getTime() - selectedRange.start.getTime()) / 86400000))
+    return Array.from({ length: Math.min(days, 31) }, (_, index) => {
+      const date = new Date(selectedRange.start)
+      date.setDate(date.getDate() + index)
       const key = startOfDayKey(date)
-      const sessions = checkoutSessions.filter((session) => startOfDayKey(session.createdAt) === key)
+      const sessions = filteredOnlineSessions.filter((session) => startOfDayKey(session.createdAt) === key)
+      const posOrders = filteredCloverOrders.filter((order) => startOfDayKey(order.createdAt) === key)
 
       return {
         label: dayLabel(date),
-        value: sessions.reduce((sum, session) => sum + session.total, 0),
-        orders: sessions.length,
+        web: sessions.reduce((sum, session) => sum + session.total, 0),
+        pos: posOrders.reduce((sum, order) => sum + order.total, 0),
+        webOrders: sessions.length,
+        posOrders: posOrders.length,
       }
     })
-  }, [checkoutSessions])
+  }, [filteredOnlineSessions, filteredCloverOrders, selectedRange])
 
   const topProducts = useMemo(() => {
     const productMap = new Map<string, { name: string; quantity: number; revenue: number }>()
     const combinedOrders = [
       ...recentCloverOrders,
       ...recentCloverPayments,
-      ...checkoutSessions.map(normalizeWebSessionAsOrder),
+      ...onlineSessions.map(normalizeWebSessionAsOrder),
     ]
     const recentOrderIds = new Set(combinedOrders.map((order) => order.id))
 
@@ -1079,7 +1499,7 @@ export default function SalesTrackingPage() {
     return Array.from(productMap.values())
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 8)
-  }, [checkoutSessions, cashEvents, recentCloverOrders, recentCloverPayments, demandDays])
+  }, [onlineSessions, cashEvents, recentCloverOrders, recentCloverPayments, demandDays])
 
   const lowStock = useMemo(() => {
     return ingredients
@@ -1107,7 +1527,7 @@ export default function SalesTrackingPage() {
     }
   }, [products])
 
-  const recentActivity = checkoutSessions.slice(0, 8)
+  const recentActivity = onlineSessions.slice(0, 8)
   const lastPurchase = purchases[0]
   const manualSalesThisMonth = sales.filter((sale) => {
     const date = new Date(sale.saleDate)
@@ -1120,31 +1540,77 @@ export default function SalesTrackingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f7fb]">
+    <div className="min-h-screen overflow-x-hidden bg-slate-50">
       <div className="mx-auto w-full max-w-[1760px] space-y-5 px-3 pb-8 sm:px-5 lg:px-8">
-        <section className="overflow-hidden rounded-[32px] border border-gray-200 bg-[radial-gradient(circle_at_8%_10%,rgba(242,99,80,0.2),transparent_27rem),linear-gradient(135deg,#111827,#030712)] p-5 text-white shadow-sm sm:p-7">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+        <section className="border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-white/70">
-                <Sparkles className="h-3.5 w-3.5 text-[#f26350]" />
-                Restaurant intelligence
-              </div>
-              <h1 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Mai Sushi command center
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                {t('adminDashboard.todayIs', 'Today is {{date}}', { date: todayLabel })}
+              </p>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+                {t('adminDashboard.operationsTitle', 'Service snapshot')}
               </h1>
-              <p className="mt-3 max-w-4xl text-sm leading-6 text-white/62 sm:text-base">
-                Real-time web checkout, Clover cash events through a secure backend proxy, inventory pressure, loyalty points, menu health, and staff action signals.
+              <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-500">
+                {t(
+                  'adminDashboard.operationsSubtitle',
+                  'Showing {{range}}. Web orders, POS activity, stock alerts, and pickup flow in one place.',
+                  { range: selectedRange.label.toLowerCase() }
+                )}
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className="inline-flex w-fit items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-gray-950 shadow-lg shadow-black/20 transition hover:bg-gray-100"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Refresh dashboard
-            </button>
+            <div className="grid gap-3 sm:grid-cols-[minmax(180px,220px)_repeat(2,minmax(145px,1fr))_auto]">
+              <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {t('adminDashboard.filters.period', 'Period')}
+                <select
+                  value={datePreset}
+                  onChange={(event) => setDatePreset(event.target.value as DashboardDatePreset)}
+                  className="mt-1 block w-full border border-slate-300 bg-white px-3 py-2 text-sm font-medium normal-case tracking-normal text-slate-900 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                >
+                  <option value="today">{t('adminDashboard.filters.todayOnly', 'Today only')}</option>
+                  <option value="yesterday">{t('adminDashboard.filters.yesterdayOnly', 'Yesterday only')}</option>
+                  <option value="7">{dateRangeLabels.last7}</option>
+                  <option value="30">{dateRangeLabels.last30}</option>
+                  <option value="custom">{t('adminDashboard.filters.customRange', 'Custom range')}</option>
+                </select>
+              </label>
+
+              <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {t('adminDashboard.filters.from', 'From')}
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(event) => {
+                    setCustomStart(event.target.value)
+                    setDatePreset('custom')
+                  }}
+                  className="mt-1 block w-full border border-slate-300 bg-white px-3 py-2 text-sm font-medium normal-case tracking-normal text-slate-900 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                />
+              </label>
+
+              <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {t('adminDashboard.filters.to', 'To')}
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(event) => {
+                    setCustomEnd(event.target.value)
+                    setDatePreset('custom')
+                  }}
+                  className="mt-1 block w-full border border-slate-300 bg-white px-3 py-2 text-sm font-medium normal-case tracking-normal text-slate-900 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="inline-flex h-[38px] w-fit items-center justify-center gap-2 self-end border border-slate-900 bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+              >
+                <RefreshCw className="h-4 w-4" />
+                {t('adminDashboard.refresh', 'Refresh')}
+              </button>
+            </div>
           </div>
         </section>
 
@@ -1156,25 +1622,25 @@ export default function SalesTrackingPage() {
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <StatCard
-            label="Today web sales"
+            label={t('adminDashboard.webSalesForRange', '{{range}} web sales', { range: selectedRange.label })}
             value={money(metrics.todayRevenue)}
-            detail={`${metrics.todaySessions.length} web orders · avg ${money(metrics.todayAverage)}`}
+            detail={t('adminDashboard.webSalesDetail', '{{orders}} web orders · avg {{average}}', { orders: metrics.todaySessions.length, average: money(metrics.todayAverage) })}
             icon={BadgeDollarSign}
-            tone="orange"
+            tone="blue"
           />
           <StatCard
-            label="7 day web sales"
-            value={money(metrics.weekRevenue)}
-            detail={`${metrics.weekSessions.length} checkout sessions`}
+            label={t('adminDashboard.posSalesForRange', '{{range}} POS sales', { range: selectedRange.label })}
+            value={money(metrics.selectedPosRevenue)}
+            detail={t('adminDashboard.posSalesDetail', '{{orders}} POS orders · avg {{average}}', { orders: filteredCloverOrders.length, average: money(metrics.selectedPosAverage) })}
+            icon={CreditCard}
+            tone="green"
+          />
+          <StatCard
+            label={t('adminDashboard.webPosDifference', 'Web vs POS difference')}
+            value={money(metrics.todayRevenue - metrics.selectedPosRevenue)}
+            detail={t('adminDashboard.webPosDifferenceDetail', '{{web}} web · {{pos}} POS', { web: money(metrics.todayRevenue), pos: money(metrics.selectedPosRevenue) })}
             icon={Activity}
             tone="dark"
-          />
-          <StatCard
-            label="Clover orders"
-            value={`${[...recentCloverOrders, ...recentCloverPayments].filter((order) => isSameDay(order.createdAt)).length}`}
-            detail={CLOVER_CASH_EVENTS_PROXY_URL ? `${recentCloverOrders.length} orders · ${recentCloverPayments.length} payments` : 'Backend proxy needed'}
-            icon={CreditCard}
-            tone={CLOVER_CASH_EVENTS_PROXY_URL ? 'green' : 'amber'}
           />
           <StatCard
             label="Action queue"
@@ -1192,12 +1658,18 @@ export default function SalesTrackingPage() {
           />
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[1.45fr_0.9fr]">
-          <RevenueChart data={sevenDayRevenue} />
+        <UberSalesSourcePanel
+          orders={filteredUberEatsOrders.length}
+          events={uberEatsEventCount}
+          revenue={uberEatsIncludedRevenue}
+        />
+
+        <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.9fr)]">
+          <RevenueChart data={selectedRevenue} title={t('adminDashboard.webVsPosRevenue', 'Web vs POS revenue')} subtitle={selectedRange.label} />
           <MixChart pickup={metrics.pickup} delivery={metrics.delivery} />
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+        <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <HorizontalBars
             title="Top sellers"
             label="Demand"
@@ -1208,17 +1680,18 @@ export default function SalesTrackingPage() {
               detail: `${money(product.revenue)} checkout/POS revenue in ${demandDays} days`,
             }))}
             emptyTitle="No checkout product data yet"
+            onItemClick={() => navigate('/admin/products')}
             headerAction={
-              <div className="rounded-full bg-gray-100 p-1">
+              <div className="bg-slate-100 p-1">
                 {[7, 14, 30].map((days) => (
                   <button
                     key={days}
                     type="button"
                     onClick={() => setDemandDays(days as 7 | 14 | 30)}
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                    className={`px-2.5 py-1 text-[11px] font-semibold transition ${
                       demandDays === days
-                        ? 'bg-gray-950 text-white shadow-sm'
-                        : 'text-gray-500 hover:text-gray-950'
+                        ? 'bg-slate-950 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-950'
                     }`}
                   >
                     {days}d
@@ -1232,7 +1705,7 @@ export default function SalesTrackingPage() {
             events={cashEvents}
             orders={[
               ...recentCloverOrders,
-              ...checkoutSessions
+              ...onlineSessions
                 .filter((session) => isWithinDays(session.createdAt, 7))
                 .map(normalizeWebSessionAsOrder),
             ]}
@@ -1240,6 +1713,7 @@ export default function SalesTrackingPage() {
             loading={cashEventsLoading}
             error={cashEventsError}
             connected={Boolean(CLOVER_CASH_EVENTS_PROXY_URL)}
+            onSelectOrder={setSelectedOrder}
           />
         </section>
 
@@ -1289,7 +1763,7 @@ export default function SalesTrackingPage() {
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Manager checklist</p>
@@ -1306,7 +1780,7 @@ export default function SalesTrackingPage() {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Recent web orders</p>
@@ -1319,7 +1793,12 @@ export default function SalesTrackingPage() {
               {loading ? (
                 <SkeletonRows />
               ) : recentActivity.length ? recentActivity.map((session) => (
-                <div key={session.id} className="flex items-center justify-between gap-4 rounded-2xl border border-gray-100 px-4 py-3">
+                <button
+                  key={session.id}
+                  type="button"
+                  onClick={() => setSelectedOrder(normalizeWebSessionAsOrder(session))}
+                  className="flex w-full items-center justify-between gap-4 rounded-2xl border border-gray-100 px-4 py-3 text-left transition hover:border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-950/15"
+                >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-gray-950">{session.customerName}</p>
                     <p className="text-xs text-gray-500">
@@ -1330,7 +1809,7 @@ export default function SalesTrackingPage() {
                     <p className="text-sm font-semibold text-gray-950">{money(session.total)}</p>
                     <p className="text-xs text-gray-400">{session.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
-                </div>
+                </button>
               )) : (
                 <EmptyState icon={Users} title="No checkout sessions loaded" description="Web orders will appear here after Clover sessions are created." />
               )}
@@ -1338,7 +1817,7 @@ export default function SalesTrackingPage() {
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Legacy data</p>
@@ -1352,6 +1831,7 @@ export default function SalesTrackingPage() {
             Manual sales are no longer the primary workflow. They remain visible only as historical context while real sales should come from Clover and web checkout sessions.
           </p>
         </section>
+        <OrderDetailsPanel order={selectedOrder} onClose={() => setSelectedOrder(null)} />
       </div>
     </div>
   )

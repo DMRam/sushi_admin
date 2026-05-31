@@ -195,6 +195,12 @@ export default function PurchasesPage({ isMobile = false }: PurchasesPageProps) 
     }
   }, [rows, t])
 
+  const supplierOptions = useMemo(() => (
+    Array.from(
+      new Set(rows.map((row) => String(row.supplierName ?? '').trim()).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b))
+  ), [rows])
+
   const tabs: Array<{ id: PurchaseTabId; label: string }> = [
     { id: 'form', label: t('purchases.tabs.form', 'Record') },
     { id: 'list', label: t('purchases.tabs.list', 'History') },
@@ -268,7 +274,7 @@ export default function PurchasesPage({ isMobile = false }: PurchasesPageProps) 
                   </p>
                 </div>
 
-                <PurchaseForm isMobile={isMobile} locale={locale} />
+                <PurchaseForm isMobile={isMobile} locale={locale} supplierOptions={supplierOptions} />
               </div>
             )}
 
@@ -388,7 +394,40 @@ export default function PurchasesPage({ isMobile = false }: PurchasesPageProps) 
           </div>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
+        <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">
+                  Invoice automation placeholder
+                </h3>
+                <p className="mt-1 text-xs text-gray-500 sm:text-sm">
+                  Later, n8n can receive uploaded invoices, run OCR, and create purchase drafts in this same collection.
+                </p>
+              </div>
+
+              <span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                Webhook pending
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 text-sm text-gray-600 sm:grid-cols-3">
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3">
+                <p className="font-medium text-gray-900">1. Photo</p>
+                <p className="mt-1 text-xs leading-5">Invoice image is saved with the purchase today.</p>
+              </div>
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3">
+                <p className="font-medium text-gray-900">2. OCR</p>
+                <p className="mt-1 text-xs leading-5">n8n can parse supplier, invoice number, taxes, and lines.</p>
+              </div>
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3">
+                <p className="font-medium text-gray-900">3. Review</p>
+                <p className="mt-1 text-xs leading-5">Staff confirms stock mapping before inventory changes.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-sm font-medium text-gray-900">
@@ -412,6 +451,7 @@ export default function PurchasesPage({ isMobile = false }: PurchasesPageProps) 
                 </span>
               ))}
             </div>
+          </div>
           </div>
         </div>
       </div>

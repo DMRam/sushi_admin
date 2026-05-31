@@ -32,6 +32,10 @@ export function useClientAuth() {
                     console.log('❌ No client profile found or error:', error)
                     setIsClient(false)
                     setClientProfile(null)
+                } else if ((data as any).is_blocked || (data as any).deleted_at) {
+                    console.log('🚫 Client profile is blocked or archived:', data)
+                    setIsClient(false)
+                    setClientProfile(null)
                 } else {
                     console.log('✅ Client profile found:', data)
                     setIsClient(true)

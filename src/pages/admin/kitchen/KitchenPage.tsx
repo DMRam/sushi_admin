@@ -13,7 +13,7 @@ import {
   addDoc,
 } from 'firebase/firestore';
 import { db } from '../../../firebase/firebase';
-import { CheckCircle, Clock, Package, RefreshCw, Plus, X } from 'lucide-react';
+import { CheckCircle, Clock, Package, RefreshCw, Plus, X, Store } from 'lucide-react';
 import { useProducts } from '../../../context/ProductsContext';
 import type { Product } from '../../../types/types';
 import OrderQueue from './OrderQueue';
@@ -204,6 +204,14 @@ export default function KitchenPage() {
   };
 
   const stats = getOrderStats();
+  const uberOrders = orders.filter((order) => String(order.source || '').toLowerCase() === 'uber');
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayUberOrders = uberOrders.filter((order) => {
+    const orderDate = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
+    return orderDate >= todayStart;
+  });
+  const pendingUberOrders = uberOrders.filter((order) => !order.kitchenStatus || order.kitchenStatus === 'pending').length;
 
   const filteredOrders = useMemo(() => {
     switch (activeTab) {
@@ -417,6 +425,46 @@ export default function KitchenPage() {
                 <span className="text-gray-600 font-medium">{stats.completedCount}</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="mb-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-lg bg-[#06c167]/10 text-[#067a46] flex items-center justify-center">
+                  <Store className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-base font-medium text-gray-900">Uber Eats orders</h2>
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                      Credentials pending
+                    </span>
+                  </div>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
+                    Placeholder ready for Uber Eats. Once the API credentials and webhook are provided, incoming Uber orders can be normalized into the same kitchen queue as web, Clover, and manual orders.
+                  </p>
+                </div>
+              </div>
+              <div className="grid min-w-[180px] grid-cols-2 gap-2 rounded-lg bg-gray-50 p-3 text-center">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Today</p>
+                  <p className="mt-1 text-xl font-light text-gray-900">{todayUberOrders.length}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Queue</p>
+                  <p className="mt-1 text-xl font-light text-gray-900">{pendingUberOrders}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[#0f172a] border border-gray-900 rounded-lg p-4 text-white shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/50">Next setup</p>
+            <p className="mt-2 text-sm leading-6 text-white/75">
+              Need Uber Eats developer credentials, restaurant/store ID, webhook signing secret, and the order payload sample before enabling live import.
+            </p>
           </div>
         </div>
 

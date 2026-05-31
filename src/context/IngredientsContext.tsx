@@ -29,16 +29,21 @@ export const IngredientsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           const data = doc.data()
           ingredientsList.push({
             id: doc.id,
-            name: data.name,
-            pricePerKg: data.pricePerKg,
-            unit: data.unit,
-            category: data.category,
+            name: data.name || 'Unnamed ingredient',
+            pricePerKg: Number(data.pricePerKg || 0),
+            unit: data.unit || 'unit',
+            category: data.category || 'other',
             minimumStock: data.minimumStock || 0,
             currentStock: data.currentStock || 0,
             stockGrams: data.stockGrams || 0,
             createdAt: data.createdAt?.toDate().toISOString() || new Date().toISOString(),
             supplier: data.supplier,
-            displayOnBYOS: false
+            displayOnBYOS: Boolean(data.displayOnBYOS),
+            byosName: typeof data.byosName === 'string' ? data.byosName : '',
+            byosCategory: data.byosCategory || 'extra',
+            byosPrice: Number(data.byosPrice || 0),
+            byosMaxPerRoll: Number(data.byosMaxPerRoll || 1),
+            byosSortOrder: Number(data.byosSortOrder || 999),
           })
         })
 

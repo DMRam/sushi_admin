@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "seed:natural-juices": "node seed-natural-juices.mjs"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
@@ -30,6 +31,7 @@
     "react-router-hash-link": "^2.4.3",
     "tailwindcss": "^4.1.14",
     "uuid": "^13.0.0",
+    "xlsx": "^0.18.5",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

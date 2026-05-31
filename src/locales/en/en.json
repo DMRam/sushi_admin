@@ -2,9 +2,41 @@
   "header": {
     "byPacifique": "by Pacifique",
     "menu": "Menu",
+    "booking": "Booking",
     "contact": "Contact",
     "points": "pts",
     "signIn": "Sign In"
+  },
+  "bookingPage": {
+    "eyebrow": "Reservations",
+    "title": "Book a table at MaiSushi",
+    "subtitle": "Send a reservation request for dine-in. The request goes to the booking table in Supabase so staff can confirm it from the admin flow.",
+    "successMessage": "Booking request sent. We will confirm your reservation shortly.",
+    "errorMessage": "We could not send the booking request. Please call us and we will reserve your spot.",
+    "selectedHours": "Available booking times for this date: {{hours}}.",
+    "hoursError": "Please choose a time during restaurant hours: {{hours}}.",
+    "closedDay": "Closed for reservations",
+    "closedDayError": "We are closed on this date. Please choose Tuesday to Saturday.",
+    "info": {
+      "dinner": "Hours",
+      "dinnerValue": "Tue-Wed 12-8 · Thu 12-9 · Fri-Sat 12-10",
+      "groups": "Groups",
+      "groupsValue": "2 - 12 guests",
+      "status": "Status",
+      "statusValue": "Confirm by staff"
+    },
+    "form": {
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "partySize": "How many people?",
+      "date": "Date",
+      "time": "Time",
+      "notes": "Notes",
+      "notesPlaceholder": "High chair, birthday, window table...",
+      "sending": "Sending...",
+      "submit": "Request booking"
+    }
   },
   "featured": {
     "signatureCreations": "Signature Creations",
@@ -149,6 +181,17 @@
     "pickupPromoTitle": "Pickup online deal",
     "pickupPromoDescription": "Use MAISUSHI10 for 10% off pickup orders over $25.",
     "discountCode": "Promo code",
+    "promoPickupOnly": "This promo code is valid for pickup orders only.",
+    "promoMinimumSubtotal": "Minimum subtotal of $25 required.",
+    "promoApplied": "Promo applied: {{code}}",
+    "invalidGiftCard": "Invalid gift card code.",
+    "giftCardInactive": "This gift card is not active.",
+    "giftCardEmpty": "This gift card has no remaining balance.",
+    "giftCardApplied": "Gift card applied: {{code}} (${{amount}} used)",
+    "enterDiscountCode": "Enter a promo code or gift card code.",
+    "invalidDiscountCode": "Invalid promo code or gift card code.",
+    "discountApplyFailed": "Could not apply this code. Please try again.",
+    "promoRemoved": "Promo removed. This code requires pickup and a minimum subtotal of $25.",
     "remove": "Remove",
     "apply": "Apply",
     "originalSubtotal": "Original subtotal",
@@ -415,6 +458,7 @@
     "open": "Open",
     "yes": "Yes",
     "no": "No",
+    "none": "None",
     "ok": "OK",
     "error": "Error",
     "success": "Success",
@@ -484,6 +528,19 @@
   "buildYourSushi": {
     "title": "Build Your Sushi",
     "subtitle": "Create your perfect sushi roll with fresh ingredients",
+    "builderSubtitle": "Create a custom roll and add it to your order.",
+    "closeBuilder": "Close builder",
+    "rollStyle": "Roll style",
+    "protein": "Protein",
+    "fillings": "Fillings",
+    "sauce": "Sauce",
+    "kitchenNotes": "Kitchen notes",
+    "kitchenNotesPlaceholder": "No sesame, extra spicy, cut in 8...",
+    "summary": "Summary",
+    "estimatedTotal": "Estimated total",
+    "cartName": "Build Your Own Sushi",
+    "cartDescription": "Custom sushi: {{ingredients}}",
+    "cartNotes": "Notes",
     "yourCreation": "Your Creation",
     "startSelecting": "Start by selecting ingredients from the left",
     "ingredientsSelected": "ingredients selected",
@@ -504,6 +561,40 @@
     "ingredient": {
       "max": "max",
       "add": "Add"
+    },
+    "summaryLabels": {
+      "style": "Style",
+      "protein": "Protein",
+      "fillings": "Fillings",
+      "sauce": "Sauce"
+    },
+    "options": {
+      "bases": {
+        "classic": "Classic maki roll",
+        "riceOutside": "Rice outside roll",
+        "handRoll": "Hand roll"
+      },
+      "proteins": {
+        "salmon": "Salmon",
+        "tuna": "Tuna",
+        "shrimpTempura": "Shrimp tempura",
+        "crab": "Crab mix",
+        "avocado": "Avocado"
+      },
+      "fillings": {
+        "cucumber": "Cucumber",
+        "mango": "Mango",
+        "creamCheese": "Cream cheese",
+        "greenOnion": "Green onion",
+        "tempuraFlakes": "Tempura flakes",
+        "sesame": "Sesame"
+      },
+      "sauces": {
+        "spicyMayo": "Spicy mayo",
+        "eel": "Eel sauce",
+        "ponzu": "Ponzu",
+        "none": "No sauce"
+      }
     }
   },
   "privacy": {
@@ -751,6 +842,69 @@
       "app": "App",
       "n8n": "n8n",
       "import": "Import"
+    }
+  },
+  "adminDashboard": {
+    "todayIs": "Today is {{date}}",
+    "operationsTitle": "Service snapshot",
+    "operationsSubtitle": "Showing {{range}}. Web orders, POS activity, stock alerts, and pickup flow in one place.",
+    "analyticsSubtitle": "Track performance, costs, and profitability for {{range}}.",
+    "refresh": "Refresh",
+    "webSalesForRange": "{{range}} web sales",
+    "webSalesDetail": "{{orders}} web orders · avg {{average}}",
+    "webRevenue": "Web revenue",
+    "posSalesForRange": "{{range}} POS sales",
+    "posSalesDetail": "{{orders}} POS orders · avg {{average}}",
+    "webPosDifference": "Web vs POS difference",
+    "webPosDifferenceDetail": "{{web}} web · {{pos}} POS",
+    "webVsPosRevenue": "Web vs POS revenue",
+    "web": "Web",
+    "pos": "POS",
+    "ordersShort": "orders",
+    "filters": {
+      "period": "Period",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7": "Last 7 days",
+      "last30": "Last 30 days",
+      "monthToDate": "Month to date",
+      "todayOnly": "Today only",
+      "yesterdayOnly": "Yesterday only",
+      "customRange": "Custom range",
+      "from": "From",
+      "to": "To"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "breakEven": "Break-even",
+      "sales": "Sales",
+      "profitability": "Profitability",
+      "expenses": "Expenses",
+      "profitDistribution": "Profit distribution"
+    },
+    "salesChart": {
+      "eyebrow": "Sales analytics",
+      "title": "Revenue and product performance",
+      "subtitle": "Showing {{range}} across website, Clover/POS, and manual sales.",
+      "orders": "{{count}} orders",
+      "products": "{{count}} products",
+      "totalRevenue": "Total revenue",
+      "unitsSold": "Units sold",
+      "avgOrder": "Avg order",
+      "avgDaily": "Avg daily",
+      "perTransaction": "per transaction",
+      "daysWithSales": "{{count}} days with sales",
+      "trend": "Trend",
+      "revenueTrend": "Revenue trend",
+      "dailyRevenueLabels": "Daily revenue with amount labels",
+      "noSalesPeriod": "No sales data available for this period",
+      "productPerformance": "Product performance",
+      "productDetail": "{{units}} units · {{orders}} orders",
+      "avgPrice": "{{amount}} avg",
+      "noProductSales": "No product sales data available",
+      "dailyBreakdown": "Daily breakdown",
+      "units": "{{count}} units",
+      "noDailySales": "No daily sales data available"
     }
   },
   "checkout": {

@@ -2,9 +2,41 @@
   "header": {
     "byPacifique": "por Pacifique",
     "menu": "Menú",
+    "booking": "Reserva",
     "contact": "Contacto",
     "points": "pts",
     "signIn": "Iniciar Sesión"
+  },
+  "bookingPage": {
+    "eyebrow": "Reservas",
+    "title": "Reserva una mesa en MaiSushi",
+    "subtitle": "Envía una solicitud de reserva para comer en el restaurante. La solicitud se guarda en la tabla de reservas de Supabase para que el equipo la confirme desde el flujo admin.",
+    "successMessage": "Solicitud de reserva enviada. Te confirmaremos la reserva pronto.",
+    "errorMessage": "No pudimos enviar la solicitud de reserva. Llámanos y reservaremos tu lugar.",
+    "selectedHours": "Horarios disponibles para esta fecha: {{hours}}.",
+    "hoursError": "Elige una hora dentro del horario del restaurante: {{hours}}.",
+    "closedDay": "Cerrado para reservas",
+    "closedDayError": "Estamos cerrados en esta fecha. Elige de martes a sábado.",
+    "info": {
+      "dinner": "Horario",
+      "dinnerValue": "Mar-Mie 12-8 · Jue 12-9 · Vie-Sab 12-10",
+      "groups": "Grupos",
+      "groupsValue": "2 - 12 personas",
+      "status": "Estado",
+      "statusValue": "Confirma el equipo"
+    },
+    "form": {
+      "name": "Nombre",
+      "phone": "Teléfono",
+      "email": "Correo",
+      "partySize": "Cantidad de personas",
+      "date": "Fecha",
+      "time": "Hora",
+      "notes": "Notas",
+      "notesPlaceholder": "Silla para bebé, cumpleaños, mesa junto a la ventana...",
+      "sending": "Enviando...",
+      "submit": "Solicitar reserva"
+    }
   },
   "featured": {
     "signatureCreations": "Creaciones Signature",
@@ -146,6 +178,17 @@
     "pickupPromoTitle": "Oferta online para retiro",
     "pickupPromoDescription": "Usa MAISUSHI10 para obtener 10% de descuento en pedidos pickup sobre $25.",
     "discountCode": "Código promo",
+    "promoPickupOnly": "Este código promo solo es válido para pedidos pickup.",
+    "promoMinimumSubtotal": "Se requiere un subtotal mínimo de $25.",
+    "promoApplied": "Promo aplicada: {{code}}",
+    "invalidGiftCard": "Código de tarjeta de regalo inválido.",
+    "giftCardInactive": "Esta tarjeta de regalo no está activa.",
+    "giftCardEmpty": "Esta tarjeta de regalo no tiene saldo disponible.",
+    "giftCardApplied": "Tarjeta de regalo aplicada: {{code}} (${{amount}} usados)",
+    "enterDiscountCode": "Ingresa un código promo o de tarjeta de regalo.",
+    "invalidDiscountCode": "Código promo o de tarjeta de regalo inválido.",
+    "discountApplyFailed": "No se pudo aplicar este código. Inténtalo de nuevo.",
+    "promoRemoved": "Promo retirada. Este código requiere pickup y un subtotal mínimo de $25.",
     "remove": "Quitar",
     "apply": "Aplicar",
     "originalSubtotal": "Subtotal original",
@@ -412,6 +455,7 @@
     "open": "Abrir",
     "yes": "Sí",
     "no": "No",
+    "none": "Ninguno",
     "ok": "OK",
     "error": "Error",
     "success": "Éxito",
@@ -461,6 +505,19 @@
   "buildYourSushi": {
     "title": "Construye Tu Sushi",
     "subtitle": "Crea tu rollo de sushi perfecto con ingredientes frescos",
+    "builderSubtitle": "Crea un roll personalizado y agrégalo a tu pedido.",
+    "closeBuilder": "Cerrar creador",
+    "rollStyle": "Estilo de roll",
+    "protein": "Proteína",
+    "fillings": "Rellenos",
+    "sauce": "Salsa",
+    "kitchenNotes": "Notas para cocina",
+    "kitchenNotesPlaceholder": "Sin sésamo, extra picante, cortado en 8...",
+    "summary": "Resumen",
+    "estimatedTotal": "Total estimado",
+    "cartName": "Arma tu propio sushi",
+    "cartDescription": "Sushi personalizado: {{ingredients}}",
+    "cartNotes": "Notas",
     "yourCreation": "Tu Creación",
     "startSelecting": "Comienza seleccionando ingredientes de la izquierda",
     "ingredientsSelected": "ingredientes seleccionados",
@@ -481,6 +538,40 @@
     "ingredient": {
       "max": "máx",
       "add": "Agregar"
+    },
+    "summaryLabels": {
+      "style": "Estilo",
+      "protein": "Proteína",
+      "fillings": "Rellenos",
+      "sauce": "Salsa"
+    },
+    "options": {
+      "bases": {
+        "classic": "Maki clásico",
+        "riceOutside": "Roll con arroz por fuera",
+        "handRoll": "Temaki"
+      },
+      "proteins": {
+        "salmon": "Salmón",
+        "tuna": "Atún",
+        "shrimpTempura": "Camarón tempura",
+        "crab": "Mezcla de cangrejo",
+        "avocado": "Palta"
+      },
+      "fillings": {
+        "cucumber": "Pepino",
+        "mango": "Mango",
+        "creamCheese": "Queso crema",
+        "greenOnion": "Cebollín",
+        "tempuraFlakes": "Crocante de tempura",
+        "sesame": "Sésamo"
+      },
+      "sauces": {
+        "spicyMayo": "Mayo picante",
+        "eel": "Salsa de anguila",
+        "ponzu": "Ponzu",
+        "none": "Sin salsa"
+      }
     }
   },
   "privacy": {
@@ -745,6 +836,69 @@
       "app": "Aplicación",
       "n8n": "n8n",
       "import": "Importación"
+    }
+  },
+  "adminDashboard": {
+    "todayIs": "Hoy es {{date}}",
+    "operationsTitle": "Vista del servicio",
+    "operationsSubtitle": "Mostrando {{range}}. Pedidos web, actividad POS, alertas de inventario y flujo de pickup en un solo lugar.",
+    "analyticsSubtitle": "Monitorea rendimiento, costos y rentabilidad para {{range}}.",
+    "refresh": "Actualizar",
+    "webSalesForRange": "Ventas web - {{range}}",
+    "webSalesDetail": "{{orders}} pedidos web · promedio {{average}}",
+    "webRevenue": "Ingresos web",
+    "posSalesForRange": "Ventas POS - {{range}}",
+    "posSalesDetail": "{{orders}} pedidos POS · promedio {{average}}",
+    "webPosDifference": "Diferencia web vs POS",
+    "webPosDifferenceDetail": "{{web}} web · {{pos}} POS",
+    "webVsPosRevenue": "Ingresos web vs POS",
+    "web": "Web",
+    "pos": "POS",
+    "ordersShort": "pedidos",
+    "filters": {
+      "period": "Periodo",
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "last7": "Últimos 7 días",
+      "last30": "Últimos 30 días",
+      "monthToDate": "Mes hasta hoy",
+      "todayOnly": "Solo hoy",
+      "yesterdayOnly": "Solo ayer",
+      "customRange": "Rango personalizado",
+      "from": "Desde",
+      "to": "Hasta"
+    },
+    "tabs": {
+      "overview": "Resumen",
+      "breakEven": "Punto de equilibrio",
+      "sales": "Ventas",
+      "profitability": "Rentabilidad",
+      "expenses": "Gastos",
+      "profitDistribution": "Distribución de ganancias"
+    },
+    "salesChart": {
+      "eyebrow": "Analítica de ventas",
+      "title": "Ingresos y rendimiento de productos",
+      "subtitle": "Mostrando {{range}} entre sitio web, Clover/POS y ventas manuales.",
+      "orders": "{{count}} pedidos",
+      "products": "{{count}} productos",
+      "totalRevenue": "Ingresos totales",
+      "unitsSold": "Unidades vendidas",
+      "avgOrder": "Pedido promedio",
+      "avgDaily": "Promedio diario",
+      "perTransaction": "por transacción",
+      "daysWithSales": "{{count}} días con ventas",
+      "trend": "Tendencia",
+      "revenueTrend": "Tendencia de ingresos",
+      "dailyRevenueLabels": "Ingresos diarios con montos",
+      "noSalesPeriod": "No hay ventas disponibles para este periodo",
+      "productPerformance": "Rendimiento de productos",
+      "productDetail": "{{units}} unidades · {{orders}} pedidos",
+      "avgPrice": "{{amount}} prom.",
+      "noProductSales": "No hay datos de ventas por producto",
+      "dailyBreakdown": "Detalle diario",
+      "units": "{{count}} unidades",
+      "noDailySales": "No hay datos diarios disponibles"
     }
   },
   "checkout": {

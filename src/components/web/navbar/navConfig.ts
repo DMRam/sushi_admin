@@ -1,12 +1,15 @@
 import {
     LayoutDashboard,
-    // ChefHat,
+    CalendarDays,
     ShoppingCart,
     Package,
     Boxes,
     TrendingUp,
     Shield,
     Wallet,
+    Gift,
+    Award,
+    UsersRound,
 } from "lucide-react";
 import { UserRole } from "../../../context/UserProfileContext";
 import type { NavLink } from "./types";
@@ -22,19 +25,40 @@ export function buildNavLinks(t: TFunction): NavLink[] {
             allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
             icon: LayoutDashboard,
         },
-        // {
-        //     path: "/admin/kitchen",
-        //     label: t("nav.kitchen", "Kitchen"),
-        //     shortLabel: t("nav.kitchen", "Kitchen"),
-        //     allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
-        //     icon: ChefHat,
-        // },
         {
             path: "/admin/purchases",
             label: t("nav.purchases", "Purchases"),
             shortLabel: t("nav.purchases", "Purchases"),
             allowedRoles: [UserRole.MANAGER, UserRole.ADMIN],
             icon: ShoppingCart,
+        },
+        {
+            path: "/admin/bookings",
+            label: t("nav.bookings", "Bookings"),
+            shortLabel: t("nav.bookingsShort", "Book"),
+            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
+            icon: CalendarDays,
+        },
+        {
+            path: "/admin/gift-cards",
+            label: t("nav.giftCards", "Gift Cards"),
+            shortLabel: t("nav.giftCardsShort", "Gift"),
+            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN],
+            icon: Gift,
+        },
+        {
+            path: "/admin/rewards",
+            label: t("nav.rewards", "Rewards"),
+            shortLabel: t("nav.rewardsShort", "Rewards"),
+            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN],
+            icon: Award,
+        },
+        {
+            path: "/admin/clients",
+            label: t("nav.clients", "Clients"),
+            shortLabel: t("nav.clientsShort", "Clients"),
+            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN],
+            icon: UsersRound,
         },
         {
             path: "/admin/products",

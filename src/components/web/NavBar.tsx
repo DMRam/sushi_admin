@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Menu, LogOut, Sparkles } from "lucide-react";
+import { Menu, LogOut } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../context/AuthContext";
 import { useUserProfile, UserRole } from "../../context/UserProfileContext";
@@ -8,6 +8,7 @@ import DesktopNav from "./navbar/DesktopNav";
 import MobileDrawer from "./navbar/MobileDrawer";
 import { buildNavLinks } from "./navbar/navConfig";
 import { isActivePath, isSuperAdmin } from "./navbar/utils";
+import maiSushiLogo from "../../assets/logo/final/maisushi-logo-color.svg";
 
 export default function NavBar() {
     const { user, logout } = useAuth();
@@ -51,9 +52,9 @@ export default function NavBar() {
 
     return (
         <>
-            <header className="sticky top-0 z-50 border-b border-gray-200 bg-[#f7f8fb]/95 shadow-[0_1px_0_rgba(15,23,42,0.03),0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur supports-[backdrop-filter]:bg-[#f7f8fb]/88">
+            <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
                 <div className="mx-auto max-w-[1760px] px-3 sm:px-5 lg:px-6 xl:px-8">
-                    <div className="flex min-h-[82px] items-center justify-between gap-3 sm:min-h-[88px] sm:gap-4">
+                    <div className="flex min-h-[72px] items-center justify-between gap-3 sm:gap-4">
                         <div className="flex min-w-0 items-center gap-3">
                             <button
                                 onClick={() => setIsMenuOpen(true)}
@@ -65,8 +66,8 @@ export default function NavBar() {
                             </button>
 
                             <div className="hidden min-w-0 items-center gap-3 xl:flex">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-gray-950 text-white shadow-sm">
-                                    <Sparkles className="h-5 w-5 text-[#f26350]" />
+                                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
+                                    <img src={maiSushiLogo} alt="" className="h-8 w-8 object-contain" />
                                 </div>
                                 <div className="min-w-0">
                                     <p className="truncate text-sm font-semibold tracking-tight text-gray-950">

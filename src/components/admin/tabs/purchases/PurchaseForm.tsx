@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useIngredients } from '../../../../context/IngredientsContext'
 import { updateDoc, doc, serverTimestamp } from 'firebase/firestore'
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import type { Unit } from '../../../../types/types'
-import { db } from '../../../../firebase/firebase'
+import { db, storage } from '../../../../firebase/firebase'
 import type { PurchaseLocale } from '../../../../pages/admin/tabs/purchases/purchaseTypes'
 import {
     createPurchase,
     normalizePurchasePayload,
 } from '../../../../pages/admin/tabs/purchases/purchaseFirestore'
 import { formatMoney } from '../../../../pages/admin/tabs/purchases/purchaseLocale'
+import { getByosDisplayLabels, getByosEffectivePrice } from '../../../../utils/byosCatalog'
 
 interface PurchaseFormProps {
     isMobile?: boolean
     locale?: PurchaseLocale
+    supplierOptions?: string[]
 }
 
 type PurchaseType = 'ingredient' | 'supply'
@@ -25,11 +28,38 @@ interface NewIngredientForm {
     unit: Unit
     minimumStock: string
     displayOnBYOS: boolean
+    byosName: string
+    byosCategory: 'protein' | 'filling' | 'rolledOn' | 'sauce' | 'extra'
+    byosPrice: string
+    byosMaxPerRoll: string
+    byosSortOrder: string
+}
+
+const byosCategoryOptions = [
+    { value: 'protein', label: 'Protein' },
+    { value: 'filling', label: 'Filling' },
+    { value: 'rolledOn', label: 'Rolled on' },
+    { value: 'sauce', label: 'Sauce' },
+    { value: 'extra', label: 'Extra' },
+] as const
+
+const emptyNewIngredient: NewIngredientForm = {
+    name: '',
+    category: 'seafood',
+    unit: 'kg',
+    minimumStock: '0',
+    displayOnBYOS: false,
+    byosName: '',
+    byosCategory: 'extra',
+    byosPrice: '',
+    byosMaxPerRoll: '1',
+    byosSortOrder: '999',
 }
 
 export default function PurchaseForm({
     isMobile = false,
     locale = 'fr-CA',
+    supplierOptions = [],
 }: PurchaseFormProps) {
     const { ingredients, updateIngredient, addIngredient } = useIngredients()
 
@@ -47,6 +77,8 @@ export default function PurchaseForm({
         purchaseDate: new Date().toISOString().split('T')[0],
         deliveryDate: '',
         invoiceNumber: '',
+        gstAmount: '',
+        qstAmount: '',
         paymentStatus: 'paid' as PaymentStatus,
         paymentTerms: '',
         paymentAccount: '',
@@ -56,16 +88,12 @@ export default function PurchaseForm({
 
     const [selectedIngredient, setSelectedIngredient] = useState<any>(null)
     const [showNewIngredientForm, setShowNewIngredientForm] = useState(false)
-    const [newIngredient, setNewIngredient] = useState<NewIngredientForm>({
-        name: '',
-        category: 'seafood',
-        unit: 'kg',
-        minimumStock: '0',
-        displayOnBYOS: false,
-    })
+    const [newIngredient, setNewIngredient] = useState<NewIngredientForm>(emptyNewIngredient)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [quickMode, setQuickMode] = useState(true)
     const [showBYOSToggle, setShowBYOSToggle] = useState(false)
+    const [invoiceFile, setInvoiceFile] = useState<File | null>(null)
+    const [invoicePreviewUrl, setInvoicePreviewUrl] = useState<string | null>(null)
 
     useEffect(() => {
         if (formData.ingredientId && formData.purchaseType === 'ingredient') {
@@ -84,6 +112,12 @@ export default function PurchaseForm({
             setShowBYOSToggle(false)
         }
     }, [formData.ingredientId, formData.purchaseType, ingredients])
+
+    useEffect(() => {
+        return () => {
+            if (invoicePreviewUrl) URL.revokeObjectURL(invoicePreviewUrl)
+        }
+    }, [invoicePreviewUrl])
 
     function calculateIngredientTotalCost(): number {
         if (!formData.quantity || !formData.pricePerKg) return 0
@@ -108,6 +142,29 @@ export default function PurchaseForm({
         return parseFloat(formData.totalCost) || 0
     }
 
+    function getTaxTotal(): number {
+        const gst = parseFloat(formData.gstAmount) || 0
+        const qst = parseFloat(formData.qstAmount) || 0
+        return Math.max(0, gst) + Math.max(0, qst)
+    }
+
+    async function uploadInvoiceAttachment(): Promise<string | null> {
+        if (!invoiceFile) return formData.attachmentUrl.trim() || null
+
+        const safeName = invoiceFile.name.replace(/[^a-zA-Z0-9._-]/g, '-')
+        const storagePath = `purchase-invoices/${formData.purchaseDate}/${Date.now()}-${safeName}`
+        const fileRef = ref(storage, storagePath)
+        await uploadBytes(fileRef, invoiceFile, {
+            contentType: invoiceFile.type || 'application/octet-stream',
+            customMetadata: {
+                supplier: formData.supplier.trim(),
+                invoiceNumber: formData.invoiceNumber.trim(),
+            },
+        })
+
+        return getDownloadURL(fileRef)
+    }
+
     async function handleAddNewIngredient() {
         if (!newIngredient.name.trim()) {
             alert('Please enter ingredient name')
@@ -115,6 +172,9 @@ export default function PurchaseForm({
         }
 
         try {
+            const customerName = newIngredient.byosName.trim() || newIngredient.name.trim()
+            const labels = getByosDisplayLabels(customerName, newIngredient.byosCategory)
+            const effectiveByosPrice = getByosEffectivePrice(customerName, newIngredient.byosCategory, parseFloat(newIngredient.byosPrice) || 0)
             const ingredientData = {
                 name: newIngredient.name.trim(),
                 pricePerKg: 0,
@@ -124,6 +184,11 @@ export default function PurchaseForm({
                 currentStock: 0,
                 stockGrams: 0,
                 displayOnBYOS: newIngredient.displayOnBYOS,
+                byosName: newIngredient.displayOnBYOS ? (labels?.fr || customerName) : '',
+                byosCategory: newIngredient.byosCategory,
+                byosPrice: newIngredient.displayOnBYOS ? effectiveByosPrice : 0,
+                byosMaxPerRoll: parseInt(newIngredient.byosMaxPerRoll, 10) || 1,
+                byosSortOrder: parseInt(newIngredient.byosSortOrder, 10) || 999,
             }
 
             const firebaseId = await addIngredient(ingredientData)
@@ -134,13 +199,7 @@ export default function PurchaseForm({
             }))
 
             setShowNewIngredientForm(false)
-            setNewIngredient({
-                name: '',
-                category: 'seafood',
-                unit: 'kg',
-                minimumStock: '0',
-                displayOnBYOS: false,
-            })
+            setNewIngredient(emptyNewIngredient)
 
             alert('Ingredient added. Now complete the purchase.')
         } catch (error) {
@@ -154,19 +213,34 @@ export default function PurchaseForm({
 
         try {
             const newBYOSStatus = !selectedIngredient.displayOnBYOS
+            const customerName = selectedIngredient.byosName || selectedIngredient.name
+            const labels = getByosDisplayLabels(customerName, selectedIngredient.byosCategory || 'extra')
+
+            const byosDefaults = newBYOSStatus
+                ? {
+                    byosName: labels?.fr || customerName,
+                    byosCategory: selectedIngredient.byosCategory || 'extra',
+                    byosPrice: getByosEffectivePrice(customerName, selectedIngredient.byosCategory || 'extra', selectedIngredient.byosPrice),
+                    byosMaxPerRoll: Number(selectedIngredient.byosMaxPerRoll || 1),
+                    byosSortOrder: Number(selectedIngredient.byosSortOrder || 999),
+                }
+                : {}
 
             await updateDoc(doc(db, 'ingredients', selectedIngredient.id), {
                 displayOnBYOS: newBYOSStatus,
+                ...byosDefaults,
                 updatedAt: serverTimestamp(),
             })
 
             updateIngredient(selectedIngredient.id, {
                 displayOnBYOS: newBYOSStatus,
+                ...byosDefaults,
             })
 
             setSelectedIngredient({
                 ...selectedIngredient,
                 displayOnBYOS: newBYOSStatus,
+                ...byosDefaults,
             })
 
             alert(`Ingredient ${newBYOSStatus ? 'added to' : 'removed from'} Build Your Own Sushi`)
@@ -210,7 +284,9 @@ export default function PurchaseForm({
 
         try {
             const totalCost = getTotalCost()
+            const taxTotal = getTaxTotal()
             const quantity = parseFloat(formData.quantity) || 1
+            const attachmentUrl = await uploadInvoiceAttachment()
 
             let quantityGrams = quantity
             let quantityInKg = quantity
@@ -292,8 +368,8 @@ export default function PurchaseForm({
                 supplierName: formData.supplier.trim(),
                 invoiceNumber: formData.invoiceNumber.trim() || null,
                 notes: composedNotes || null,
-                taxes: 0,
-                attachmentUrl: formData.attachmentUrl.trim() || null,
+                taxes: taxTotal,
+                attachmentUrl,
                 supplierAddress: formData.supplierAddress.trim() || null,
                 paymentStatus: formData.paymentStatus,
                 paymentTerms: formData.paymentTerms.trim() || null,
@@ -327,6 +403,8 @@ export default function PurchaseForm({
                 purchaseDate: new Date().toISOString().split('T')[0],
                 deliveryDate: '',
                 invoiceNumber: '',
+                gstAmount: '',
+                qstAmount: '',
                 paymentStatus: 'paid',
                 paymentTerms: '',
                 paymentAccount: '',
@@ -336,6 +414,8 @@ export default function PurchaseForm({
 
             setShowBYOSToggle(false)
             setSelectedIngredient(null)
+            setInvoiceFile(null)
+            setInvoicePreviewUrl(null)
 
             alert(
                 formData.purchaseType === 'ingredient'
@@ -351,6 +431,8 @@ export default function PurchaseForm({
     }
 
     const totalCost = getTotalCost()
+    const taxTotal = getTaxTotal()
+    const invoiceTotal = totalCost + taxTotal
 
     return (
         <div className={`space-y-${isMobile ? '4' : '6'}`}>
@@ -361,7 +443,7 @@ export default function PurchaseForm({
                             ENTRY MODE
                         </h3>
                         <p className={`font-light text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                            {quickMode ? 'Quick supermarket mode' : 'Detailed invoice mode'}
+                            {quickMode ? 'Fast stock entry' : 'Quebec invoice entry with taxes and attachment'}
                         </p>
                     </div>
 
@@ -370,8 +452,62 @@ export default function PurchaseForm({
                         onClick={() => setQuickMode((prev) => !prev)}
                         className={`rounded-sm bg-gray-900 px-4 py-2 text-sm font-light tracking-wide text-white transition-colors hover:bg-gray-800 ${isMobile ? 'mt-1 w-full' : ''}`}
                     >
-                        {quickMode ? 'SWITCH TO DETAILED' : 'SWITCH TO QUICK'}
+                        {quickMode ? 'DETAILED INVOICE' : 'FAST ENTRY'}
                     </button>
+                </div>
+            </div>
+
+            <div className={`rounded-sm border border-gray-200 bg-white ${isMobile ? 'p-4' : 'p-5'}`}>
+                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-[1.1fr_0.9fr]'}`}>
+                    <div>
+                        <h3 className={`font-light tracking-wide text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>
+                            Invoice photo
+                        </h3>
+                        <p className="mt-1 text-sm font-light text-gray-500">
+                            Take a clear photo or upload the supplier invoice. It is saved with the purchase for tax review.
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <label className="inline-flex cursor-pointer items-center justify-center rounded-sm border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-light tracking-wide text-white hover:bg-gray-800">
+                                Upload photo
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    capture="environment"
+                                    className="hidden"
+                                    disabled={isSubmitting}
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0] || null
+                                        setInvoiceFile(file)
+                                        if (invoicePreviewUrl) URL.revokeObjectURL(invoicePreviewUrl)
+                                        setInvoicePreviewUrl(file && file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
+                                    }}
+                                />
+                            </label>
+                            {invoiceFile && (
+                                <button
+                                    type="button"
+                                    className="rounded-sm border border-gray-300 px-4 py-2 text-sm font-light text-gray-700 hover:bg-gray-50"
+                                    onClick={() => {
+                                        setInvoiceFile(null)
+                                        if (invoicePreviewUrl) URL.revokeObjectURL(invoicePreviewUrl)
+                                        setInvoicePreviewUrl(null)
+                                    }}
+                                >
+                                    Remove
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="rounded-sm border border-dashed border-gray-300 bg-gray-50 p-3">
+                        {invoicePreviewUrl ? (
+                            <img src={invoicePreviewUrl} alt="Invoice preview" className="h-40 w-full rounded-sm object-cover" />
+                        ) : (
+                            <div className="flex h-40 items-center justify-center text-center text-sm text-gray-500">
+                                {invoiceFile ? invoiceFile.name : 'Invoice preview will appear here'}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -487,11 +623,16 @@ export default function PurchaseForm({
                                     <div className={`${isMobile ? 'flex-col gap-3' : 'flex items-center justify-between'}`}>
                                         <div>
                                             <h4 className="text-sm font-medium text-amber-900">
-                                                🎯 Build Your Own Sushi Setting
+                                                🎯 BYOS availability
                                             </h4>
                                             <p className="mt-1 text-xs text-amber-700">
-                                                This ingredient is {selectedIngredient.displayOnBYOS ? 'currently available' : 'not available'} in the Build Your Own Sushi section
+                                                Purchases update stock and cost. Customer price, category, max per roll, and sort order are managed in Product management → Ingredients & BYOS.
                                             </p>
+                                            {selectedIngredient.displayOnBYOS && (
+                                                <p className="mt-2 text-xs font-medium text-amber-900">
+                                                    Showing as {selectedIngredient.byosName || selectedIngredient.name} · {selectedIngredient.byosCategory || 'extra'} · ${getByosEffectivePrice(selectedIngredient.byosName || selectedIngredient.name, selectedIngredient.byosCategory, selectedIngredient.byosPrice).toFixed(2)} · max {selectedIngredient.byosMaxPerRoll || 1}/roll
+                                                </p>
+                                            )}
                                         </div>
 
                                         <button
@@ -609,11 +750,58 @@ export default function PurchaseForm({
                                                 🎯 Show in Build Your Own Sushi
                                             </div>
                                             <p className={`mt-1 text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>
-                                                When checked, this ingredient will appear in the Build Your Own Sushi section.
+                                                When checked, configure customer price and limits below.
                                             </p>
                                         </label>
                                     </div>
                                 </div>
+
+                                {newIngredient.displayOnBYOS && (
+                                    <div className={isMobile ? '' : 'md:col-span-2'}>
+                                        <div className={`grid gap-3 rounded-sm border border-amber-200 bg-amber-50 p-3 ${isMobile ? 'grid-cols-1' : 'md:grid-cols-5'}`}>
+                                            <input
+                                                type="text"
+                                                value={newIngredient.byosName}
+                                                onChange={(e) => setNewIngredient((prev) => ({ ...prev, byosName: e.target.value }))}
+                                                className="rounded-sm border border-gray-300 px-3 py-2 text-sm font-light md:col-span-2"
+                                                placeholder="Customer display name"
+                                            />
+                                            <select
+                                                value={newIngredient.byosCategory}
+                                                onChange={(e) => setNewIngredient((prev) => ({ ...prev, byosCategory: e.target.value as NewIngredientForm['byosCategory'] }))}
+                                                className="rounded-sm border border-gray-300 px-3 py-2 text-sm font-light"
+                                            >
+                                                {byosCategoryOptions.map((category) => (
+                                                    <option key={category.value} value={category.value}>{category.label}</option>
+                                                ))}
+                                            </select>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={newIngredient.byosPrice}
+                                                onChange={(e) => setNewIngredient((prev) => ({ ...prev, byosPrice: e.target.value }))}
+                                                className="rounded-sm border border-gray-300 px-3 py-2 text-sm font-light"
+                                                placeholder="Price"
+                                            />
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={newIngredient.byosMaxPerRoll}
+                                                onChange={(e) => setNewIngredient((prev) => ({ ...prev, byosMaxPerRoll: e.target.value }))}
+                                                className="rounded-sm border border-gray-300 px-3 py-2 text-sm font-light"
+                                                placeholder="Max"
+                                            />
+                                            <input
+                                                type="number"
+                                                value={newIngredient.byosSortOrder}
+                                                onChange={(e) => setNewIngredient((prev) => ({ ...prev, byosSortOrder: e.target.value }))}
+                                                className="rounded-sm border border-gray-300 px-3 py-2 text-sm font-light"
+                                                placeholder="Sort"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className={`mt-4 flex gap-4 ${isMobile ? 'flex-col' : ''}`}>
@@ -645,9 +833,15 @@ export default function PurchaseForm({
                                 onChange={(e) => setFormData((prev) => ({ ...prev, supplier: e.target.value }))}
                                 className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
                                 placeholder="Supplier name"
+                                list="purchase-supplier-options"
                                 required
                                 disabled={isSubmitting}
                             />
+                            <datalist id="purchase-supplier-options">
+                                {supplierOptions.map((supplier) => (
+                                    <option key={supplier} value={supplier} />
+                                ))}
+                            </datalist>
                         </div>
 
                         <div>
@@ -782,7 +976,7 @@ export default function PurchaseForm({
 
                         <div>
                             <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
-                                FINAL TOTAL
+                                SUBTOTAL
                             </label>
                             <div className="w-full rounded-sm border border-gray-300 bg-gray-50 px-3 py-3">
                                 <span className={`font-light text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>
@@ -820,6 +1014,51 @@ export default function PurchaseForm({
                                         placeholder="Optional"
                                         disabled={isSubmitting}
                                     />
+                                </div>
+                            </div>
+
+                            <div className={`mt-6 grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
+                                <div>
+                                    <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                        GST / TPS
+                                    </label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={formData.gstAmount}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, gstAmount: e.target.value }))}
+                                        className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                        placeholder="0.00"
+                                        disabled={isSubmitting}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                        QST / TVQ
+                                    </label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={formData.qstAmount}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, qstAmount: e.target.value }))}
+                                        className="w-full rounded-sm border border-gray-300 px-3 py-3 font-light tracking-wide focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                        placeholder="0.00"
+                                        disabled={isSubmitting}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className={`mb-2 block tracking-wide text-gray-700 ${isMobile ? 'text-xs font-medium' : 'text-sm font-light'}`}>
+                                        INVOICE TOTAL
+                                    </label>
+                                    <div className="w-full rounded-sm border border-gray-300 bg-gray-50 px-3 py-3">
+                                        <span className={`font-light text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>
+                                            {formatMoney(invoiceTotal, locale)}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -889,7 +1128,7 @@ export default function PurchaseForm({
                     disabled={isSubmitting}
                     className={`w-full rounded-sm bg-gray-900 text-white transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-400 ${isMobile ? 'py-3 text-sm' : 'py-4 text-base'} font-light tracking-wide`}
                 >
-                    {isSubmitting ? 'RECORDING PURCHASE...' : 'RECORD PURCHASE'}
+                    {isSubmitting ? 'SAVING PURCHASE...' : invoiceFile ? 'SAVE PURCHASE + INVOICE' : 'RECORD PURCHASE'}
                 </button>
             </form>
 
@@ -905,8 +1144,8 @@ export default function PurchaseForm({
                         </h4>
                         <p className={`mt-1 font-light text-blue-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                             {formData.purchaseType === 'ingredient'
-                                ? 'Food ingredients will update your inventory automatically and will also be recorded in the shared purchases collection.'
-                                : 'Supplies and equipment are recorded in the same purchases collection, so app entries and n8n POST entries will appear together.'}
+                                ? 'Food ingredients update inventory automatically. Uploading an invoice keeps the tax document linked to the purchase.'
+                                : 'Supplies and equipment are recorded with supplier, tax, payment, invoice, and attachment fields for bookkeeping.'}
                         </p>
                     </div>
                 </div>

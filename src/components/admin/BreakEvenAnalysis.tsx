@@ -2,7 +2,21 @@ import { useState, useMemo } from 'react'
 import { useProducts } from '../../context/ProductsContext'
 import { useExpenses } from '../../context/ExpensesContext'
 
-export default function BreakEvenAnalysis() {
+type BreakEvenAnalysisProps = {
+    actualRevenue?: number
+    actualUnitsSold?: number
+    actualOrders?: number
+    monthlyExpenses?: number
+    estimatedIngredientCosts?: number
+}
+
+export default function BreakEvenAnalysis({
+    actualRevenue = 0,
+    actualUnitsSold = 0,
+    actualOrders = 0,
+    monthlyExpenses,
+    estimatedIngredientCosts = 0,
+}: BreakEvenAnalysisProps) {
     const { products } = useProducts()
     const { getMonthlyExpenses } = useExpenses()
 
@@ -13,8 +27,26 @@ export default function BreakEvenAnalysis() {
         if (customFixedCosts) {
             return parseFloat(customFixedCosts) || 0
         }
-        return getMonthlyExpenses()
-    }, [customFixedCosts, getMonthlyExpenses])
+        return monthlyExpenses ?? getMonthlyExpenses()
+    }, [customFixedCosts, getMonthlyExpenses, monthlyExpenses])
+
+    const realBreakEven = useMemo(() => {
+        const avgRevenuePerItem = actualUnitsSold > 0 ? actualRevenue / actualUnitsSold : 0
+        const avgFoodCostPerItem = actualUnitsSold > 0 ? estimatedIngredientCosts / actualUnitsSold : 0
+        const contributionMargin = avgRevenuePerItem - avgFoodCostPerItem
+        const neededItems = contributionMargin > 0 ? Math.ceil(monthlyFixedCosts / contributionMargin) : 0
+        const progress = neededItems > 0 ? Math.min(100, (actualUnitsSold / neededItems) * 100) : 0
+
+        return {
+            avgRevenuePerItem,
+            avgFoodCostPerItem,
+            contributionMargin,
+            neededItems,
+            progress,
+            remainingItems: Math.max(0, neededItems - actualUnitsSold),
+            projectedRevenue: neededItems * avgRevenuePerItem,
+        }
+    }, [actualRevenue, actualUnitsSold, estimatedIngredientCosts, monthlyFixedCosts])
 
     const breakEvenData = useMemo(() => {
         if (!selectedProductIds.length) return null
@@ -55,6 +87,68 @@ export default function BreakEvenAnalysis() {
 
     return (
         <div className="space-y-6">
+            <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Real sales break-even</p>
+                        <h3 className="mt-1 text-xl font-semibold text-gray-950">Based on Clover, website, and recorded sales</h3>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
+                            This uses the last 30 days of order revenue and matched product costs. If products are missing cost prices, the food cost estimate will be low.
+                        </p>
+                    </div>
+                    <div className="grid gap-3 text-sm sm:grid-cols-3 lg:min-w-[520px]">
+                        <div className="rounded-lg bg-gray-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Actual orders</p>
+                            <p className="mt-1 text-lg font-semibold text-gray-950">{actualOrders}</p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Items sold</p>
+                            <p className="mt-1 text-lg font-semibold text-gray-950">{actualUnitsSold.toFixed(0)}</p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Need to break even</p>
+                            <p className="mt-1 text-lg font-semibold text-gray-950">
+                                {realBreakEven.neededItems ? `${realBreakEven.neededItems} items` : 'Add cost data'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.8fr]">
+                    <div>
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium text-gray-700">Break-even progress</span>
+                            <span className="font-semibold text-gray-950">{realBreakEven.progress.toFixed(0)}%</span>
+                        </div>
+                        <div className="mt-2 h-3 overflow-hidden rounded-full bg-gray-100">
+                            <div className="h-full rounded-full bg-[#f26350]" style={{ width: `${realBreakEven.progress}%` }} />
+                        </div>
+                        <p className="mt-2 text-sm text-gray-500">
+                            {realBreakEven.neededItems
+                                ? realBreakEven.remainingItems > 0
+                                    ? `You need about ${realBreakEven.remainingItems.toFixed(0)} more items this month to cover fixed costs.`
+                                    : 'You are past the estimated break-even point for this month.'
+                                : 'Add product cost prices to calculate a reliable break-even target.'}
+                        </p>
+                    </div>
+
+                    <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm">
+                        <div className="flex justify-between gap-3">
+                            <span className="text-gray-500">Avg revenue per item</span>
+                            <span className="font-semibold text-gray-950">${realBreakEven.avgRevenuePerItem.toFixed(2)}</span>
+                        </div>
+                        <div className="mt-2 flex justify-between gap-3">
+                            <span className="text-gray-500">Estimated food cost per item</span>
+                            <span className="font-semibold text-gray-950">${realBreakEven.avgFoodCostPerItem.toFixed(2)}</span>
+                        </div>
+                        <div className="mt-2 flex justify-between gap-3 border-t border-gray-200 pt-2">
+                            <span className="text-gray-500">Contribution per item</span>
+                            <span className="font-semibold text-emerald-700">${realBreakEven.contributionMargin.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Input Section */}
                 <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">

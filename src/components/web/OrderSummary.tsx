@@ -14,6 +14,13 @@ interface OrderSummaryProps {
 
 const DELIVERY_MINIMUM = 150
 
+function getLocalizedText(value: MenuItem['description'] | string | undefined, language: string) {
+    if (!value) return ''
+    if (typeof value === 'string') return value
+    const locale = language.split('-')[0] as 'fr' | 'en' | 'es'
+    return value[locale] || value.fr || value.en || value.es || ''
+}
+
 const OrderSummary = memo(function OrderSummary({
     cartTotal,
     itemCount,
@@ -22,7 +29,7 @@ const OrderSummary = memo(function OrderSummary({
     qst,
     gst,
 }: OrderSummaryProps) {
-    const { t } = useTranslation()
+    const { t, i18n } = useTranslation()
 
     const addToCart = useCartStore((state) => state.addToCart)
     const removeFromCart = useCartStore((state) => state.removeFromCart)
@@ -72,6 +79,9 @@ const OrderSummary = memo(function OrderSummary({
                         const safePrice = safeItem.price || 0
                         const safeQuantity = safeItem.quantity || 0
                         const itemTotal = safePrice * safeQuantity
+                        const itemDescription = getLocalizedText(safeItem.description, i18n.language)
+                        const itemIngredients = Array.isArray(safeItem.ingredients) ? safeItem.ingredients : []
+                        const isCustomByos = String(safeItem.id || '').startsWith('custom-sushi-')
 
                         return (
                             <div
@@ -106,6 +116,32 @@ const OrderSummary = memo(function OrderSummary({
                                         <p className="text-white/80 font-light text-sm mt-1">
                                             ${safePrice.toFixed(2)}
                                         </p>
+                                        {(isCustomByos || itemDescription || itemIngredients.length > 0) && (
+                                            <div className="mt-2 space-y-2">
+                                                {itemDescription && (
+                                                    <p className="line-clamp-3 text-xs leading-5 text-white/55">
+                                                        {itemDescription}
+                                                    </p>
+                                                )}
+                                                {itemIngredients.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {itemIngredients.slice(0, isCustomByos ? 12 : 5).map((ingredient, ingredientIndex) => (
+                                                            <span
+                                                                key={`${safeId}-ingredient-${ingredientIndex}`}
+                                                                className="border border-white/10 bg-white/5 px-1.5 py-0.5 text-[11px] leading-4 text-white/60"
+                                                            >
+                                                                {ingredient}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {safeItem.preparation && (
+                                                    <p className="border-l border-[#f26350]/60 pl-2 text-[11px] leading-4 text-white/50">
+                                                        {safeItem.preparation}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

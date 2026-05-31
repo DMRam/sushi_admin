@@ -1,7 +1,17 @@
 import { useState, useMemo } from 'react'
 import { useExpenses } from '../../../../context/ExpensesContext'
 
-export default function ExpenseBreakdown() {
+type ExpenseBreakdownProps = {
+  actualLaborCost?: number
+  adjustedMonthlyExpenses?: number
+  laborFallbackAmount?: number
+}
+
+export default function ExpenseBreakdown({
+  actualLaborCost = 0,
+  adjustedMonthlyExpenses,
+  laborFallbackAmount = 0,
+}: ExpenseBreakdownProps) {
   const { expenses, addExpense, removeExpense, getMonthlyExpenses, getExpensesByCategory, loading, error } = useExpenses()
 
   const [showAddForm, setShowAddForm] = useState(false)
@@ -32,9 +42,26 @@ export default function ExpenseBreakdown() {
     return getExpensesByCategory()
   }, [expenses, getExpensesByCategory])
 
-  const monthlyExpenses = useMemo(() => {
+  const recordedMonthlyExpenses = useMemo(() => {
     return getMonthlyExpenses()
   }, [expenses, getMonthlyExpenses])
+
+  const monthlyExpenses = adjustedMonthlyExpenses ?? recordedMonthlyExpenses
+
+  const normalizedExpensesByCategory = useMemo(() => {
+    const normalized = { ...expensesByCategory }
+
+    if (actualLaborCost > 0) {
+      delete normalized.salaries
+      delete normalized.salary
+      delete normalized.labor
+      delete normalized.payroll
+      delete normalized.wages
+      normalized.payroll_actual = actualLaborCost
+    }
+
+    return normalized
+  }, [expensesByCategory, actualLaborCost])
 
   const recentExpenses = useMemo(() => {
     return expenses
@@ -96,7 +123,7 @@ export default function ExpenseBreakdown() {
 
     return (
       <div className="flex flex-wrap gap-3 justify-center">
-        {Object.entries(expensesByCategory)
+        {Object.entries(normalizedExpensesByCategory)
           .sort(([, a], [, b]) => (b as number) - (a as number))
           .map(([category, amount]) => {
             const color = getCategoryColor(category)
@@ -160,7 +187,9 @@ export default function ExpenseBreakdown() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
             <h3 className="text-lg sm:text-xl font-light text-gray-900">Expense Breakdown</h3>
-            <p className="text-gray-500 font-light text-xs sm:text-sm mt-1">Track and categorize business expenses</p>
+            <p className="text-gray-500 font-light text-xs sm:text-sm mt-1">
+              Tracks fixed expenses and uses actual payroll shifts for labor when available.
+            </p>
           </div>
           <button
             onClick={() => setShowAddForm(true)}
@@ -176,7 +205,7 @@ export default function ExpenseBreakdown() {
         <div className="bg-white border border-gray-200 rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-light text-gray-500 truncate">MONTHLY EXPENSES</p>
+              <p className="text-xs font-light text-gray-500 truncate">REAL MONTHLY COST</p>
               <p className="text-base sm:text-lg font-light text-red-600 mt-1 truncate">${monthlyExpenses.toFixed(2)}</p>
             </div>
             <div className="w-6 h-6 sm:w-8 sm:h-8 bg-red-100 rounded-sm flex items-center justify-center flex-shrink-0 ml-2">
@@ -190,8 +219,10 @@ export default function ExpenseBreakdown() {
         <div className="bg-white border border-gray-200 rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-light text-gray-500 truncate">CATEGORIES</p>
-              <p className="text-base sm:text-lg font-light text-blue-600 mt-1 truncate">{Object.keys(expensesByCategory).length}</p>
+              <p className="text-xs font-light text-gray-500 truncate">PAYROLL SOURCE</p>
+              <p className="text-base sm:text-lg font-light text-blue-600 mt-1 truncate">
+                {actualLaborCost > 0 ? 'Shifts' : laborFallbackAmount > 0 ? 'Expense' : 'None'}
+              </p>
             </div>
             <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 rounded-sm flex items-center justify-center flex-shrink-0 ml-2">
               <svg className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,8 +235,10 @@ export default function ExpenseBreakdown() {
         <div className="bg-white border border-gray-200 rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-light text-gray-500 truncate">TOTAL EXPENSES</p>
-              <p className="text-base sm:text-lg font-light text-purple-600 mt-1 truncate">{expenses.length}</p>
+              <p className="text-xs font-light text-gray-500 truncate">LABOR COST</p>
+              <p className="text-base sm:text-lg font-light text-purple-600 mt-1 truncate">
+                ${(actualLaborCost || laborFallbackAmount).toFixed(2)}
+              </p>
             </div>
             <div className="w-6 h-6 sm:w-8 sm:h-8 bg-purple-100 rounded-sm flex items-center justify-center flex-shrink-0 ml-2">
               <svg className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -328,12 +361,12 @@ export default function ExpenseBreakdown() {
       {/* Expense Breakdown by Category */}
       <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
         <h4 className="text-base sm:text-lg font-light text-gray-900 mb-3">EXPENSES BY CATEGORY</h4>
-        {Object.keys(expensesByCategory).length > 0 ? (
+        {Object.keys(normalizedExpensesByCategory).length > 0 ? (
           <div className="space-y-3">
             <ExpensePieChart />
 
             <div className="space-y-2">
-              {Object.entries(expensesByCategory)
+              {Object.entries(normalizedExpensesByCategory)
                 .sort(([, a], [, b]) => (b as number) - (a as number))
                 .map(([category, amount]) => {
                   const percentage = ((amount as number) / monthlyExpenses) * 100
@@ -342,7 +375,7 @@ export default function ExpenseBreakdown() {
                   return (
                     <div key={category} className="space-y-1">
                       <div className="flex justify-between text-xs">
-                        <span className="font-light capitalize">{category}</span>
+                        <span className="font-light capitalize">{category.replace('_', ' ')}</span>
                         <span className="font-light">${(amount as number).toFixed(0)} ({percentage.toFixed(0)}%)</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-1.5">

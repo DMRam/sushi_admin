@@ -95,7 +95,7 @@ export default function ProductForm() {
 
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5">
             {/* Product Selection */}
             <div>
 
@@ -108,11 +108,11 @@ export default function ProductForm() {
             </div>
 
             {/* Product Type Selection - Only show when creating new product */}
-            <div className="bg-white border border-gray-200 rounded-sm p-6">
+            <div className="border border-slate-200 bg-white p-5">
                 <div className="flex items-center justify-between gap-3 mb-4">
-                    <h3 className="text-lg font-light text-gray-900 tracking-wide">PRODUCT TYPE</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Product type</h3>
                     {selectedProductId && (
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-slate-500">
                             Changing type may reset related fields
                         </span>
                     )}
@@ -122,25 +122,25 @@ export default function ProductForm() {
                     <button
                         type="button"
                         onClick={() => requestProductTypeChange('ingredientBased')}
-                        className={`p-4 border-2 rounded-sm text-center transition-colors ${productType === 'ingredientBased'
-                                ? 'border-gray-900 bg-gray-50 text-gray-900'
-                                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                        className={`border p-4 text-left transition-colors ${productType === 'ingredientBased'
+                                ? 'border-slate-950 bg-slate-50 text-slate-950'
+                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                             }`}
                     >
-                        <div className="font-light tracking-wide">INGREDIENT BASED</div>
-                        <div className="text-sm mt-1 font-light">Calculate cost from ingredients</div>
+                        <div className="font-semibold tracking-wide">Ingredient based</div>
+                        <div className="mt-1 text-sm text-slate-500">Calculate cost from ingredients</div>
                     </button>
 
                     <button
                         type="button"
                         onClick={() => requestProductTypeChange('directCost')}
-                        className={`p-4 border-2 rounded-sm text-center transition-colors ${productType === 'directCost'
-                                ? 'border-gray-900 bg-gray-50 text-gray-900'
-                                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                        className={`border p-4 text-left transition-colors ${productType === 'directCost'
+                                ? 'border-slate-950 bg-slate-50 text-slate-950'
+                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                             }`}
                     >
-                        <div className="font-light tracking-wide">DIRECT COST</div>
-                        <div className="text-sm mt-1 font-light">Set cost directly</div>
+                        <div className="font-semibold tracking-wide">Direct cost</div>
+                        <div className="mt-1 text-sm text-slate-500">Set cost directly</div>
                     </button>
                 </div>
             </div>
@@ -190,7 +190,7 @@ export default function ProductForm() {
                     <button
                         onClick={handleDelete}
                         disabled={loading}
-                        className="bg-red-600 text-white py-4 px-4 rounded-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 font-light tracking-wide disabled:bg-red-400 disabled:cursor-not-allowed transition-colors order-2 sm:order-1"
+                    className="order-2 border border-red-600 bg-red-600 px-4 py-4 font-semibold tracking-wide text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:bg-red-400 sm:order-1"
                     >
                         {loading ? 'DELETING...' : 'DELETE PRODUCT'}
                     </button>
@@ -198,7 +198,7 @@ export default function ProductForm() {
                 <button
                     onClick={handleSave}
                     disabled={loading}
-                    className={`bg-gray-900 text-white py-4 px-4 rounded-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 font-light tracking-wide disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors ${selectedProductId ? 'flex-1 order-1 sm:order-2' : 'w-full'
+                    className={`bg-slate-950 px-4 py-4 font-semibold tracking-wide text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400 ${selectedProductId ? 'flex-1 order-1 sm:order-2' : 'w-full'
                         }`}
                 >
                     {loading ? `SAVING... ${uploadProgress}%` : selectedProductId ? 'UPDATE PRODUCT' : 'CREATE PRODUCT'}
@@ -207,7 +207,7 @@ export default function ProductForm() {
 
             {/* Upload Progress */}
             {loading && uploadProgress > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-sm p-4">
+                <div className="border border-blue-200 bg-blue-50 p-4">
                     <div className="flex items-center gap-3">
                         <div className="flex-1 bg-gray-200 rounded-full h-2">
                             <div

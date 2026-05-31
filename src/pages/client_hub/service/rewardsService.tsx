@@ -2,6 +2,7 @@ import { supabase, supabaseAdmin } from "../../../lib/supabase";
 import type { Reward, UserClaimedReward } from "../interfaces/IClientHub";
 
 export class RewardsService {
+    private static readonly MAX_DAILY_CLAIMS = 1;
 
     /** Generate redemption code */
     private static generateRedemptionCode(userId: string, rewardId: string): string {
@@ -30,7 +31,7 @@ export class RewardsService {
             if (error) throw error;
 
             const claimCount = todaysClaims?.length || 0;
-            const MAX_DAILY_CLAIMS = 3;
+            const MAX_DAILY_CLAIMS = this.MAX_DAILY_CLAIMS;
 
             if (claimCount >= MAX_DAILY_CLAIMS) {
                 return {
@@ -262,7 +263,7 @@ export class RewardsService {
                 .lt('claimed_at', tomorrow.toISOString());
 
             const claimCount = todaysClaims?.length || 0;
-            const MAX_DAILY_CLAIMS = 3;
+            const MAX_DAILY_CLAIMS = this.MAX_DAILY_CLAIMS;
             const remainingClaims = MAX_DAILY_CLAIMS - claimCount;
 
             console.log('✅ Reward claimed:', {
@@ -315,7 +316,7 @@ export class RewardsService {
             if (error) throw error;
 
             const claimCount = todaysClaims?.length || 0;
-            const MAX_DAILY_CLAIMS = 3;
+            const MAX_DAILY_CLAIMS = this.MAX_DAILY_CLAIMS;
             const remainingClaims = MAX_DAILY_CLAIMS - claimCount;
 
             return {
@@ -330,8 +331,8 @@ export class RewardsService {
             // Return default values if there's an error
             return {
                 used: 0,
-                remaining: 3,
-                limit: 3,
+                remaining: this.MAX_DAILY_CLAIMS,
+                limit: this.MAX_DAILY_CLAIMS,
                 canClaim: true
             };
         }

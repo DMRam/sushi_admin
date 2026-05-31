@@ -1,17 +1,28 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  CalendarDays,
+  Gift,
+  History,
+  PackageCheck,
+  ReceiptText,
+  RefreshCw,
+  ShoppingBag,
+  Star,
+} from "lucide-react";
+
 import { ProfileTab } from "./ProfileTab";
 import { RewardsTab } from "./RewardsTab";
+import { BookingTab } from "./BookingTab";
 import type { OrderDetails, ProfileTabProps } from "../interfaces/IClientHub";
 import { ProfileService } from "../service/ProfileService";
 import type { ClientProfile } from "../../../types/types";
 
-// ✅ FIX: Ensure points history shape matches what UI uses
 export type PointsHistoryItem = {
   id: string;
   user_id?: string;
   order_id?: string | null;
-  type?: string; // "order" | "redeem" | "adjustment" | ...
+  type?: string;
   points: number;
   description: string;
   created_at: string;
@@ -19,17 +30,49 @@ export type PointsHistoryItem = {
 
 type RewardsTabsProps = ProfileTabProps & {
   isMobile?: boolean;
-  /**
-   * ✅ Optional but recommended:
-   * pass your user_points.balance (or whatever you call it)
-   */
   pointsBalance?: number;
-  /**
-   * If your ProfileTabProps already has pointsHistory typed differently,
-   * this prop will still accept it safely (we cast below).
-   */
   pointsHistory: PointsHistoryItem[];
 };
+
+function getOrderTotal(order: any): number {
+  return (
+    Number(order?.final_total) ||
+    Number(order?.totals?.finalTotal) ||
+    Number(order?.totals?.final_total) ||
+    Number(order?.amount) ||
+    0
+  );
+}
+
+function formatDateTime(dateString: string) {
+  return new Date(dateString).toLocaleDateString("en-CA", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  detail,
+}: {
+  icon: typeof Gift;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="border border-white/10 bg-white/[0.03] p-8 text-center">
+      <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center bg-white/[0.06] text-[#F45D4F]">
+        <Icon size={24} />
+      </div>
+      <h3 className="text-lg font-semibold text-white">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-white/50">{detail}</p>
+    </div>
+  );
+}
 
 export const RewardsTabs = ({
   clientProfile,
@@ -48,75 +91,37 @@ export const RewardsTabs = ({
 }: RewardsTabsProps) => {
   const navigate = useNavigate();
 
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const handleProfileUpdate = async (
-    updatedProfile: Partial<ClientProfile>
-  ): Promise<boolean> => {
-    try {
-      if (!clientProfile) return false;
-
-      const result = await ProfileService.updateProfile(
-        clientProfile.id,
-        updatedProfile
-      );
-
-      if (result.success) {
-        const updated = await ProfileService.getProfile(clientProfile.id);
-        if (updated) setClientProfile(updated);
-        return true;
-      } else {
-        console.error("❌ Profile update failed:", (result as any).error);
-        return false;
-      }
-    } catch (error) {
-      console.error("💥 Profile update error:", error);
-      return false;
-    }
-  };
-
-  // ✅ Derive balance if parent doesn't provide it
   const derivedBalance = useMemo(() => {
     if (typeof pointsBalance === "number") return pointsBalance;
-
-    // fallback: sum history (works even without user_points)
-    // Note: if your history stores both earns (+) and redeems (-), this is accurate.
     return (pointsHistory || []).reduce((sum, item) => sum + (Number(item.points) || 0), 0);
   }, [pointsBalance, pointsHistory]);
 
-  const getOrderTotal = (order: any): number => {
-    // supports multiple shapes:
-    // - order.final_total (from SuccessPage / normalized)
-    // - order.totals.finalTotal (from older model)
-    // - order.amount (some schemas)
-    return (
-      Number(order?.final_total) ||
-      Number(order?.totals?.finalTotal) ||
-      Number(order?.totals?.final_total) ||
-      Number(order?.amount) ||
-      0
-    );
-  };
-
-  // ✅ FIX: points per order should come from history first
   const getPointsForOrder = (orderId: string): number => {
     const entry = (pointsHistory || []).find(
       (h) => h.order_id === orderId && (h.type === "order" || !h.type)
     );
     if (entry) return Number(entry.points) || 0;
 
-    // fallback: compute from order total if no history record yet
     const order = (recentOrders || []).find((o) => o.id === orderId);
-    if (!order) return 0;
-    return Math.floor(getOrderTotal(order));
+    return order ? Math.floor(getOrderTotal(order)) : 0;
+  };
+
+  const handleProfileUpdate = async (
+    updatedProfile: Partial<ClientProfile>
+  ): Promise<boolean> => {
+    if (!clientProfile) return false;
+
+    try {
+      const result = await ProfileService.updateProfile(clientProfile.id, updatedProfile);
+      if (!result.success) return false;
+
+      const updated = await ProfileService.getProfile(clientProfile.id);
+      if (updated) setClientProfile(updated);
+      return true;
+    } catch (error) {
+      console.error("Profile update error:", error);
+      return false;
+    }
   };
 
   const handleQuickReorder = async (productId: string) => {
@@ -127,396 +132,304 @@ export const RewardsTabs = ({
     console.log("Reordering entire order:", order.id);
   };
 
-  // Responsive grid classes
-  const getGridClasses = () => (isMobile ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-3 gap-4");
-  const getQuickReorderGridClasses = () => (isMobile ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4");
-  const getMainGridClasses = () => (isMobile ? "grid grid-cols-1 gap-6" : "grid grid-cols-1 lg:grid-cols-2 gap-8");
-  const getOrdersGridClasses = () => (isMobile ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 gap-4");
+  if (loadingData) {
+    return (
+      <section className="border border-white/10 bg-white/[0.035] p-10 text-center">
+        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-white/10 border-t-[#F45D4F]" />
+        <p className="mt-4 text-sm font-semibold uppercase tracking-[0.16em] text-white/45">
+          Loading account data
+        </p>
+      </section>
+    );
+  }
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-4 md:p-6 backdrop-blur-sm w-full overflow-hidden">
-      {loadingData ? (
-        <div className="text-center py-8">
-          <div className="w-12 h-12 border-4 border-emerald-400/20 border-t-emerald-400 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white/60 font-light">Loading your data...</p>
-        </div>
-      ) : (
-        <div className="w-full">
-          {/* OVERVIEW */}
-          {activeTab === "overview" && (
-            <div className="space-y-6 md:space-y-8 w-full">
-              {/* Quick Actions */}
-              <div className={getGridClasses()}>
-                <button
-                  onClick={() => navigate("/menu")}
-                  className="bg-emerald-500 text-white p-4 rounded-lg hover:bg-emerald-600 transition-all duration-300 font-light text-center flex flex-col items-center justify-center min-h-[100px] w-full"
-                >
-                  <div className="text-2xl mb-2">🍽️</div>
-                  <span>Order Food</span>
-                </button>
+    <section className="border border-white/10 bg-white/[0.035] p-4 shadow-2xl shadow-black/25 sm:p-6">
+      {activeTab === "overview" && (
+        <div className="space-y-6">
+          <div className="grid gap-3 md:grid-cols-3">
+            <ActionButton icon={ShoppingBag} label="Order food" onClick={() => navigate("/order")} />
+            <ActionButton icon={CalendarDays} label="Book a table" onClick={() => setActiveTab("booking")} />
+            <ActionButton icon={RefreshCw} label="Quick reorder" onClick={() => setActiveTab("quick-reorder")} />
+          </div>
 
-                <button
-                  onClick={() => setActiveTab("quick-reorder")}
-                  className="bg-blue-500 text-white p-4 rounded-lg hover:bg-blue-600 transition-all duration-300 font-light text-center flex flex-col items-center justify-center min-h-[100px] w-full"
-                >
-                  <div className="text-2xl mb-2">⚡</div>
-                  <span>Quick Reorder</span>
-                </button>
+          <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+            <Panel title="Recent orders" icon={ReceiptText}>
+              {recentOrders?.length ? (
+                <div className="space-y-3">
+                  {recentOrders.slice(0, isMobile ? 2 : 4).map((order) => (
+                    <OrderRow
+                      key={order.id}
+                      order={order}
+                      points={getPointsForOrder(order.id)}
+                      formatCurrency={formatCurrency}
+                      onReorder={() => handleReorderEntireOrder(order)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState icon={ReceiptText} title="No orders yet" detail="Your online order history will appear here." />
+              )}
+            </Panel>
 
+            <Panel title="Rewards wallet" icon={Star}>
+              <div className="border border-[#F45D4F]/35 bg-[#F45D4F]/10 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#ff8a7b]">
+                  Available points
+                </p>
+                <p className="mt-2 text-5xl font-semibold text-white">{Number(derivedBalance || 0)}</p>
+                <p className="mt-3 text-sm text-white/56">
+                  Points can be redeemed for MaiSushi rewards when available.
+                </p>
                 <button
+                  type="button"
                   onClick={() => setActiveTab("rewards")}
-                  className="bg-purple-500 text-white p-4 rounded-lg hover:bg-purple-600 transition-all duration-300 font-light text-center flex flex-col items-center justify-center min-h-[100px] w-full"
+                  className="mt-5 inline-flex items-center gap-2 bg-[#F45D4F] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#de4f43]"
                 >
-                  <div className="text-2xl mb-2">🎁</div>
-                  <span>Claim Rewards</span>
+                  <Gift size={18} />
+                  Browse rewards
                 </button>
               </div>
 
-              <div className={getMainGridClasses()}>
-                {/* Recent Orders */}
-                <div className="w-full">
-                  <h3 className="text-lg md:text-xl font-light text-white mb-4 flex items-center gap-2">
-                    <span>📦</span>
-                    Recent Orders
-                  </h3>
-
-                  {recentOrders?.length > 0 ? (
-                    <div className="space-y-3 w-full">
-                      {recentOrders.slice(0, isMobile ? 2 : 3).map((order) => {
-                        const pointsEarned = getPointsForOrder(order.id);
-                        return (
-                          <div
-                            key={order.id}
-                            className="flex justify-between items-start p-3 md:p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all duration-300 group w-full"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <p className="text-white font-light text-sm md:text-base truncate">
-                                {order.items?.slice(0, 2).map((item) => item.name).join(", ")}
-                                {order.items?.length > 2 && ` +${order.items.length - 2} more`}
-                              </p>
-                              <p className="text-white/60 text-xs md:text-sm font-light">
-                                {formatDateTime(order.created_at)}
-                              </p>
-
-                              <div className="flex items-center gap-2 md:gap-3 mt-1 flex-wrap">
-                                <p className="text-white/40 text-xs font-light capitalize">
-                                  {(order as any).type ?? "order"} • {(order as any).status ?? "completed"}
-                                </p>
-
-                                {pointsEarned > 0 && (
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-yellow-400 text-xs">⭐</span>
-                                    <span className="text-yellow-400 text-xs font-medium">
-                                      +{pointsEarned} pts
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="text-right flex-shrink-0 ml-2 md:ml-4">
-                              <p className="text-white font-light text-sm md:text-base">
-                                {formatCurrency(getOrderTotal(order))}
-                              </p>
-                              <button
-                                onClick={() => handleReorderEntireOrder(order)}
-                                className="text-emerald-400 text-xs md:text-sm font-light opacity-70 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap"
-                              >
-                                Reorder
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-white/60 font-light text-center py-4">No orders yet</p>
-                  )}
-                </div>
-
-                {/* Rewards Preview */}
-                <div className="w-full">
-                  <h3 className="text-lg md:text-xl font-light text-white mb-4 flex items-center gap-2">
-                    <span>🎁</span>
-                    Rewards Preview
-                  </h3>
-
-                  <div className="space-y-4 w-full">
-                    {/* Points Balance Card */}
-                    <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-400/20 rounded-xl p-4 w-full">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full">
-                        <div className="flex-1">
-                          <h4 className="text-white font-light text-sm md:text-base">
-                            Available Points
-                          </h4>
-                          <p className="text-emerald-400 text-xl md:text-2xl font-light mt-1">
-                            {Number(derivedBalance || 0)} pts
-                          </p>
-                        </div>
-
-                        <div className="text-right">
-                          <p className="text-white/60 text-xs md:text-sm">Ready to redeem</p>
-                          <button
-                            onClick={() => setActiveTab("rewards")}
-                            className="mt-2 bg-emerald-500 text-white px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm hover:bg-emerald-600 transition-all duration-300 font-light"
-                          >
-                            View Rewards
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Quick Rewards Grid (placeholder) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
-                      <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-400/20 rounded-lg p-3 w-full">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-base md:text-lg">🍽️</span>
-                          <h5 className="text-white font-light text-xs md:text-sm">Free Appetizer</h5>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-amber-400 text-xs">100 pts</span>
-                          <span className="text-white/60 text-xs">Popular</span>
-                        </div>
-                      </div>
-
-                      <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-400/20 rounded-lg p-3 w-full">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-base md:text-lg">🚚</span>
-                          <h5 className="text-white font-light text-xs md:text-sm">Free Delivery</h5>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-blue-400 text-xs">150 pts</span>
-                          <span className="text-white/60 text-xs">Most Used</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* CTA */}
-                    <div className="text-center w-full">
-                      <button
-                        onClick={() => setActiveTab("rewards")}
-                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 font-light flex items-center justify-center gap-2 text-sm md:text-base"
-                      >
-                        <span>🎁</span>
-                        <span className="truncate">View All Rewards</span>
-                        <span>→</span>
-                      </button>
-
-                      <p className="text-white/40 text-xs mt-2">
-                        {Number(derivedBalance || 0) > 0
-                          ? `You have ${derivedBalance} points ready to redeem!`
-                          : "Make your first order to start earning points!"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <MiniStat label="Monthly orders" value={`${stats.monthlyOrders}`} />
+                <MiniStat label="Average order" value={formatCurrency(stats.averageOrder || 0)} />
               </div>
-            </div>
-          )}
-
-          {/* ORDERS */}
-          {activeTab === "orders" && (
-            <div className="w-full">
-              <h3 className="text-lg md:text-xl font-light text-white mb-4">Order History</h3>
-
-              {recentOrders?.length > 0 ? (
-                <div className="space-y-4 w-full">
-                  {recentOrders.map((order) => {
-                    const pointsEarned = getPointsForOrder(order.id);
-
-                    return (
-                      <div
-                        key={order.id}
-                        className="bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all duration-300 overflow-hidden w-full"
-                      >
-                        <div className="p-3 md:p-4 border-b border-white/10">
-                          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2 w-full">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-white font-light text-sm md:text-base">
-                                Order #{order.id.slice(-8)}
-                              </p>
-                              <p className="text-white/60 text-xs md:text-sm font-light">
-                                {formatDateTime(order.created_at)}
-                              </p>
-
-                              {pointsEarned > 0 && (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-yellow-400 text-xs md:text-sm">⭐</span>
-                                  <span className="text-yellow-400 text-xs md:text-sm font-medium">
-                                    +{pointsEarned} points earned
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="text-right md:text-left">
-                              <p className="text-white font-light text-sm md:text-base">
-                                {formatCurrency(getOrderTotal(order))}
-                              </p>
-                              <p className="text-emerald-400 text-xs md:text-sm font-light capitalize">
-                                {(order as any).status ?? "completed"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="p-3 md:p-4">
-                          <div className={getOrdersGridClasses()}>
-                            <div className="w-full">
-                              <h4 className="text-white font-light text-sm md:text-base mb-2">Items</h4>
-                              {(order.items || []).map((item, index) => (
-                                <div key={index} className="flex justify-between text-white/60 text-xs md:text-sm w-full">
-                                  <span className="flex-1 truncate mr-2">
-                                    {item.quantity}x {item.name}
-                                  </span>
-                                  <span className="flex-shrink-0">
-                                    {formatCurrency(item.price * item.quantity)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-
-                            <div className="w-full">
-                              <h4 className="text-white font-light text-sm md:text-base mb-2">Order Details</h4>
-                              <div className="text-white/60 text-xs md:text-sm space-y-1">
-                                <p>Type: {(order as any).type ?? "order"}</p>
-                                {(order as any).delivery_address && (
-                                  <p className="truncate">Address: {(order as any).delivery_address}</p>
-                                )}
-                                <p>Items: {(order.items || []).length}</p>
-                                {pointsEarned > 0 && (
-                                  <p className="text-yellow-400">Points Earned: +{pointsEarned}</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => handleReorderEntireOrder(order)}
-                            className="mt-4 w-full md:w-auto bg-emerald-500 text-white px-4 md:px-6 py-2 rounded-lg hover:bg-emerald-600 transition-all duration-300 font-light text-sm md:text-base"
-                          >
-                            Reorder Entire Order
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-white/60 font-light text-center py-4">No orders yet</p>
-              )}
-            </div>
-          )}
-
-          {/* QUICK REORDER */}
-          {activeTab === "quick-reorder" && (
-            <div className="w-full">
-              <h3 className="text-lg md:text-xl font-light text-white mb-4">Quick Reorder</h3>
-
-              {quickReorderItems?.length > 0 ? (
-                <div className={getQuickReorderGridClasses()}>
-                  {quickReorderItems.map((item) => (
-                    <div
-                      key={item.productId}
-                      className="bg-white/5 rounded-lg border border-white/10 p-3 md:p-4 hover:bg-white/10 transition-all duration-300 w-full"
-                    >
-                      <div className="flex items-start gap-2 md:gap-3 mb-3 w-full">
-                        {item.image ? (
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="w-10 h-10 md:w-12 md:h-12 rounded-lg object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <span className="text-base md:text-lg">🍽️</span>
-                          </div>
-                        )}
-
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-white font-light text-sm md:text-base line-clamp-2">{item.name}</h4>
-                          <p className="text-emerald-400 font-light text-sm md:text-base">{formatCurrency(item.price)}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-center text-white/60 text-xs md:text-sm mb-3 w-full">
-                        <span className="truncate">Ordered {item.orderCount} times</span>
-                        <span className="flex-shrink-0 ml-2">Last: {formatDate(item.lastOrdered)}</span>
-                      </div>
-
-                      <button
-                        onClick={() => handleQuickReorder(item.productId)}
-                        className="w-full bg-emerald-500 text-white py-2 rounded-lg hover:bg-emerald-600 transition-all duration-300 font-light text-sm md:text-base"
-                      >
-                        Add to Cart
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-white/60 font-light text-center py-4">No reorder history yet</p>
-              )}
-            </div>
-          )}
-
-          {/* POINTS */}
-          {activeTab === "points" && (
-            <div className="w-full">
-              <h3 className="text-lg md:text-xl font-light text-white mb-4">Complete Points History</h3>
-
-              {pointsHistory?.length > 0 ? (
-                <div className="space-y-3 w-full">
-                  {pointsHistory.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex justify-between items-start p-3 md:p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all duration-300 w-full"
-                    >
-                      <div className="flex-1 min-w-0 pr-2 md:pr-4">
-                        <p className="text-white font-light text-sm md:text-base break-words">
-                          {item.description}
-                        </p>
-                        <p className="text-white/60 text-xs md:text-sm font-light">
-                          {formatDate(item.created_at)}
-                        </p>
-
-                        {item.order_id && (
-                          <p className="text-white/40 text-xs">Order #{item.order_id.slice(-8)}</p>
-                        )}
-                      </div>
-
-                      <div className="text-right flex-shrink-0 whitespace-nowrap">
-                        <p className="text-emerald-400 font-light text-base md:text-lg">
-                          {item.points >= 0 ? "+" : ""}
-                          {item.points} pts
-                        </p>
-                        <p className="text-white/60 text-xs md:text-sm font-light capitalize">
-                          {item.type || "activity"}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-white/60 font-light text-center py-4">No points history yet</p>
-              )}
-            </div>
-          )}
-
-          {/* REWARDS */}
-          {activeTab === "rewards" && <RewardsTab isMobile={isMobile} />}
-
-          {/* PROFILE */}
-          {activeTab === "profile" && clientProfile && (
-            <ProfileTab
-              clientProfile={clientProfile}
-              formatCurrency={formatCurrency}
-              stats={stats}
-              onProfileUpdate={handleProfileUpdate}
-              isMobile={isMobile}
-            />
-          )}
+            </Panel>
+          </div>
         </div>
       )}
-    </div>
+
+      {activeTab === "orders" && (
+        <Panel title="Order history" icon={ReceiptText}>
+          {recentOrders?.length ? (
+            <div className="space-y-4">
+              {recentOrders.map((order) => (
+                <article key={order.id} className="border border-white/10 bg-black/20 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-lg font-semibold text-white">Order #{order.id.slice(-8)}</p>
+                      <p className="mt-1 text-sm text-white/50">{formatDateTime(order.created_at)}</p>
+                    </div>
+                    <div className="sm:text-right">
+                      <p className="text-xl font-semibold text-white">{formatCurrency(getOrderTotal(order))}</p>
+                      <p className="text-sm capitalize text-[#ff8a7b]">{(order as any).status ?? "completed"}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/42">Items</p>
+                      <div className="space-y-1 text-sm text-white/62">
+                        {(order.items || []).map((item, index) => (
+                          <div key={index} className="flex justify-between gap-3">
+                            <span className="min-w-0 truncate">{item.quantity}x {item.name}</span>
+                            <span className="shrink-0">{formatCurrency(item.price * item.quantity)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/42">Details</p>
+                      <div className="space-y-1 text-sm text-white/62">
+                        <p>Type: {(order as any).type ?? "order"}</p>
+                        <p>Items: {(order.items || []).length}</p>
+                        {getPointsForOrder(order.id) > 0 && (
+                          <p className="text-[#ff8a7b]">Points earned: +{getPointsForOrder(order.id)}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleReorderEntireOrder(order)}
+                    className="mt-4 inline-flex items-center gap-2 border border-white/12 px-4 py-2.5 text-sm font-semibold text-white/70 transition hover:bg-white/8 hover:text-white"
+                  >
+                    <RefreshCw size={17} />
+                    Reorder
+                  </button>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={ReceiptText} title="No orders yet" detail="Completed online orders will appear here." />
+          )}
+        </Panel>
+      )}
+
+      {activeTab === "booking" && clientProfile && (
+        <BookingTab clientProfile={clientProfile} />
+      )}
+
+      {activeTab === "quick-reorder" && (
+        <Panel title="Quick reorder" icon={RefreshCw}>
+          {quickReorderItems?.length ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {quickReorderItems.map((item) => (
+                <article key={item.productId} className="border border-white/10 bg-black/20 p-4">
+                  <div className="flex gap-3">
+                    {item.image ? (
+                      <img src={item.image} alt="" className="h-14 w-14 object-cover" />
+                    ) : (
+                      <div className="flex h-14 w-14 items-center justify-center bg-white/[0.06] text-[#F45D4F]">
+                        <PackageCheck size={24} />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <h3 className="line-clamp-2 font-semibold text-white">{item.name}</h3>
+                      <p className="mt-1 text-sm text-[#ff8a7b]">{formatCurrency(item.price)}</p>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-white/50">
+                    Ordered {item.orderCount} times · Last {formatDate(item.lastOrdered)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickReorder(item.productId)}
+                    className="mt-4 w-full bg-[#F45D4F] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#de4f43]"
+                  >
+                    Add to cart
+                  </button>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={RefreshCw} title="No reorder history yet" detail="Your frequent favorites will appear after a few orders." />
+          )}
+        </Panel>
+      )}
+
+      {activeTab === "points" && (
+        <Panel title="Points history" icon={History}>
+          {pointsHistory?.length ? (
+            <div className="space-y-3">
+              {pointsHistory.map((item) => (
+                <div key={item.id} className="flex items-start justify-between gap-4 border border-white/10 bg-black/20 p-4">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-white">{item.description}</p>
+                    <p className="mt-1 text-sm text-white/48">{formatDate(item.created_at)}</p>
+                    {item.order_id && <p className="mt-1 text-xs text-white/35">Order #{item.order_id.slice(-8)}</p>}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-xl font-semibold text-[#ff8a7b]">
+                      {item.points >= 0 ? "+" : ""}{item.points} pts
+                    </p>
+                    <p className="text-xs uppercase tracking-[0.12em] text-white/38">{item.type || "activity"}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={History} title="No points activity yet" detail="Earn points when orders are linked to your account." />
+          )}
+        </Panel>
+      )}
+
+      {activeTab === "rewards" && (
+        <div className="[&_div.rounded-xl]:rounded-none [&_div.rounded-lg]:rounded-none [&_button.rounded-lg]:rounded-none">
+          <RewardsTab isMobile={isMobile} />
+        </div>
+      )}
+
+      {activeTab === "profile" && clientProfile && (
+        <div className="[&_div.rounded-xl]:rounded-none [&_div.rounded-lg]:rounded-none [&_button.rounded-lg]:rounded-none">
+          <ProfileTab
+            clientProfile={clientProfile}
+            formatCurrency={formatCurrency}
+            stats={stats}
+            onProfileUpdate={handleProfileUpdate}
+            isMobile={isMobile}
+          />
+        </div>
+      )}
+    </section>
   );
 };
+
+function ActionButton({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: typeof Gift;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group border border-white/10 bg-black/20 p-5 text-left transition hover:border-[#F45D4F]/45 hover:bg-[#F45D4F]/10"
+    >
+      <div className="inline-flex h-11 w-11 items-center justify-center bg-white/[0.06] text-[#F45D4F] transition group-hover:bg-[#F45D4F] group-hover:text-white">
+        <Icon size={22} />
+      </div>
+      <p className="mt-4 text-lg font-semibold text-white">{label}</p>
+    </button>
+  );
+}
+
+function Panel({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  icon: typeof Gift;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="mb-4 flex items-center gap-2">
+        <Icon size={20} className="text-[#F45D4F]" />
+        <h2 className="text-xl font-semibold tracking-tight text-white">{title}</h2>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-white/10 bg-black/20 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/42">{label}</p>
+      <p className="mt-2 text-xl font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function OrderRow({
+  order,
+  points,
+  formatCurrency,
+  onReorder,
+}: {
+  order: OrderDetails;
+  points: number;
+  formatCurrency: (amount: number) => string;
+  onReorder: () => void;
+}) {
+  return (
+    <article className="flex flex-col gap-3 border border-white/10 bg-black/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="truncate font-semibold text-white">
+          {order.items?.slice(0, 2).map((item) => item.name).join(", ") || `Order #${order.id.slice(-8)}`}
+          {order.items?.length > 2 && ` +${order.items.length - 2} more`}
+        </p>
+        <p className="mt-1 text-sm text-white/48">{formatDateTime(order.created_at)}</p>
+        {points > 0 && <p className="mt-1 text-sm text-[#ff8a7b]">+{points} pts</p>}
+      </div>
+      <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end">
+        <p className="font-semibold text-white">{formatCurrency(getOrderTotal(order))}</p>
+        <button
+          type="button"
+          onClick={onReorder}
+          className="text-sm font-semibold text-white/58 transition hover:text-white"
+        >
+          Reorder
+        </button>
+      </div>
+    </article>
+  );
+}

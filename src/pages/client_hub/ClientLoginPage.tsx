@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../../firebase/firebase';
 import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
 
 export default function ClientLogin() {
   const [formData, setFormData] = useState({
@@ -18,7 +19,18 @@ export default function ClientLogin() {
     try {
 
       console.log('Attempting login for:', formData.email);
-      await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      const credential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      const { data: profile } = await supabase
+        .from('client_profiles')
+        .select('is_blocked,deleted_at')
+        .eq('firebase_uid', credential.user.uid)
+        .maybeSingle();
+
+      if ((profile as any)?.is_blocked || (profile as any)?.deleted_at) {
+        await signOut(auth);
+        alert('This account is not active. Please contact Mai Sushi staff.');
+        return;
+      }
 
       navigate('/client-dashboard');
     } catch (error:any) {

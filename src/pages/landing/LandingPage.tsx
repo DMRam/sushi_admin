@@ -30,30 +30,40 @@ const CartSummary: React.FC<CartSummaryProps> = ({ itemCount, cartTotal, userPro
   if (itemCount === 0) return null
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 animate-in fade-in duration-500 sm:bottom-8 sm:right-8">
-      <Link to="/checkout" className="group relative block transition-transform duration-300 hover:scale-105">
-        <div className="relative overflow-hidden rounded-md border border-[#f26350]/30 bg-[#0b0b0b]/95 p-4 text-white shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-5">
-          <div className="absolute -right-2 -top-2 z-20">
-            <div className="relative flex h-6 w-6 items-center justify-center rounded-full bg-[#f26350] text-xs font-bold text-white shadow-lg shadow-[#f26350]/40">
+    <div className="fixed inset-x-3 bottom-3 z-50 animate-in fade-in duration-500 sm:inset-x-auto sm:bottom-6 sm:right-6">
+      <Link
+        to="/checkout"
+        className="group flex w-full items-center justify-between gap-4 rounded-md border border-[#f26350]/40 bg-[#0b0b0b]/95 px-4 py-3 text-white shadow-2xl shadow-black/40 backdrop-blur-xl transition hover:border-[#f26350] hover:bg-[#111] sm:w-auto sm:min-w-[220px]"
+        aria-label={`${t('cart.checkout', 'Checkout')} ${itemCount} ${itemCount === 1 ? t('cart.item', 'Item') : t('cart.items', 'Items')}`}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#f26350] text-white">
+            <ShoppingBag className="h-5 w-5" />
+            <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full border border-[#0b0b0b] bg-white px-1 text-[10px] font-bold text-[#f26350]">
               {itemCount}
-            </div>
+            </span>
           </div>
 
-          <div className="relative z-10 min-w-[132px]">
-            <div className="mb-1 text-[15px] font-bold uppercase tracking-[0.1em] text-white sm:text-[17px]">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-white/55">
+              {t('cart.checkout', 'Checkout')}
+            </div>
+            <div className="mt-0.5 text-base font-bold tracking-[0.04em] text-white">
               ${cartTotal.toFixed(2)}
             </div>
-            <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white/65">
-              {itemCount} {itemCount === 1 ? t('cart.item', 'Item') : t('cart.items', 'Items')}
-            </div>
             {userProfile && (
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#f26350]">
+              <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#f26350]">
                 +{Math.floor(cartTotal)} {t('cart.points', 'Points')}
               </div>
             )}
           </div>
+        </div>
 
-          <div className="absolute bottom-0 left-0 h-[2px] w-full origin-left scale-x-0 bg-[#f26350] transition-transform duration-500 group-hover:scale-x-100" />
+        <div className="shrink-0 text-right">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
+            {itemCount} {itemCount === 1 ? t('cart.item', 'Item') : t('cart.items', 'Items')}
+          </div>
+          <div className="mt-1 h-0.5 w-12 bg-[#f26350] transition group-hover:w-16" />
         </div>
       </Link>
     </div>
@@ -186,7 +196,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#050505] font-sans text-white">
       <LandingHeader />
 
-      <main className="relative overflow-hidden">
+      <main className={`relative overflow-hidden ${cartSummary.itemCount > 0 ? 'pb-24 sm:pb-0' : ''}`}>
         <div className="landing-premium-hero">
           <LandingHero
             currentVideoIndex={videoState.currentIndex}

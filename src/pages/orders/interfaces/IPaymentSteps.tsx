@@ -18,4 +18,6 @@ export interface CartItemCheckOut {
     picture?: string;
     images?: string[];
     imageUrls?: string[];
+    ingredients?: string[];
+    preparation?: string;
 };

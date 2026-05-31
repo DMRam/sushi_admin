@@ -40,6 +40,8 @@ export interface CartItemCheckOut {
     picture?: string;
     images?: string[];
     imageUrls?: string[];
+    ingredients?: string[];
+    preparation?: string;
     preparationTime?: number;
 }
 
@@ -294,6 +296,8 @@ export default function CheckoutPage() {
         discountedSubtotal: discount.discountedSubtotal,
         discountAmount: discount.discountAmount,
         appliedCode: discount.appliedCode,
+        discountType: discount.discountType,
+        giftCardBalance: discount.giftCardBalance,
         pointsEarned,
         user,
         updateClientProfile,

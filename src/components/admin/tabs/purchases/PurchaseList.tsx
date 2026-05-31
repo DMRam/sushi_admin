@@ -84,6 +84,11 @@ export const PurchaseList = ({
         0
     )
 
+    const taxTotal = filteredPurchases.reduce(
+        (sum, purchase) => sum + Number(purchase.taxes ?? 0),
+        0
+    )
+
     const uniqueSuppliers = useMemo(() => {
         const suppliers = rows.map((p) => p.supplierName).filter(Boolean)
         return [...new Set(suppliers)].sort()
@@ -199,6 +204,57 @@ export const PurchaseList = ({
         }
     }
 
+    function exportFilteredPurchases() {
+        const headers = [
+            'Purchase Date',
+            'Supplier',
+            'Invoice Number',
+            'Payment Status',
+            'Subtotal',
+            'Taxes',
+            'Total',
+            'Source',
+            'Items',
+            'Attachment URL',
+            'Notes',
+        ]
+
+        const escapeCsv = (value: unknown) => {
+            const text = String(value ?? '')
+            return `"${text.replace(/"/g, '""')}"`
+        }
+
+        const lines = filteredPurchases.map((purchase) => [
+            purchase.purchaseDate,
+            purchase.supplierName,
+            purchase.invoiceNumber || '',
+            purchase.paymentStatus || '',
+            Number(purchase.subtotal ?? 0).toFixed(2),
+            Number(purchase.taxes ?? 0).toFixed(2),
+            Number(purchase.total ?? 0).toFixed(2),
+            purchase.source || 'app',
+            (purchase.items || [])
+                .map((item) => `${item.quantity} ${item.unit || ''} ${item.name} (${Number(item.lineTotal || 0).toFixed(2)})`)
+                .join(' | '),
+            purchase.attachmentUrl || '',
+            purchase.notes || '',
+        ])
+
+        const csv = [headers, ...lines]
+            .map((row) => row.map(escapeCsv).join(','))
+            .join('\n')
+
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `maisushi-purchases-${new Date().toISOString().slice(0, 10)}.csv`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+    }
+
     if (loading) {
         return (
             <div className="py-10 text-center text-sm text-gray-500">
@@ -312,11 +368,30 @@ export const PurchaseList = ({
                     </div>
 
                     <div className={isMobile ? 'mt-2' : 'text-right'}>
-                        <span className="text-sm text-gray-600">Total spent: </span>
-                        <span className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-lg'}`}>
-                            {formatMoney(totalSpent, locale)}
-                        </span>
+                        <div>
+                            <span className="text-sm text-gray-600">Total spent: </span>
+                            <span className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-lg'}`}>
+                                {formatMoney(totalSpent, locale)}
+                            </span>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                            Tax tracked: {formatMoney(taxTotal, locale)}
+                        </div>
                     </div>
+                </div>
+
+                <div className={`mt-3 flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between gap-3 border-t border-gray-100 pt-3'}`}>
+                    <p className="text-xs text-gray-500">
+                        Export opens in Excel/Numbers and includes supplier, invoice, taxes, payment status, items, and attachment links.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={exportFilteredPurchases}
+                        disabled={filteredPurchases.length === 0}
+                        className="rounded-sm border border-gray-900 px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-900 hover:text-white disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
+                    >
+                        Export CSV
+                    </button>
                 </div>
             </div>
 

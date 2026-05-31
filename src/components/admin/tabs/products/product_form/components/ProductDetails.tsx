@@ -1,138 +1,185 @@
 import type { ProductDetailsProps } from "../../../../../../types/form_types"
 
+type LocaleKey = 'fr' | 'en' | 'es'
+
+const locales: Array<{
+    key: LocaleKey
+    label: string
+    hint: string
+    placeholder: string
+}> = [
+    {
+        key: 'fr',
+        label: 'Français',
+        hint: 'Primary storefront language.',
+        placeholder: 'Description du produit en français...',
+    },
+    {
+        key: 'en',
+        label: 'English',
+        hint: 'Shown when customers switch to English.',
+        placeholder: 'Product description in English...',
+    },
+    {
+        key: 'es',
+        label: 'Español',
+        hint: 'Shown when customers switch to Spanish.',
+        placeholder: 'Descripción del producto en español...',
+    },
+]
+
+function FieldLabel({ label, hint }: { label: string; hint?: string }) {
+    return (
+        <span className="mb-1.5 block">
+            <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">{label}</span>
+            {hint && <span className="block text-xs leading-4 text-slate-500">{hint}</span>}
+        </span>
+    )
+}
+
 export const ProductDetails = ({ formData, setFormData }: ProductDetailsProps) => {
-    // Initialize description as multilingual object if it's a string
     const initializeDescription = () => {
         if (typeof formData.description === 'string') {
             return {
+                fr: '',
                 en: formData.description,
                 es: '',
-                fr: ''
             }
         }
-        return formData.description || { en: '', es: '', fr: '' }
+
+        return formData.description || { fr: '', en: '', es: '' }
     }
 
-    const handleDescriptionChange = (language: 'en' | 'es' | 'fr', value: string) => {
-        const currentDescription = initializeDescription()
+    const currentDescription = initializeDescription()
+    const completedLocales = locales.filter((locale) => currentDescription[locale.key]?.trim()).length
+
+    const handleDescriptionChange = (language: LocaleKey, value: string) => {
         setFormData({
             ...formData,
             description: {
                 ...currentDescription,
-                [language]: value
-            }
+                [language]: value,
+            },
         })
     }
 
-    const currentDescription = initializeDescription()
-
     return (
-        <>
-            {/* Product Details */}
-            <div className="bg-white border border-gray-200 rounded-sm p-6">
-                <h3 className="text-lg font-light text-gray-900 tracking-wide mb-4">PRODUCT DETAILS</h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <section className="border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 p-4 sm:p-5">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                        <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">PRODUCT NAME *</label>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Product details</p>
+                        <h3 className="mt-1 text-lg font-semibold text-slate-950">Storefront information</h3>
+                    </div>
+                    <span className={`w-fit border px-2.5 py-1 text-xs font-semibold ${completedLocales === locales.length
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-amber-200 bg-amber-50 text-amber-700'
+                        }`}>
+                        {completedLocales}/{locales.length} locales
+                    </span>
+                </div>
+            </div>
+
+            <div className="space-y-5 p-4 sm:p-5">
+                <div className="grid gap-4 lg:grid-cols-[1.35fr_0.9fr]">
+                    <label>
+                        <FieldLabel label="Product name" hint="Single customer-facing name used across the menu and checkout." />
                         <input
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
-                            placeholder="e.g., Classic Ceviche, Whole Salmon"
+                            className="h-12 w-full border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                            placeholder="e.g., Maki saumon avocat"
                             required
                         />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">CATEGORY</label>
+                    </label>
+
+                    <label>
+                        <FieldLabel label="Menu category" hint="Used for filtering and grouping products." />
                         <input
                             type="text"
                             value={formData.category}
                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
-                            placeholder="e.g., Appetizer, Main Course"
+                            className="h-12 w-full border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                            placeholder="e.g., Makis, Entrées, Boissons"
                         />
+                    </label>
+                </div>
+
+                <div>
+                    <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Localized descriptions</p>
+                            <p className="text-xs text-slate-500">Fill all three so the storefront stays consistent in FR, EN, and SP.</p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-3 xl:grid-cols-3">
+                        {locales.map((locale) => {
+                            const hasValue = Boolean(currentDescription[locale.key]?.trim())
+
+                            return (
+                                <label key={locale.key} className="block border border-slate-200 bg-slate-50 p-3">
+                                    <div className="mb-2 flex items-start justify-between gap-3">
+                                        <div>
+                                            <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-700">{locale.label}</span>
+                                            <span className="block text-xs text-slate-500">{locale.hint}</span>
+                                        </div>
+                                        <span className={`shrink-0 border px-2 py-0.5 text-[11px] font-semibold ${hasValue
+                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                            : 'border-amber-200 bg-amber-50 text-amber-700'
+                                            }`}>
+                                            {hasValue ? 'Ready' : 'Missing'}
+                                        </span>
+                                    </div>
+                                    <textarea
+                                        value={currentDescription[locale.key]}
+                                        onChange={(e) => handleDescriptionChange(locale.key, e.target.value)}
+                                        className="min-h-28 w-full resize-y border border-slate-300 bg-white px-3 py-2 text-sm leading-5 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                                        placeholder={locale.placeholder}
+                                    />
+                                </label>
+                            )
+                        })}
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                        <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">PREPARATION TIME (MINUTES)</label>
+                <div className="grid gap-4 lg:grid-cols-3">
+                    <label>
+                        <FieldLabel label="Preparation time" hint="Minutes shown to customers and staff." />
                         <input
                             type="number"
                             min="0"
                             value={formData.preparationTime}
                             onChange={(e) => setFormData({ ...formData, preparationTime: e.target.value })}
-                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
-                            placeholder="e.g., 15"
+                            className="h-12 w-full border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                            placeholder="15"
                         />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">TAGS</label>
+                    </label>
+
+                    <label>
+                        <FieldLabel label="Portion size" hint="Short size shown internally and in product cards." />
+                        <input
+                            type="text"
+                            value={formData.portionSize}
+                            onChange={(e) => setFormData({ ...formData, portionSize: e.target.value })}
+                            className="h-12 w-full border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                            placeholder="e.g., 8 pcs, 500 ml"
+                        />
+                    </label>
+
+                    <label>
+                        <FieldLabel label="Tags" hint="Comma separated, for search and merchandising." />
                         <input
                             type="text"
                             value={formData.tags}
                             onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
-                            placeholder="e.g., spicy, popular, seasonal"
+                            className="h-12 w-full border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                            placeholder="spicy, popular, seasonal"
                         />
-                        <div className="text-xs text-gray-500 mt-1 font-light">Separate tags with commas</div>
-                    </div>
-                </div>
-
-                {/* Multilingual Description Section */}
-                <div className="mt-4">
-                    <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">DESCRIPTION</label>
-
-                    {/* English Description */}
-                    <div className="mb-4">
-                        <label className="block text-xs font-medium text-gray-600 mb-1 tracking-wide">English</label>
-                        <textarea
-                            value={currentDescription.en}
-                            onChange={(e) => handleDescriptionChange('en', e.target.value)}
-                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light"
-                            rows={2}
-                            placeholder="Product description in English..."
-                        />
-                    </div>
-
-                    {/* Spanish Description */}
-                    <div className="mb-4">
-                        <label className="block text-xs font-medium text-gray-600 mb-1 tracking-wide">Spanish</label>
-                        <textarea
-                            value={currentDescription.es}
-                            onChange={(e) => handleDescriptionChange('es', e.target.value)}
-                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light"
-                            rows={2}
-                            placeholder="Descripción del producto en español..."
-                        />
-                    </div>
-
-                    {/* French Description */}
-                    <div className="mb-4">
-                        <label className="block text-xs font-medium text-gray-600 mb-1 tracking-wide">French</label>
-                        <textarea
-                            value={currentDescription.fr}
-                            onChange={(e) => handleDescriptionChange('fr', e.target.value)}
-                            className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light"
-                            rows={2}
-                            placeholder="Description du produit en français..."
-                        />
-                    </div>
-                </div>
-
-                <div className="mt-4">
-                    <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">PORTION SIZE</label>
-                    <input
-                        type="text"
-                        value={formData.portionSize}
-                        onChange={(e) => setFormData({ ...formData, portionSize: e.target.value })}
-                        className="w-full border border-gray-300 rounded-sm px-3 py-3 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-light tracking-wide"
-                        placeholder="e.g., 300g bowl, 500ml cup, 1kg whole fish"
-                    />
+                    </label>
                 </div>
             </div>
-        </>
+        </section>
     )
 }

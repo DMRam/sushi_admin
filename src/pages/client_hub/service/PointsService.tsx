@@ -128,6 +128,24 @@ export class PointsService {
         }
     }
 
+    static async hasEarnedPointsForOrder(userId: string, orderId: string): Promise<boolean> {
+        try {
+            const { data, error } = await supabase
+                .from('points_history')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('order_id', orderId)
+                .eq('transaction_type', 'earn')
+                .limit(1);
+
+            if (error) throw error;
+            return Array.isArray(data) && data.length > 0;
+        } catch (error) {
+            console.error('💥 Error checking existing order points:', error);
+            return false;
+        }
+    }
+
     // ... rest of your methods remain the same
     static async ensureUserPointsRecord(userId: string) {
         try {

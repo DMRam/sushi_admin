@@ -2,12 +2,51 @@ import { useMemo } from 'react'
 import { useProducts } from '../../../../context/ProductsContext'
 import { useSales } from '../../../../context/SalesContext'
 
-export default function ProfitabilityChart() {
+type ActualProfitItem = {
+  name: string
+  quantity: number
+  total: number
+}
+
+type ProfitabilityChartProps = {
+  actualItems?: ActualProfitItem[]
+}
+
+export default function ProfitabilityChart({ actualItems = [] }: ProfitabilityChartProps) {
   const { products } = useProducts()
   const { getRecentSales } = useSales()
 
   const profitabilityData = useMemo(() => {
     const recentSales = getRecentSales(30) // Last 30 days
+
+    if (actualItems.length > 0) {
+      return products
+        .map(product => {
+          const matchingItems = actualItems.filter(item => item.name.trim().toLowerCase() === product.name.trim().toLowerCase())
+          const revenue = matchingItems.reduce((sum, item) => sum + Number(item.total || 0), 0)
+          const unitsSold = matchingItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+          const totalCost = unitsSold * Number(product.costPrice || 0)
+          const profit = revenue - totalCost
+          const margin = revenue > 0 ? (profit / revenue) * 100 : 0
+          const profitPerUnit = unitsSold > 0 ? profit / unitsSold : 0
+
+          return {
+            productId: product.id,
+            productName: product.name,
+            category: product.category,
+            revenue,
+            unitsSold,
+            totalCost,
+            profit,
+            margin,
+            profitPerUnit,
+            costPrice: product.costPrice || 0,
+            sellingPrice: product.sellingPrice || 0
+          }
+        })
+        .filter(item => item.revenue > 0)
+        .sort((a, b) => b.profit - a.profit)
+    }
 
     return products
       .map(product => {
@@ -50,7 +89,7 @@ export default function ProfitabilityChart() {
       })
       .filter(item => item.revenue > 0)
       .sort((a, b) => b.profit - a.profit)
-  }, [products, getRecentSales])
+  }, [products, getRecentSales, actualItems])
 
   const summary = useMemo(() => {
     const totalRevenue = profitabilityData.reduce((sum, item) => sum + item.revenue, 0)
@@ -104,7 +143,9 @@ export default function ProfitabilityChart() {
       {/* Header */}
       <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
         <h3 className="text-lg sm:text-xl font-light text-gray-900">Profitability Analysis</h3>
-        <p className="text-gray-500 font-light text-xs sm:text-sm mt-1">Product performance and margin analysis</p>
+        <p className="text-gray-500 font-light text-xs sm:text-sm mt-1">
+          Product performance and margin analysis from real Clover/web orders when available.
+        </p>
       </div>
 
       {/* Summary Cards - Fixed layout */}

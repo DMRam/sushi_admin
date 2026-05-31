@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Eye, EyeOff, ImageOff, Languages, Search, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { useProducts } from '../../../../context/ProductsContext'
 import { useIngredients } from '../../../../context/IngredientsContext'
 import { useUserProfile, UserRole } from '../../../../context/UserProfileContext'
@@ -12,6 +13,7 @@ interface MultilingualDescription {
 
 type SortKey = 'name' | 'category' | 'margin' | 'profit'
 type SortDir = 'asc' | 'desc'
+type StatusFilter = 'all' | 'active' | 'hidden' | 'featured' | 'missing'
 
 export const ProductList = () => {
     const { products, removeProduct } = useProducts()
@@ -23,6 +25,7 @@ export const ProductList = () => {
     // NEW: toolbar state
     const [query, setQuery] = useState('')
     const [category, setCategory] = useState<string>('all')
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
     const [sortKey, setSortKey] = useState<SortKey>('name')
     const [sortDir, setSortDir] = useState<SortDir>('asc')
     const [limit, setLimit] = useState(20)
@@ -59,9 +62,21 @@ export const ProductList = () => {
                 profitMargin,
                 profit,
                 descriptionText: getDescriptionText(product.description),
+                hasAllLocales: Boolean(product.description?.en && product.description?.fr && product.description?.es),
+                hasMedia: Boolean(product.imageUrls?.length),
+                hasPrice: Number(product.sellingPrice || 0) > 0,
             }
         })
     }, [products, ingredients])
+
+    const productSummary = useMemo(() => {
+        const active = productsWithRecalculatedCosts.filter(p => p.isActive !== false).length
+        const hidden = productsWithRecalculatedCosts.length - active
+        const featured = productsWithRecalculatedCosts.filter(p => p.featured).length
+        const missing = productsWithRecalculatedCosts.filter(p => !p.hasMedia || !p.hasPrice || !p.hasAllLocales).length
+
+        return { active, hidden, featured, missing }
+    }, [productsWithRecalculatedCosts])
 
     // Categories list
     const categories = useMemo(() => {
@@ -80,6 +95,22 @@ export const ProductList = () => {
 
         if (category !== 'all') {
             list = list.filter(p => (p.category || '').toLowerCase() === category.toLowerCase())
+        }
+
+        if (statusFilter === 'active') {
+            list = list.filter(p => p.isActive !== false)
+        }
+
+        if (statusFilter === 'hidden') {
+            list = list.filter(p => p.isActive === false)
+        }
+
+        if (statusFilter === 'featured') {
+            list = list.filter(p => p.featured)
+        }
+
+        if (statusFilter === 'missing') {
+            list = list.filter(p => !p.hasMedia || !p.hasPrice || !p.hasAllLocales)
         }
 
         if (q) {
@@ -108,27 +139,35 @@ export const ProductList = () => {
         })
 
         return list
-    }, [productsWithRecalculatedCosts, query, category, sortKey, sortDir])
+    }, [productsWithRecalculatedCosts, query, category, statusFilter, sortKey, sortDir])
 
     const visible = filtered.slice(0, limit)
 
     const canSeeMoney = userProfile?.role !== UserRole.VIEWER
+    const statusButtons: Array<{ key: StatusFilter; label: string; count: number }> = [
+        { key: 'all', label: 'All', count: productsWithRecalculatedCosts.length },
+        { key: 'active', label: 'Active', count: productSummary.active },
+        { key: 'hidden', label: 'Hidden', count: productSummary.hidden },
+        { key: 'featured', label: 'Featured', count: productSummary.featured },
+        { key: 'missing', label: 'Needs work', count: productSummary.missing },
+    ]
 
     return (
         <div className="space-y-3">
-            {/* Sticky toolbar */}
-            <div className="sticky top-0 z-10 bg-white/90 backdrop-blur border border-gray-200 rounded-lg p-3">
+            <div className="sticky top-0 z-10 border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
                 <div className="flex flex-col gap-3">
-                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-                        <div className="text-sm text-gray-700">
-                            <span className="font-medium">{filtered.length}</span> items
-                            {category !== 'all' ? <span className="text-gray-400"> • </span> : null}
-                            {category !== 'all' ? <span className="text-gray-600">{category}</span> : null}
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Filtered view</p>
+                            <p className="mt-1 text-sm text-slate-700">
+                                <span className="font-semibold text-slate-950">{filtered.length}</span> items
+                                {category !== 'all' ? <span className="text-slate-400"> · {category}</span> : null}
+                            </p>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             <select
-                                className="text-sm border border-gray-200 rounded-md px-2 py-2 bg-white"
+                                className="border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                                 value={sortKey}
                                 onChange={(e) => setSortKey(e.target.value as SortKey)}
                             >
@@ -139,32 +178,56 @@ export const ProductList = () => {
                             </select>
 
                             <button
-                                className="text-sm border border-gray-200 rounded-md px-3 py-2 bg-white hover:bg-gray-50"
+                                className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-950"
                                 onClick={() => setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))}
                                 title="Toggle sort direction"
                             >
-                                {sortDir === 'asc' ? '↑' : '↓'}
+                                <SlidersHorizontal className="h-4 w-4" />
+                                {sortDir === 'asc' ? 'Asc' : 'Desc'}
                             </button>
                         </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                            className="w-full text-sm border border-gray-200 rounded-md px-3 py-2"
-                            placeholder="Search name, category, description..."
-                            value={query}
-                            onChange={(e) => {
-                                setQuery(e.target.value)
-                                setLimit(20) // reset paging on new search
-                            }}
-                        />
+                    <div className="flex flex-wrap gap-2">
+                        {statusButtons.map((button) => (
+                            <button
+                                key={button.key}
+                                type="button"
+                                onClick={() => {
+                                    setStatusFilter(button.key)
+                                    setLimit(20)
+                                }}
+                                className={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition ${
+                                    statusFilter === button.key
+                                        ? 'border-slate-950 bg-slate-950 text-white'
+                                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-400 hover:bg-white'
+                                }`}
+                            >
+                                {button.label} <span className="ml-1 opacity-70">{button.count}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                        <label className="relative min-w-0 flex-1">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <input
+                                className="w-full border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                                placeholder="Search name, category, description..."
+                                value={query}
+                                onChange={(e) => {
+                                    setQuery(e.target.value)
+                                    setLimit(20)
+                                }}
+                            />
+                        </label>
 
                         <select
-                            className="text-sm border border-gray-200 rounded-md px-2 py-2 bg-white sm:w-56"
+                            className="border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900 sm:w-56"
                             value={category}
                             onChange={(e) => {
                                 setCategory(e.target.value)
-                                setLimit(20) // reset paging on filter change
+                                setLimit(20)
                             }}
                         >
                             {categories.map(c => (
@@ -174,12 +237,13 @@ export const ProductList = () => {
                             ))}
                         </select>
 
-                        {(query || category !== 'all') && (
+                        {(query || category !== 'all' || statusFilter !== 'all') && (
                             <button
-                                className="text-sm border border-gray-200 rounded-md px-3 py-2 bg-white hover:bg-gray-50 sm:w-28"
+                                className="border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-950 sm:w-28"
                                 onClick={() => {
                                     setQuery('')
                                     setCategory('all')
+                                    setStatusFilter('all')
                                     setLimit(20)
                                 }}
                             >
@@ -192,7 +256,7 @@ export const ProductList = () => {
 
             {/* Empty */}
             {filtered.length === 0 ? (
-                <div className="text-center text-gray-500 py-10">
+                <div className="border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-slate-500">
                     No products match your filters.
                 </div>
             ) : (
@@ -206,36 +270,55 @@ export const ProductList = () => {
                             const descriptionText = product.descriptionText || ''
 
                             return (
-                                <div key={product.id} className="border border-gray-200 rounded-lg bg-white shadow-sm">
+                                <div key={product.id} className="border border-slate-200 bg-white shadow-sm">
                                     <div className="p-3 sm:p-4">
                                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-start justify-between gap-3">
-                                                    <h3 className="font-semibold text-base sm:text-lg text-gray-900 truncate">
+                                                    <h3 className="truncate text-base font-semibold text-slate-950 sm:text-lg">
                                                         {product.name}
                                                     </h3>
                                                     {product.category && (
-                                                        <span className="shrink-0 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                                        <span className="shrink-0 border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600">
                                                             {product.category}
                                                         </span>
                                                     )}
                                                 </div>
 
                                                 {descriptionText && (
-                                                    <p className="text-gray-600 text-sm mt-1 line-clamp-2">{descriptionText}</p>
+                                                    <p className="mt-1 line-clamp-2 text-sm text-slate-600">{descriptionText}</p>
                                                 )}
 
-                                                {isMultilingualDescription(product.description) && (
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        {product.description.en && <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">EN</span>}
-                                                        {product.description.es && <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">ES</span>}
-                                                        {product.description.fr && <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">FR</span>}
-                                                    </div>
-                                                )}
-
-                                                <div className="flex flex-wrap gap-2 mt-2 text-xs sm:text-sm">
+                                                <div className="mt-2 flex flex-wrap gap-2 text-xs sm:text-sm">
+                                                    <span className={`inline-flex items-center gap-1 border px-2 py-1 font-semibold ${
+                                                        product.isActive === false
+                                                            ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                                            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                    }`}>
+                                                        {product.isActive === false ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                                                        {product.isActive === false ? 'Hidden' : 'Active'}
+                                                    </span>
+                                                    {product.featured && (
+                                                        <span className="border border-blue-200 bg-blue-50 px-2 py-1 font-semibold text-blue-700">Featured</span>
+                                                    )}
+                                                    {!product.hasMedia && (
+                                                        <span className="inline-flex items-center gap-1 border border-amber-200 bg-amber-50 px-2 py-1 font-semibold text-amber-700">
+                                                            <ImageOff className="h-3.5 w-3.5" />
+                                                            No image
+                                                        </span>
+                                                    )}
+                                                    {isMultilingualDescription(product.description) && (
+                                                        <span className={`inline-flex items-center gap-1 border px-2 py-1 font-semibold ${
+                                                            product.hasAllLocales
+                                                                ? 'border-slate-200 bg-slate-50 text-slate-600'
+                                                                : 'border-amber-200 bg-amber-50 text-amber-700'
+                                                        }`}>
+                                                            <Languages className="h-3.5 w-3.5" />
+                                                            {[product.description.en && 'EN', product.description.fr && 'FR', product.description.es && 'ES'].filter(Boolean).join('/')}
+                                                        </span>
+                                                    )}
                                                     {product.portionSize && (
-                                                        <span className="text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                                        <span className="border border-slate-200 bg-slate-50 px-2 py-1 text-slate-600">
                                                             {product.portionSize}
                                                         </span>
                                                     )}
@@ -243,24 +326,21 @@ export const ProductList = () => {
 
                                                 {canSeeMoney && (
                                                     <div className="mt-3">
-                                                        <div className="flex flex-wrap items-center gap-3 text-sm">
-                                                            <span className="font-medium text-gray-900">Cost: ${cost.toFixed(2)}</span>
+                                                        <div className="grid gap-2 text-sm sm:grid-cols-4">
+                                                            <span className="border border-slate-200 bg-slate-50 px-2 py-1 font-semibold text-slate-700">Cost ${cost.toFixed(2)}</span>
 
                                                             {product.sellingPrice ? (
                                                                 <>
-                                                                    <span className="text-gray-400">•</span>
-                                                                    <span className="font-medium text-gray-900">Selling: ${product.sellingPrice.toFixed(2)}</span>
-                                                                    <span className="text-gray-400">•</span>
-                                                                    <span className={`font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                                        Profit: ${profit.toFixed(2)}
+                                                                    <span className="border border-slate-200 bg-slate-50 px-2 py-1 font-semibold text-slate-700">Sell ${product.sellingPrice.toFixed(2)}</span>
+                                                                    <span className={`border px-2 py-1 font-semibold ${profit >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                                                                        Profit ${profit.toFixed(2)}
                                                                     </span>
-                                                                    <span className="text-gray-400">•</span>
-                                                                    <span className={`font-medium ${profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                                        Margin: {profitMargin.toFixed(1)}%
+                                                                    <span className={`border px-2 py-1 font-semibold ${profitMargin >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                                                                        Margin {profitMargin.toFixed(1)}%
                                                                     </span>
                                                                 </>
                                                             ) : (
-                                                                <span className="text-gray-500">(no selling price)</span>
+                                                                <span className="border border-amber-200 bg-amber-50 px-2 py-1 font-semibold text-amber-700">No selling price</span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -271,9 +351,10 @@ export const ProductList = () => {
                                             <div className="flex flex-col sm:flex-row gap-2 sm:ml-4 w-full sm:w-auto">
                                                 <button
                                                     onClick={() => toggleExpand(product.id)}
-                                                    className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 border border-blue-200 rounded hover:bg-blue-50 transition-colors text-center"
+                                                    className="inline-flex items-center justify-center gap-2 border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-950"
                                                 >
-                                                    {expandedProduct === product.id ? 'Hide' : 'Show'} Details
+                                                    {expandedProduct === product.id ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                    {expandedProduct === product.id ? 'Hide' : 'Details'}
                                                 </button>
 
                                                 {userProfile?.role !== UserRole.VIEWER && (
@@ -283,8 +364,9 @@ export const ProductList = () => {
                                                                 removeProduct(product.id)
                                                             }
                                                         }}
-                                                        className="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-2 border border-red-200 rounded hover:bg-red-50 transition-colors text-center"
+                                                        className="inline-flex items-center justify-center gap-2 border border-red-200 px-3 py-2 text-center text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
                                                     >
+                                                        <Trash2 className="h-4 w-4" />
                                                         Delete
                                                     </button>
                                                 )}
@@ -293,12 +375,12 @@ export const ProductList = () => {
 
                                         {/* Expanded */}
                                         {expandedProduct === product.id && (
-                                            <div className="mt-4 pt-4 border-t border-gray-200">
+                                            <div className="mt-4 border-t border-slate-200 pt-4">
                                                 {/* Description block (keep your existing rendering) */}
                                                 {product.description && (
                                                     <div className="mb-6">
-                                                        <h4 className="font-medium text-gray-900 text-sm sm:text-base mb-3">DESCRIPTION</h4>
-                                                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                                        <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-base">Description</h4>
+                                                        <div className="border border-slate-200 bg-white p-4">
                                                             {typeof product.description === 'string' ? (
                                                                 <div className="prose prose-sm max-w-none text-gray-700">
                                                                     {splitTextIntoParagraphs(product.description).map((p: string, idx: number) => (
