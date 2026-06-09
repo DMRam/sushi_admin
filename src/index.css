@@ -844,3 +844,33 @@ nav[data-mobile-menu].open ~ .fixed[class*="right-"] {
 .admin-loading-bar {
   background: linear-gradient(90deg, #fb6a57 0%, #0f8a5f 45%, #fb6a57 100%);
 }
+
+.admin-carbon-shell .event-input {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #eadbd4 !important;
+  border-bottom-color: #c8aaa0 !important;
+  border-radius: 14px !important;
+  background-color: #fffaf7 !important;
+  padding: 0.72rem 0.9rem;
+  color: #211917;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.admin-carbon-shell textarea.event-input {
+  resize: vertical;
+}
+
+.admin-carbon-shell .event-input::placeholder {
+  color: #9d8d87;
+  opacity: 1;
+}
+
+.admin-carbon-shell .event-input:focus {
+  border-color: #fb6a57 !important;
+  box-shadow: 0 0 0 3px rgba(251, 106, 87, 0.12);
+  outline: none;
+}
