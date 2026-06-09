@@ -3,7 +3,14 @@
     "byPacifique": "by Pacifique",
     "menu": "Menu",
     "booking": "Booking",
+    "events": "Events",
     "contact": "Contact",
+    "cart": "Cart",
+    "order": "Order",
+    "dashboard": "Dashboard",
+    "logout": "Logout",
+    "loading": "Loading...",
+    "items": "items",
     "points": "pts",
     "signIn": "Sign In"
   },
@@ -248,6 +255,47 @@
     "experienceDescription": "Thoughtful presentation and seamless service",
     "cateringEvents": "Catering & Events",
     "cateringDescription": "Elevate your events with our premium ceviche and sushi catering. From intimate gatherings to corporate events, we bring the ocean's freshness to you.",
+    "events": {
+      "eyebrow": "Events",
+      "publishedTitle": "Plan something fresh with MaiSushi.",
+      "draftTitle": "Event packages are being prepared.",
+      "publishedCopy": "Birthdays, office trays, private groups, karaoke nights, and special sushi formats can be requested directly from the restaurant.",
+      "draftCopy": "MaiSushi is preparing clearer options for birthdays, office trays, private groups, and special sushi nights. This section updates from the restaurant dashboard once packages are published.",
+      "askCta": "Ask about an event",
+      "callCta": "Call MaiSushi",
+      "loading": "Loading events",
+      "comingSoon": "Coming soon",
+      "updateInProgress": "Event menu update in progress",
+      "dashboardReady": "Dashboard ready",
+      "preview": {
+        "birthdays": {
+          "title": "Birthdays & private parties",
+          "copy": "Sushi trays, shared tables, and family celebrations are being organized into clear packages."
+        },
+        "office": {
+          "title": "Office and team orders",
+          "copy": "Group trays for offices, schools, sports teams, and staff meals will be easier to request soon."
+        },
+        "addons": {
+          "title": "Special add-ons",
+          "copy": "Premium rolls, sushi boats, desserts, drinks, and gift-card options are being reviewed."
+        }
+      },
+      "steps": {
+        "dates": {
+          "title": "1. Dates",
+          "copy": "Availability will be confirmed."
+        },
+        "guests": {
+          "title": "2. Guests",
+          "copy": "Package sizes are being defined."
+        },
+        "formats": {
+          "title": "3. Formats",
+          "copy": "Birthdays, offices, and private nights."
+        }
+      }
+    },
     "contactName": "Contact Name *",
     "namePlaceholder": "Your full name",
     "emailAddress": "Email Address *",

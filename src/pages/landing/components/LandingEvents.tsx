@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { collection, onSnapshot, query, where } from 'firebase/firestore'
 import { CalendarDays, Clock, Gift, PartyPopper, Sparkles, UsersRound } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { HashLink } from 'react-router-hash-link'
 import { db } from '../../../firebase/firebase'
 
@@ -17,27 +18,39 @@ type PublishedEventPackage = {
   sortOrder: number
 }
 
-const previewFormats = [
-  {
-    icon: PartyPopper,
-    title: 'Birthdays & private parties',
-    copy: 'Sushi trays, shared tables, and family celebrations are being organized into clear packages.',
-  },
-  {
-    icon: UsersRound,
-    title: 'Office and team orders',
-    copy: 'Group trays for offices, schools, sports teams, and staff meals will be easier to request soon.',
-  },
-  {
-    icon: Gift,
-    title: 'Special add-ons',
-    copy: 'Premium rolls, sushi boats, desserts, drinks, and gift-card options are being reviewed.',
-  },
-]
-
 export function LandingEvents() {
+  const { t } = useTranslation()
   const [packages, setPackages] = useState<PublishedEventPackage[]>([])
   const [loading, setLoading] = useState(true)
+  const previewFormats = useMemo(
+    () => [
+      {
+        icon: PartyPopper,
+        title: t('landing.events.preview.birthdays.title', 'Birthdays & private parties'),
+        copy: t(
+          'landing.events.preview.birthdays.copy',
+          'Sushi trays, shared tables, and family celebrations are being organized into clear packages.',
+        ),
+      },
+      {
+        icon: UsersRound,
+        title: t('landing.events.preview.office.title', 'Office and team orders'),
+        copy: t(
+          'landing.events.preview.office.copy',
+          'Group trays for offices, schools, sports teams, and staff meals will be easier to request soon.',
+        ),
+      },
+      {
+        icon: Gift,
+        title: t('landing.events.preview.addons.title', 'Special add-ons'),
+        copy: t(
+          'landing.events.preview.addons.copy',
+          'Premium rolls, sushi boats, desserts, drinks, and gift-card options are being reviewed.',
+        ),
+      },
+    ],
+    [t],
+  )
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -88,28 +101,36 @@ export function LandingEvents() {
         <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
           <div>
             <div className="mb-3 text-[12px] font-bold uppercase tracking-[0.32em] text-[#f26350]">
-              Events
+              {t('landing.events.eyebrow', 'Events')}
             </div>
             <h2 className="max-w-2xl text-3xl font-light uppercase tracking-[0.1em] text-white sm:text-4xl">
-              {hasPublishedPackages ? 'Plan something fresh with MaiSushi.' : 'Events packages are being prepared.'}
+              {hasPublishedPackages
+                ? t('landing.events.publishedTitle', 'Plan something fresh with MaiSushi.')
+                : t('landing.events.draftTitle', 'Event packages are being prepared.')}
             </h2>
             <p className="mt-5 max-w-xl text-base font-light leading-7 text-white/62">
               {hasPublishedPackages
-                ? 'Birthdays, office trays, private groups, karaoke nights, and special sushi formats can be requested directly from the restaurant.'
-                : 'MaiSushi is preparing clearer options for birthdays, office trays, private groups, and special sushi nights. This section updates from the restaurant dashboard once packages are published.'}
+                ? t(
+                    'landing.events.publishedCopy',
+                    'Birthdays, office trays, private groups, karaoke nights, and special sushi formats can be requested directly from the restaurant.',
+                  )
+                : t(
+                    'landing.events.draftCopy',
+                    'MaiSushi is preparing clearer options for birthdays, office trays, private groups, and special sushi nights. This section updates from the restaurant dashboard once packages are published.',
+                  )}
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <HashLink
                 to="/#contact"
                 className="inline-flex items-center justify-center bg-[#f26350] px-6 py-3 text-xs font-extrabold uppercase tracking-[0.12em] text-white shadow-[0_18px_34px_rgba(242,99,80,0.28)] transition hover:bg-[#ff725f]"
               >
-                Ask about an event
+                {t('landing.events.askCta', 'Ask about an event')}
               </HashLink>
               <a
                 href="tel:+18198613889"
                 className="inline-flex items-center justify-center border border-white/14 px-6 py-3 text-xs font-extrabold uppercase tracking-[0.12em] text-white/82 transition hover:border-[#f26350] hover:text-white"
               >
-                Call MaiSushi
+                {t('landing.events.callCta', 'Call MaiSushi')}
               </a>
             </div>
           </div>
@@ -117,7 +138,7 @@ export function LandingEvents() {
           <div className="border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/30 backdrop-blur">
             {loading ? (
               <div className="flex min-h-[320px] items-center justify-center border border-white/10 bg-[#0e0e0e] text-sm font-semibold uppercase tracking-[0.18em] text-white/55">
-                Loading events
+                {t('landing.events.loading', 'Loading events')}
               </div>
             ) : hasPublishedPackages ? (
               <div className="grid gap-3 md:grid-cols-2">
@@ -152,13 +173,17 @@ export function LandingEvents() {
                       <Clock className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#ffad9f]">Coming soon</div>
-                      <div className="mt-1 text-xl font-semibold text-white">Event menu update in progress</div>
+                      <div className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#ffad9f]">
+                        {t('landing.events.comingSoon', 'Coming soon')}
+                      </div>
+                      <div className="mt-1 text-xl font-semibold text-white">
+                        {t('landing.events.updateInProgress', 'Event menu update in progress')}
+                      </div>
                     </div>
                   </div>
                   <div className="inline-flex items-center gap-2 border border-white/10 bg-black/25 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/70">
                     <Sparkles className="h-4 w-4 text-[#f26350]" />
-                    Dashboard ready
+                    {t('landing.events.dashboardReady', 'Dashboard ready')}
                   </div>
                 </div>
 
@@ -178,9 +203,9 @@ export function LandingEvents() {
                 </div>
 
                 <div className="mt-3 grid gap-3 border border-white/10 bg-black/20 p-4 sm:grid-cols-3">
-                  <MiniStep icon={CalendarDays} title="1. Dates" copy="Availability will be confirmed." />
-                  <MiniStep icon={UsersRound} title="2. Guests" copy="Package sizes are being defined." />
-                  <MiniStep icon={PartyPopper} title="3. Formats" copy="Birthdays, offices, and private nights." />
+                  <MiniStep icon={CalendarDays} title={t('landing.events.steps.dates.title', '1. Dates')} copy={t('landing.events.steps.dates.copy', 'Availability will be confirmed.')} />
+                  <MiniStep icon={UsersRound} title={t('landing.events.steps.guests.title', '2. Guests')} copy={t('landing.events.steps.guests.copy', 'Package sizes are being defined.')} />
+                  <MiniStep icon={PartyPopper} title={t('landing.events.steps.formats.title', '3. Formats')} copy={t('landing.events.steps.formats.copy', 'Birthdays, offices, and private nights.')} />
                 </div>
               </>
             )}

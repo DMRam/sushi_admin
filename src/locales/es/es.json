@@ -3,7 +3,14 @@
     "byPacifique": "por Pacifique",
     "menu": "Menú",
     "booking": "Reserva",
+    "events": "Eventos",
     "contact": "Contacto",
+    "cart": "Carrito",
+    "order": "Pedir",
+    "dashboard": "Panel",
+    "logout": "Cerrar sesión",
+    "loading": "Cargando...",
+    "items": "artículos",
     "points": "pts",
     "signIn": "Iniciar Sesión"
   },
@@ -244,6 +251,47 @@
     "experienceDescription": "Presentación cuidadosa y servicio fluido",
     "cateringEvents": "Catering & Eventos",
     "cateringDescription": "Eleve sus eventos con nuestro catering premium de ceviche y sushi. Desde reuniones íntimas hasta eventos corporativos, llevamos la frescura del océano hasta usted.",
+    "events": {
+      "eyebrow": "Eventos",
+      "publishedTitle": "Planifica algo fresco con MaiSushi.",
+      "draftTitle": "Los paquetes de eventos están en preparación.",
+      "publishedCopy": "Cumpleaños, bandejas para oficinas, grupos privados, noches de karaoke y formatos especiales de sushi se pueden solicitar directamente al restaurante.",
+      "draftCopy": "MaiSushi está preparando opciones más claras para cumpleaños, bandejas para oficinas, grupos privados y noches especiales de sushi. Esta sección se actualiza desde el dashboard del restaurante cuando los paquetes se publican.",
+      "askCta": "Consultar por un evento",
+      "callCta": "Llamar a MaiSushi",
+      "loading": "Cargando eventos",
+      "comingSoon": "Próximamente",
+      "updateInProgress": "Actualización del menú de eventos en curso",
+      "dashboardReady": "Dashboard listo",
+      "preview": {
+        "birthdays": {
+          "title": "Cumpleaños y fiestas privadas",
+          "copy": "Bandejas de sushi, mesas compartidas y celebraciones familiares se están organizando en paquetes claros."
+        },
+        "office": {
+          "title": "Pedidos para oficinas y equipos",
+          "copy": "Las bandejas grupales para oficinas, escuelas, equipos deportivos y comidas del personal serán más fáciles de solicitar pronto."
+        },
+        "addons": {
+          "title": "Extras especiales",
+          "copy": "Rolls premium, barcos de sushi, postres, bebidas y opciones de gift cards están en revisión."
+        }
+      },
+      "steps": {
+        "dates": {
+          "title": "1. Fechas",
+          "copy": "La disponibilidad será confirmada."
+        },
+        "guests": {
+          "title": "2. Invitados",
+          "copy": "Los tamaños de paquetes se están definiendo."
+        },
+        "formats": {
+          "title": "3. Formatos",
+          "copy": "Cumpleaños, oficinas y noches privadas."
+        }
+      }
+    },
     "contactName": "Nombre de Contacto *",
     "namePlaceholder": "Su nombre completo",
     "emailAddress": "Dirección de Email *",

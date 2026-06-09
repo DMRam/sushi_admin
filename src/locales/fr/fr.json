@@ -3,7 +3,14 @@
     "byPacifique": "par Pacifique",
     "menu": "Menu",
     "booking": "Réservation",
+    "events": "Événements",
     "contact": "Contact",
+    "cart": "Panier",
+    "order": "Commander",
+    "dashboard": "Tableau de bord",
+    "logout": "Déconnexion",
+    "loading": "Chargement...",
+    "items": "articles",
     "points": "pts",
     "signIn": "Se Connecter"
   },
@@ -244,6 +251,47 @@
     "experienceDescription": "Présentation réfléchie et service fluide",
     "cateringEvents": "Traiteur & Événements",
     "cateringDescription": "Élevez vos événements avec notre service de traiteur premium de ceviche et sushi. Des rassemblements intimes aux événements d'entreprise, nous apportons la fraîcheur de l'océan jusqu'à vous.",
+    "events": {
+      "eyebrow": "Événements",
+      "publishedTitle": "Planifiez quelque chose de frais avec MaiSushi.",
+      "draftTitle": "Les forfaits événementiels sont en préparation.",
+      "publishedCopy": "Anniversaires, plateaux pour bureaux, groupes privés, soirées karaoké et formats sushi spéciaux peuvent être demandés directement au restaurant.",
+      "draftCopy": "MaiSushi prépare des options plus claires pour les anniversaires, les plateaux pour bureaux, les groupes privés et les soirées sushi spéciales. Cette section se met à jour depuis le tableau de bord du restaurant lorsque les forfaits sont publiés.",
+      "askCta": "Demander un événement",
+      "callCta": "Appeler MaiSushi",
+      "loading": "Chargement des événements",
+      "comingSoon": "Bientôt",
+      "updateInProgress": "Mise à jour du menu événementiel en cours",
+      "dashboardReady": "Tableau de bord prêt",
+      "preview": {
+        "birthdays": {
+          "title": "Anniversaires et fêtes privées",
+          "copy": "Plateaux de sushi, tables à partager et célébrations familiales sont organisés en forfaits clairs."
+        },
+        "office": {
+          "title": "Commandes de bureau et d’équipe",
+          "copy": "Les plateaux de groupe pour bureaux, écoles, équipes sportives et repas du personnel seront bientôt plus faciles à demander."
+        },
+        "addons": {
+          "title": "Ajouts spéciaux",
+          "copy": "Rouleaux premium, bateaux de sushi, desserts, boissons et options de cartes-cadeaux sont en révision."
+        }
+      },
+      "steps": {
+        "dates": {
+          "title": "1. Dates",
+          "copy": "La disponibilité sera confirmée."
+        },
+        "guests": {
+          "title": "2. Invités",
+          "copy": "Les formats de groupe sont en définition."
+        },
+        "formats": {
+          "title": "3. Formats",
+          "copy": "Anniversaires, bureaux et soirées privées."
+        }
+      }
+    },
     "contactName": "Nom de Contact *",
     "namePlaceholder": "Votre nom",
     "emailAddress": "Adresse Email *",

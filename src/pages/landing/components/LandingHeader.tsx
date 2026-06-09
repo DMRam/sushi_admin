@@ -301,13 +301,13 @@ export const LandingHeader = () => {
                             {user && (
                                 <Link to="/client-dashboard" className="flex items-center gap-1 whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/86 transition-colors duration-300 hover:text-[#f26350]">
                                     <LayoutDashboard size={16} />
-                                    <span>Dashboard</span>
+                                    <span>{t("header.dashboard", "Dashboard")}</span>
                                 </Link>
                             )}
 
                             <Link to="/checkout" className="group relative flex items-center gap-2 whitespace-nowrap text-white/86 transition-colors duration-300 hover:text-[#f26350]">
                                 <ShoppingCart size={18} />
-                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em]">Panier</span>
+                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em]">{t("header.cart", "Cart")}</span>
                                 {itemCount > 0 && (
                                     <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#f26350] text-xs font-bold text-white transition-transform group-hover:scale-110">
                                         {itemCount}
@@ -319,12 +319,12 @@ export const LandingHeader = () => {
                                 to="/order"
                                 className="rounded-[3px] bg-[#f26350] px-7 py-3.5 text-[10px] font-extrabold uppercase tracking-[0.12em] text-white shadow-lg shadow-[#f26350]/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#ff725f]"
                             >
-                                Commander
+                                {t("header.order", "Order")}
                             </Link>
 
                             <div className="hidden items-center gap-4 border-l border-white/10 pl-4 xl:flex">
                                 {isLoadingUser ? (
-                                    <div className="whitespace-nowrap text-xs text-white/45">Loading...</div>
+                                    <div className="whitespace-nowrap text-xs text-white/45">{t("header.loading", "Loading...")}</div>
                                 ) : user ? (
                                     <div className="flex items-center gap-3">
                                         <div className="flex items-center gap-2">
@@ -339,7 +339,7 @@ export const LandingHeader = () => {
                                                 {user.first_name || "User"}
                                             </span>
                                             <button onClick={handleLogout} className="whitespace-nowrap text-xs font-light text-white/50 transition-colors duration-300 hover:text-white/78">
-                                                Logout
+                                                {t("header.logout", "Logout")}
                                             </button>
                                         </div>
                                     </div>
@@ -402,11 +402,11 @@ export const LandingHeader = () => {
                         >
                             <div className="flex items-center gap-2">
                                 <ShoppingCart size={16} />
-                                <span>Cart</span>
+                                <span>{t("header.cart", "Cart")}</span>
                             </div>
                             {itemCount > 0 && (
                                 <span className="min-w-6 rounded-full bg-[#f26350] px-2 py-1 text-center text-xs text-white">
-                                    {itemCount} items
+                                    {itemCount} {t("header.items", "items")}
                                 </span>
                             )}
                         </Link>
@@ -414,12 +414,12 @@ export const LandingHeader = () => {
                         {user && (
                             <Link to="/client-dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-white/82 transition hover:text-[#f26350]">
                                 <LayoutDashboard size={16} />
-                                <span>Dashboard</span>
+                                <span>{t("header.dashboard", "Dashboard")}</span>
                             </Link>
                         )}
 
                         {isLoadingUser ? (
-                            <div className="border-t border-white/10 pt-3 text-xs text-white/45">Loading...</div>
+                            <div className="border-t border-white/10 pt-3 text-xs text-white/45">{t("header.loading", "Loading...")}</div>
                         ) : user ? (
                             <div className="space-y-3 border-t border-white/10 pt-3">
                                 <div className="flex items-center gap-2">
@@ -434,7 +434,7 @@ export const LandingHeader = () => {
                                 </div>
 
                                 <button onClick={handleLogout} className="w-full border-t border-white/10 pt-2 text-left text-xs font-light text-white/50 transition hover:text-white/78">
-                                    Logout
+                                    {t("header.logout", "Logout")}
                                 </button>
                             </div>
                         ) : (
