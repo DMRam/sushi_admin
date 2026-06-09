@@ -9,6 +9,7 @@ import { LandingHero } from './components/LandingHero'
 import { LandingFeatured } from './components/LandingFeatured'
 import { LandingCTAFooter } from './components/LandingCTAFooter'
 import { LandingContact } from './components/LandingContact'
+import { LandingEvents } from './components/LandingEvents'
 import { useUserProfile } from '../../context/UserProfileContext'
 import { useTranslation } from 'react-i18next'
 import { ChefHat, Leaf, ShoppingBag, Star } from 'lucide-react'
@@ -216,6 +217,8 @@ export default function LandingPage() {
         <ValueProps />
 
         <LandingFeatured handleAddToCart={handleAddToCart} />
+
+        <LandingEvents />
 
         <div className="bg-[#050505]">
           <LandingContact />

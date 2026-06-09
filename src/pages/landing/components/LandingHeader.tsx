@@ -290,6 +290,10 @@ export const LandingHeader = () => {
                                 <span>{t("header.booking", "Booking")}</span>
                             </Link>
 
+                            <HashLink to="/#events" scroll={scrollToSection} className="whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/86 transition-colors duration-300 hover:text-[#f26350]">
+                                {t("header.events", "Events")}
+                            </HashLink>
+
                             <HashLink to="/#contact" scroll={scrollToSection} className="whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/86 transition-colors duration-300 hover:text-[#f26350]">
                                 {t("header.contact", "Contact")}
                             </HashLink>
@@ -382,6 +386,10 @@ export const LandingHeader = () => {
                             <CalendarDays size={16} />
                             <span>{t("header.booking", "Booking")}</span>
                         </Link>
+
+                        <HashLink to="/#events" scroll={scrollToSection} onClick={() => setIsOpen(false)} className="text-sm font-semibold uppercase tracking-[0.16em] text-white/82 transition hover:text-[#f26350]">
+                            {t("header.events", "Events")}
+                        </HashLink>
 
                         <HashLink to="/#contact" scroll={scrollToSection} onClick={() => setIsOpen(false)} className="text-sm font-semibold uppercase tracking-[0.16em] text-white/82 transition hover:text-[#f26350]">
                             {t("header.contact", "Contact")}
