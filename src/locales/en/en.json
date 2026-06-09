@@ -527,6 +527,7 @@
   },
   "buildYourSushi": {
     "title": "Build Your Sushi",
+    "menuButton": "Customize a roll",
     "subtitle": "Create your perfect sushi roll with fresh ingredients",
     "builderSubtitle": "Create a custom roll and add it to your order.",
     "closeBuilder": "Close builder",
@@ -571,8 +572,7 @@
     "options": {
       "bases": {
         "classic": "Classic maki roll",
-        "riceOutside": "Rice outside roll",
-        "handRoll": "Hand roll"
+        "riceOutside": "Rice outside roll"
       },
       "proteins": {
         "salmon": "Salmon",

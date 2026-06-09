@@ -35,6 +35,7 @@ const ClientRegistration = lazy(() => import('./pages/client_hub/ClientRegistrat
 const ClientDashboard = lazy(() => import('./pages/client_hub/ClientDashboard'))
 const PayrollPage = lazy(() => import('./pages/admin/PayrollPage'))
 const BookingsPage = lazy(() => import('./pages/admin/BookingsPage'))
+const EventsPage = lazy(() => import('./pages/admin/EventsPage'))
 const GiftCardsPage = lazy(() => import('./pages/admin/GiftCardsPage'))
 const RewardsPage = lazy(() => import('./pages/admin/RewardsPage'))
 const ClientsPage = lazy(() => import('./pages/admin/ClientsPage'))
@@ -49,14 +50,14 @@ function AppContent() {
   const { user } = useAuth()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="admin-carbon-shell min-h-screen">
       {user && (
         <Suspense fallback={<div>Loading navigation...</div>}>
           <NavBar />
         </Suspense>
       )}
 
-      <main className="container mx-auto p-4">
+      <main className="admin-carbon-main mx-auto w-full max-w-[1920px] px-3 py-4 sm:px-5 lg:px-6">
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
             <Route path="/sales-tracking" element={<SalesTrackingPage />} />
@@ -68,6 +69,7 @@ function AppContent() {
             <Route path="/business-analytics" element={<BusinessAnalyticsPage />} />
             <Route path="/payroll" element={<PayrollPage />} />
             <Route path="/bookings" element={<BookingsPage />} />
+            <Route path="/events" element={<EventsPage />} />
             <Route path="/gift-cards" element={<GiftCardsPage />} />
             <Route path="/rewards" element={<RewardsPage />} />
             <Route path="/clients" element={<ClientsPage />} />

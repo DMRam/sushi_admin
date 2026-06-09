@@ -504,6 +504,7 @@
   },
   "buildYourSushi": {
     "title": "Construye Tu Sushi",
+    "menuButton": "Arma tu roll",
     "subtitle": "Crea tu rollo de sushi perfecto con ingredientes frescos",
     "builderSubtitle": "Crea un roll personalizado y agrégalo a tu pedido.",
     "closeBuilder": "Cerrar creador",
@@ -548,8 +549,7 @@
     "options": {
       "bases": {
         "classic": "Maki clásico",
-        "riceOutside": "Roll con arroz por fuera",
-        "handRoll": "Temaki"
+        "riceOutside": "Roll con arroz por fuera"
       },
       "proteins": {
         "salmon": "Salmón",

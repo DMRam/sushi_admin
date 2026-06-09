@@ -14,8 +14,10 @@ import {
 } from 'firebase/firestore'
 import {
   AlertTriangle,
+  ArrowUpDown,
   CalendarDays,
   CheckCircle2,
+  ChevronRight,
   Clock,
   Download,
   Edit3,
@@ -24,6 +26,8 @@ import {
   Printer,
   RefreshCw,
   Save,
+  Search,
+  ShieldCheck,
   Trash2,
   Users,
   WalletCards,
@@ -33,6 +37,8 @@ import * as XLSX from 'xlsx'
 import { db } from '../../firebase/firebase'
 
 type ShiftSource = 'manual' | 'spreadsheet' | 'n8n' | 'clover'
+type ShiftSortKey = 'date' | 'employeeName' | 'clockIn' | 'workedHours' | 'eligibleTipHours' | 'hourlyRate' | 'source'
+type SortDirection = 'asc' | 'desc'
 
 type EmployeeShift = {
   id: string
@@ -131,6 +137,7 @@ type PayrollEmployerContributionEstimate = {
 type PayrollImportResult = {
   fileName: string
   imported: number
+  updated: number
   skipped: number
   employeesCreated: number
   messages: string[]
@@ -143,6 +150,7 @@ type PayrollImportRow = Record<string, unknown> & {
 
 type PayrollImportPreview = PayrollImportResult & {
   shifts: Array<Omit<EmployeeShift, 'id'>>
+  shiftsToUpdate: Array<{ id: string; shift: Omit<EmployeeShift, 'id'> }>
   employeesToCreate: Array<Omit<PayrollEmployee, 'id'> & { id: string }>
 }
 
@@ -150,6 +158,7 @@ const CLOVER_CASH_EVENTS_PROXY_URL =
   import.meta.env.VITE_CLOVER_CASH_EVENTS_PROXY_URL ||
   import.meta.env.VITE_CLOVER_DASHBOARD_URL ||
   ''
+const CLOVER_SERVICE_DAY_CUTOFF_MINUTES = 4 * 60
 
 const emptyShift: Omit<EmployeeShift, 'id'> = {
   date: new Date().toISOString().slice(0, 10),
@@ -248,6 +257,25 @@ function dateKey(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+function getCurrentHalfMonthPeriod() {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  const day = today.getDate()
+
+  if (day <= 15) {
+    return {
+      start: dateKey(new Date(year, month, 1)),
+      end: dateKey(new Date(year, month, 15)),
+    }
+  }
+
+  return {
+    start: dateKey(new Date(year, month, 16)),
+    end: dateKey(new Date(year, month + 1, 0)),
+  }
+}
+
 function normalizeEmployeeId(name: string) {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
 }
@@ -344,11 +372,40 @@ function normalizeImportedDate(value: unknown) {
   const localMatch = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/)
   if (localMatch) {
     const year = localMatch[3].length === 2 ? `20${localMatch[3]}` : localMatch[3]
-    return `${year}-${localMatch[2].padStart(2, '0')}-${localMatch[1].padStart(2, '0')}`
+    const first = Number(localMatch[1])
+    const second = Number(localMatch[2])
+    const month = second > 12 && first <= 12 ? first : second
+    const day = second > 12 && first <= 12 ? second : first
+
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   }
 
   const date = new Date(text)
   return Number.isNaN(date.getTime()) ? '' : dateKey(date)
+}
+
+function normalizeStoredShiftDate(value: unknown) {
+  const text = String(value || '').trim()
+  const match = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+  if (!match) return normalizeImportedDate(value)
+
+  const year = match[1]
+  const second = Number(match[2])
+  const third = Number(match[3])
+
+  if (second > 12 && third <= 12) {
+    return `${year}-${String(third).padStart(2, '0')}-${String(second).padStart(2, '0')}`
+  }
+
+  return `${year}-${String(second).padStart(2, '0')}-${String(third).padStart(2, '0')}`
+}
+
+function normalizeShiftFromFirestore(id: string, data: Omit<EmployeeShift, 'id'>): EmployeeShift {
+  return {
+    id,
+    ...data,
+    date: normalizeStoredShiftDate(data.date),
+  }
 }
 
 function normalizeImportedTime(value: unknown) {
@@ -385,6 +442,36 @@ function parseImportedNumber(value: unknown, fallback = 0) {
 
 function shiftDuplicateKey(shift: Pick<EmployeeShift, 'date' | 'employeeName' | 'clockIn' | 'clockOut'>) {
   return `${shift.date}:${normalizeEmployeeId(shift.employeeName)}:${shift.clockIn}:${shift.clockOut}`
+}
+
+function sourceBadgeClass(source: ShiftSource) {
+  switch (source) {
+    case 'spreadsheet':
+      return 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+    case 'manual':
+      return 'bg-gray-100 text-gray-600 ring-1 ring-gray-200'
+    case 'n8n':
+      return 'bg-purple-50 text-purple-700 ring-1 ring-purple-200'
+    case 'clover':
+      return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+    default:
+      return 'bg-gray-100 text-gray-600 ring-1 ring-gray-200'
+  }
+}
+
+function sourceRowClass(source: ShiftSource) {
+  switch (source) {
+    case 'spreadsheet':
+      return 'border-l-4 border-l-blue-400'
+    case 'manual':
+      return 'border-l-4 border-l-gray-200'
+    case 'n8n':
+      return 'border-l-4 border-l-purple-400'
+    case 'clover':
+      return 'border-l-4 border-l-emerald-400'
+    default:
+      return ''
+  }
 }
 
 function getWeekKey(dateString: string) {
@@ -435,12 +522,20 @@ function minutesSinceLocalMidnight(date: Date) {
   return date.getHours() * 60 + date.getMinutes()
 }
 
+function getCloverTipServiceDate(createdAt: Date) {
+  const serviceDate = new Date(createdAt)
+  if (minutesSinceLocalMidnight(createdAt) < CLOVER_SERVICE_DAY_CUTOFF_MINUTES) {
+    serviceDate.setDate(serviceDate.getDate() - 1)
+  }
+  return dateKey(serviceDate)
+}
+
 function isCloverTipEligibleForPool(tip: CloverTipPayment) {
   const window = getTipPoolWindow(tip.date)
   if (!window) return false
 
   const minutes = minutesSinceLocalMidnight(tip.createdAt)
-  return minutes >= window.start && minutes <= window.end
+  return minutes >= window.start || minutes < CLOVER_SERVICE_DAY_CUTOFF_MINUTES
 }
 
 function isWithinPeriod(date: string, startDate: string, endDate: string) {
@@ -581,6 +676,86 @@ function amountFromMaybeCents(value: unknown) {
   return Math.abs(numeric) >= 100 ? numeric / 100 : numeric
 }
 
+function arrayFromElements(value: any): any[] {
+  if (Array.isArray(value)) return value
+  if (Array.isArray(value?.elements)) return value.elements
+  return []
+}
+
+function valueAtPath(source: any, path: string) {
+  return path.split('.').reduce((current, key) => current?.[key], source)
+}
+
+function firstPositiveCloverAmount(source: any, paths: string[]) {
+  for (const path of paths) {
+    const amount = amountFromMaybeCents(valueAtPath(source, path))
+    if (amount > 0) return amount
+  }
+  return 0
+}
+
+function sumNestedTipAmounts(source: any) {
+  const nestedPaymentGroups = [
+    source.payments,
+    source.tenders,
+    source.order?.payments,
+    source.order?.tenders,
+  ]
+
+  return round2(nestedPaymentGroups.reduce((total, group) => (
+    total + arrayFromElements(group).reduce((sum, item) => (
+      sum + firstPositiveCloverAmount(item, [
+        'tipAmount',
+        'tip',
+        'gratuityAmount',
+        'gratuity',
+        'tip_amount',
+        'tipAmountCents',
+        'tipCents',
+      ])
+    ), 0)
+  ), 0))
+}
+
+function extractCloverTipAmount(raw: any) {
+  return firstPositiveCloverAmount(raw, [
+    'tipAmount',
+    'tip',
+    'gratuityAmount',
+    'gratuity',
+    'tip_amount',
+    'tipAmountCents',
+    'tipCents',
+    'tender.tipAmount',
+    'tender.tip',
+    'payment.tipAmount',
+    'payment.tip',
+  ]) || sumNestedTipAmounts(raw)
+}
+
+function firstCloverPaymentCollection(payload: any) {
+  return payload?.recentPayments || payload?.payments || payload?.paymentList || payload?.data || []
+}
+
+function buildCloverTipsUrl(baseUrl: string, startDate: string, endDate: string) {
+  const url = new URL(baseUrl, window.location.origin)
+  const start = new Date(`${startDate}T00:00:00`)
+  const end = new Date(`${endDate}T23:59:59.999`)
+  const endWithServiceCutoff = new Date(end)
+  endWithServiceCutoff.setDate(endWithServiceCutoff.getDate() + 1)
+  endWithServiceCutoff.setHours(CLOVER_SERVICE_DAY_CUTOFF_MINUTES / 60, 0, 0, 0)
+
+  url.searchParams.set('limit', '50')
+  url.searchParams.set('orderLimit', '300')
+  url.searchParams.set('detailLimit', '8')
+  url.searchParams.set('startDate', startDate)
+  url.searchParams.set('endDate', endDate)
+  url.searchParams.set('startTime', String(start.getTime()))
+  url.searchParams.set('endTime', String(endWithServiceCutoff.getTime()))
+
+  return url.toString()
+}
+
 function normalizeCloverTipPayment(raw: any, index: number): CloverTipPayment {
   const order = raw.order || {}
   const employee = raw.employee || order.employee || {}
@@ -588,10 +763,10 @@ function normalizeCloverTipPayment(raw: any, index: number): CloverTipPayment {
 
   return {
     id: raw.id || `clover-tip-${index}`,
-    date: dateKey(createdAt),
+    date: getCloverTipServiceDate(createdAt),
     createdAt,
     amount: amountFromMaybeCents(raw.amount || raw.total),
-    tipAmount: amountFromMaybeCents(raw.tipAmount || raw.tip || raw.gratuityAmount),
+    tipAmount: extractCloverTipAmount(raw),
     employeeName: employee.name || employee.displayName || employee.id || 'Unassigned',
     orderId: order.id || raw.orderId || '',
   }
@@ -657,6 +832,8 @@ function buildCsv(summary: EmployeePayrollSummary[], shifts: ComputedShift[], po
 }
 
 export default function PayrollPage() {
+  const payrollReportRef = useRef<HTMLDivElement | null>(null)
+  const shiftLogRef = useRef<HTMLDivElement | null>(null)
   const shiftFormRef = useRef<HTMLDivElement | null>(null)
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const [employees, setEmployees] = useState<PayrollEmployee[]>([])
@@ -665,19 +842,23 @@ export default function PayrollPage() {
   const [cloverTips, setCloverTips] = useState<CloverTipPayment[]>([])
   const [newShift, setNewShift] = useState<Omit<EmployeeShift, 'id'>>(emptyShift)
   const [employeeDraft, setEmployeeDraft] = useState<Omit<PayrollEmployee, 'id'>>(emptyEmployee)
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null)
   const [editingShiftId, setEditingShiftId] = useState<string | null>(null)
   const [tipDraft, setTipDraft] = useState({ date: emptyShift.date, amount: 0, notes: '' })
-  const [periodStart, setPeriodStart] = useState(() => {
-    const date = new Date()
-    date.setDate(date.getDate() - 6)
-    return date.toISOString().slice(0, 10)
-  })
-  const [periodEnd, setPeriodEnd] = useState(() => new Date().toISOString().slice(0, 10))
+  const [periodStart, setPeriodStart] = useState(() => getCurrentHalfMonthPeriod().start)
+  const [periodEnd, setPeriodEnd] = useState(() => getCurrentHalfMonthPeriod().end)
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('all')
+  const [shiftSearch, setShiftSearch] = useState('')
+  const [shiftSourceFilter, setShiftSourceFilter] = useState<'all' | ShiftSource>('all')
+  const [shiftApprovalFilter, setShiftApprovalFilter] = useState<'all' | 'approved' | 'pending'>('all')
+  const [shiftSortKey, setShiftSortKey] = useState<ShiftSortKey>('date')
+  const [shiftSortDirection, setShiftSortDirection] = useState<SortDirection>('desc')
   const [loading, setLoading] = useState(true)
   const [cloverLoading, setCloverLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [shiftError, setShiftError] = useState<string | null>(null)
   const [employeeError, setEmployeeError] = useState<string | null>(null)
+  const [employeeNotice, setEmployeeNotice] = useState<string | null>(null)
   const [importLoading, setImportLoading] = useState(false)
   const [importResult, setImportResult] = useState<PayrollImportResult | null>(null)
   const [importPreview, setImportPreview] = useState<PayrollImportPreview | null>(null)
@@ -701,10 +882,9 @@ export default function PayrollPage() {
     unsubscribers.push(onSnapshot(
       query(collection(db, 'employeeShifts'), orderBy('date', 'desc')),
       (snapshot) => {
-        setShifts(snapshot.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...(docSnap.data() as Omit<EmployeeShift, 'id'>),
-        })))
+        setShifts(snapshot.docs.map((docSnap) => (
+          normalizeShiftFromFirestore(docSnap.id, docSnap.data() as Omit<EmployeeShift, 'id'>)
+        )))
         setLoading(false)
       },
       (snapshotError) => {
@@ -741,12 +921,7 @@ export default function PayrollPage() {
     setCloverLoading(true)
 
     try {
-      const url = new URL(CLOVER_CASH_EVENTS_PROXY_URL)
-      url.searchParams.set('limit', '20')
-      url.searchParams.set('orderLimit', '50')
-      url.searchParams.set('detailLimit', '4')
-
-      const response = await fetch(url.toString(), {
+      const response = await fetch(buildCloverTipsUrl(CLOVER_CASH_EVENTS_PROXY_URL, periodStart, periodEnd), {
         headers: { accept: 'application/json' },
       })
       const payload = await response.json().catch(() => null)
@@ -755,7 +930,7 @@ export default function PayrollPage() {
         throw new Error(payload?.error || `Clover proxy returned ${response.status}`)
       }
 
-      const payments = Array.isArray(payload?.recentPayments) ? payload.recentPayments : []
+      const payments = arrayFromElements(firstCloverPaymentCollection(payload))
       setCloverTips(
         payments
           .map((payment: any, index: number) => normalizeCloverTipPayment(payment, index))
@@ -771,7 +946,7 @@ export default function PayrollPage() {
 
   useEffect(() => {
     loadCloverTips()
-  }, [])
+  }, [periodStart, periodEnd])
 
   const periodShifts = useMemo(() => {
     return shifts
@@ -941,33 +1116,145 @@ export default function PayrollPage() {
       .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
   }, [periodShifts, dailyTipPools, periodStart, periodEnd])
 
+  const selectedEmployee = useMemo(() => {
+    if (selectedEmployeeId === 'all') return null
+    return employeeOptions.find((employee) => employee.id === selectedEmployeeId) || null
+  }, [employeeOptions, selectedEmployeeId])
+
+  const reportEmployeeSummary = useMemo(() => {
+    if (selectedEmployeeId === 'all') return employeeSummary
+    return employeeSummary.filter((row) => row.employeeId === selectedEmployeeId)
+  }, [employeeSummary, selectedEmployeeId])
+
+  const reportPeriodShifts = useMemo(() => {
+    if (selectedEmployeeId === 'all') return periodShifts
+    return periodShifts.filter((shift) => (shift.employeeId || normalizeEmployeeId(shift.employeeName)) === selectedEmployeeId)
+  }, [periodShifts, selectedEmployeeId])
+
+  const visibleShiftRows = useMemo(() => {
+    const search = shiftSearch.trim().toLowerCase()
+
+    return reportPeriodShifts
+      .filter((shift) => {
+        if (shiftSourceFilter !== 'all' && shift.source !== shiftSourceFilter) return false
+        if (shiftApprovalFilter === 'approved' && !shift.approved) return false
+        if (shiftApprovalFilter === 'pending' && shift.approved) return false
+        if (!search) return true
+
+        return [
+          shift.date,
+          shift.employeeName,
+          shift.clockIn,
+          shift.clockOut,
+          shift.source,
+          shift.notes,
+        ].some((value) => String(value || '').toLowerCase().includes(search))
+      })
+      .sort((a, b) => {
+        const direction = shiftSortDirection === 'asc' ? 1 : -1
+        const aValue = a[shiftSortKey]
+        const bValue = b[shiftSortKey]
+
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return (aValue - bValue) * direction
+        }
+
+        return String(aValue || '').localeCompare(String(bValue || '')) * direction
+      })
+  }, [reportPeriodShifts, shiftApprovalFilter, shiftSearch, shiftSortDirection, shiftSortKey, shiftSourceFilter])
+
+  const visibleShiftTotals = useMemo(() => ({
+    rows: visibleShiftRows.length,
+    hours: round2(visibleShiftRows.reduce((sum, shift) => sum + shift.workedHours, 0)),
+    tipHours: round2(visibleShiftRows.reduce((sum, shift) => sum + shift.eligibleTipHours, 0)),
+  }), [visibleShiftRows])
+
+  const loadedRange = useMemo(() => {
+    const dates = shifts.map((shift) => shift.date).filter(Boolean).sort()
+    if (!dates.length) return 'No saved shifts yet'
+    return `${dates[0]} to ${dates[dates.length - 1]}`
+  }, [shifts])
+
   const totals = useMemo(() => {
     return {
-      workedHours: round2(employeeSummary.reduce((sum, row) => sum + row.workedHours, 0)),
-      eligibleTipHours: round2(employeeSummary.reduce((sum, row) => sum + row.eligibleTipHours, 0)),
-      wages: round2(employeeSummary.reduce((sum, row) => sum + row.wagePay, 0)),
-      tips: round2(employeeSummary.reduce((sum, row) => sum + row.tips, 0)),
-      gross: round2(employeeSummary.reduce((sum, row) => sum + row.estimatedGross, 0)),
-      deductions: round2(employeeSummary.reduce((sum, row) => sum + row.deductions.total, 0)),
-      netPay: round2(employeeSummary.reduce((sum, row) => sum + row.estimatedNetPay, 0)),
-      employerContributions: round2(employeeSummary.reduce((sum, row) => sum + row.employerContributions.total, 0)),
+      workedHours: round2(reportEmployeeSummary.reduce((sum, row) => sum + row.workedHours, 0)),
+      eligibleTipHours: round2(reportEmployeeSummary.reduce((sum, row) => sum + row.eligibleTipHours, 0)),
+      wages: round2(reportEmployeeSummary.reduce((sum, row) => sum + row.wagePay, 0)),
+      tips: round2(reportEmployeeSummary.reduce((sum, row) => sum + row.tips, 0)),
+      gross: round2(reportEmployeeSummary.reduce((sum, row) => sum + row.estimatedGross, 0)),
+      deductions: round2(reportEmployeeSummary.reduce((sum, row) => sum + row.deductions.total, 0)),
+      netPay: round2(reportEmployeeSummary.reduce((sum, row) => sum + row.estimatedNetPay, 0)),
+      employerContributions: round2(reportEmployeeSummary.reduce((sum, row) => sum + row.employerContributions.total, 0)),
     }
-  }, [employeeSummary])
+  }, [reportEmployeeSummary])
 
   const employeeById = useMemo(() => {
     return new Map(employeeOptions.map((employee) => [employee.id, employee]))
   }, [employeeOptions])
 
+  const payrollHealth = useMemo(() => {
+    const pendingShifts = reportPeriodShifts.filter((shift) => !shift.approved).length
+    const cloverTipTotal = round2(periodCloverTips.reduce((sum, tip) => sum + tip.tipAmount, 0))
+    const manualTipTotal = round2(periodManualTips.reduce((sum, tip) => sum + Number(tip.amount || 0), 0))
+    const tipsUsedInPools = round2(dailyTipPools.reduce((sum, pool) => sum + pool.cloverTips + pool.manualTips, 0))
+    const belowMinimumEmployees = employeeOptions.filter((employee) => {
+      if (employee.active === false) return false
+      const minimum = employee.tipped ? QUEBEC_TIPPED_MIN_WAGE_2026 : QUEBEC_GENERAL_MIN_WAGE_2026
+      return Number(employee.hourlyRate || 0) < minimum
+    })
+    const employeeProfilesMissing = reportEmployeeSummary.filter((row) => !employeeById.has(row.employeeId)).length
+    const employerCost = round2(totals.gross + totals.employerContributions)
+
+    return {
+      pendingShifts,
+      cloverTipTotal,
+      manualTipTotal,
+      tipsUsedInPools,
+      belowMinimumEmployees,
+      employeeProfilesMissing,
+      employerCost,
+    }
+  }, [
+    dailyTipPools,
+    employeeById,
+    employeeOptions,
+    periodCloverTips,
+    periodManualTips,
+    reportEmployeeSummary,
+    reportPeriodShifts,
+    totals.employerContributions,
+    totals.gross,
+  ])
+
+  const payrollAttentionCount = useMemo(() => {
+    return [
+      reportPeriodShifts.length === 0,
+      payrollHealth.pendingShifts > 0,
+      payrollHealth.employeeProfilesMissing > 0,
+      payrollHealth.belowMinimumEmployees.length > 0,
+    ].filter(Boolean).length
+  }, [
+    payrollHealth.belowMinimumEmployees.length,
+    payrollHealth.employeeProfilesMissing,
+    payrollHealth.pendingShifts,
+    reportPeriodShifts.length,
+  ])
+
+  const payrollLoading = loading || cloverLoading || importLoading
+  const payrollReady = reportPeriodShifts.length > 0 && payrollAttentionCount === 0
+
   const parsePayrollSpreadsheet = async (file: File): Promise<PayrollImportPreview> => {
     const buffer = await file.arrayBuffer()
     const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
     const rows = getPayrollImportRows(workbook)
-    const existingShiftKeys = new Set(shifts.map(shiftDuplicateKey))
+    const existingShiftByKey = new Map(shifts.map((shift) => [shiftDuplicateKey(shift), shift]))
     const importedShiftKeys = new Set<string>()
+    const updatedShiftIds = new Set<string>()
     const existingEmployeeIds = new Set(employeeOptions.map((employee) => employee.id))
     const createdEmployeeIds = new Set<string>()
     const messages: string[] = []
     const parsedShifts: Array<Omit<EmployeeShift, 'id'>> = []
+    const shiftsToUpdate: Array<{ id: string; shift: Omit<EmployeeShift, 'id'> }> = []
     const employeesToCreate: Array<Omit<PayrollEmployee, 'id'> & { id: string }> = []
     let skipped = 0
 
@@ -1013,8 +1300,28 @@ export default function PayrollPage() {
       }
       const duplicateKey = shiftDuplicateKey(importedShift)
 
-      if (existingShiftKeys.has(duplicateKey) || importedShiftKeys.has(duplicateKey)) {
+      if (importedShiftKeys.has(duplicateKey)) {
         skipped += 1
+        return
+      }
+
+      const existingShift = existingShiftByKey.get(duplicateKey)
+      if (existingShift) {
+        if (!updatedShiftIds.has(existingShift.id)) {
+          const existingNotes = existingShift.notes || ''
+          shiftsToUpdate.push({
+            id: existingShift.id,
+            shift: {
+              ...importedShift,
+              notes: existingNotes.includes(`Imported from ${file.name}`)
+                ? existingNotes
+                : [existingNotes, `Imported from ${file.name}`].filter(Boolean).join(' | '),
+              approved: existingShift.approved || importedShift.approved,
+            },
+          })
+          updatedShiftIds.add(existingShift.id)
+        }
+        importedShiftKeys.add(duplicateKey)
         return
       }
 
@@ -1038,10 +1345,12 @@ export default function PayrollPage() {
     return {
       fileName: file.name,
       imported: parsedShifts.length,
+      updated: shiftsToUpdate.length,
       skipped,
       employeesCreated: employeesToCreate.length,
       messages,
       shifts: parsedShifts,
+      shiftsToUpdate,
       employeesToCreate,
     }
   }
@@ -1058,7 +1367,7 @@ export default function PayrollPage() {
     try {
       const preview = await parsePayrollSpreadsheet(file)
       setImportPreview(preview)
-      if (preview.imported === 0 && preview.employeesCreated === 0) {
+      if (preview.imported === 0 && preview.updated === 0 && preview.employeesCreated === 0) {
         setImportResult(preview)
       }
     } catch (importError: any) {
@@ -1066,6 +1375,7 @@ export default function PayrollPage() {
       setImportResult({
         fileName: file.name,
         imported: 0,
+        updated: 0,
         skipped: 0,
         employeesCreated: 0,
         messages: [importError?.message || 'Unable to read spreadsheet.'],
@@ -1102,23 +1412,33 @@ export default function PayrollPage() {
         })
       })
 
-      if (importPreview.imported > 0 || importPreview.employeesCreated > 0) {
+      importPreview.shiftsToUpdate.forEach(({ id, shift }) => {
+        batch.set(doc(db, 'employeeShifts', id), {
+          ...shift,
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      })
+
+      if (importPreview.imported > 0 || importPreview.updated > 0 || importPreview.employeesCreated > 0) {
         await batch.commit()
       }
 
       setImportResult({
         fileName: importPreview.fileName,
         imported: importPreview.imported,
+        updated: importPreview.updated,
         skipped: importPreview.skipped,
         employeesCreated: importPreview.employeesCreated,
         messages: importPreview.messages,
       })
       setImportPreview(null)
+      setTimeout(() => viewShiftLog(), 120)
     } catch (saveError: any) {
       console.error('Failed to save payroll import', saveError)
       setImportResult({
         fileName: importPreview.fileName,
         imported: 0,
+        updated: 0,
         skipped: importPreview.skipped,
         employeesCreated: 0,
         messages: [saveError?.message || 'Unable to save imported shifts.'],
@@ -1147,14 +1467,18 @@ export default function PayrollPage() {
 
   const saveEmployee = async () => {
     setEmployeeError(null)
+    setEmployeeNotice(null)
     const name = employeeDraft.name.trim()
     if (!name) {
       setEmployeeError('Enter an employee name.')
       return
     }
 
-    const id = normalizeEmployeeId(name)
-    const duplicate = employeeOptions.find((employee) => employee.id === id || employee.name.trim().toLowerCase() === name.toLowerCase())
+    const id = editingEmployeeId || normalizeEmployeeId(name)
+    const duplicate = [...employees, ...employeeOptions].find((employee) => {
+      if (employee.id === id) return false
+      return employee.id === normalizeEmployeeId(name) || employee.name.trim().toLowerCase() === name.toLowerCase()
+    })
     if (duplicate) {
       setEmployeeError(`${duplicate.name} is already in the employee list.`)
       return
@@ -1164,12 +1488,50 @@ export default function PayrollPage() {
       ...employeeDraft,
       name,
       hourlyRate: Number(employeeDraft.hourlyRate || 0),
-      active: true,
-      createdAt: serverTimestamp(),
+      active: employeeDraft.active !== false,
+      ...(editingEmployeeId ? {} : { createdAt: serverTimestamp() }),
       updatedAt: serverTimestamp(),
-    })
+    }, { merge: true })
 
     setEmployeeDraft(emptyEmployee)
+    setEditingEmployeeId(null)
+    setEmployeeNotice(editingEmployeeId ? `${name} was updated.` : `${name} was added.`)
+  }
+
+  const startEditEmployee = (employee: PayrollEmployee) => {
+    setEmployeeError(null)
+    setEmployeeNotice(null)
+    setEditingEmployeeId(employee.id)
+    setEmployeeDraft({
+      name: employee.name,
+      hourlyRate: Number(employee.hourlyRate || 0),
+      tipped: employee.tipped !== false,
+      role: employee.role || 'Service',
+      active: employee.active !== false,
+      notes: employee.notes || '',
+    })
+  }
+
+  const cancelEditEmployee = () => {
+    setEmployeeError(null)
+    setEditingEmployeeId(null)
+    setEmployeeDraft(emptyEmployee)
+  }
+
+  const setEmployeeActive = async (employee: PayrollEmployee, active: boolean) => {
+    if (!active && !window.confirm(`Archive ${employee.name}? Existing shifts and payroll history will stay available.`)) {
+      return
+    }
+
+    await setDoc(doc(db, 'payrollEmployees', employee.id), {
+      active,
+      updatedAt: serverTimestamp(),
+    }, { merge: true })
+    setEmployeeNotice(active ? `${employee.name} was restored.` : `${employee.name} was archived.`)
+
+    if (editingEmployeeId === employee.id) {
+      cancelEditEmployee()
+    }
   }
 
   const addShift = async () => {
@@ -1260,168 +1622,326 @@ export default function PayrollPage() {
   }
 
   const exportCsv = () => {
-    const csv = buildCsv(employeeSummary, periodShifts, dailyTipPools)
+    const csv = buildCsv(reportEmployeeSummary, reportPeriodShifts, dailyTipPools)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `maisushi-payroll-${periodStart}-to-${periodEnd}.csv`
+    link.download = `maisushi-payroll-${selectedEmployee?.name || 'all'}-${periodStart}-to-${periodEnd}.csv`
     link.click()
     URL.revokeObjectURL(url)
   }
 
+  const generatePayroll = () => {
+    payrollReportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   const printPaystubs = () => {
-    window.print()
+    requestAnimationFrame(() => window.print())
+  }
+
+  const viewShiftLog = () => {
+    shiftLogRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
     <div className="min-h-screen bg-[#f6f7fb]">
       <div className="mx-auto w-full max-w-[1760px] space-y-5 px-3 pb-8 sm:px-5 lg:px-8">
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-                Payroll control
-              </p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
-                Hours, wages, and tip sharing
-              </h1>
-              <p className="mt-2 max-w-4xl text-sm leading-6 text-gray-500">
-                Select Date A and Date B, then generate payroll estimates with Quebec and federal deduction lines for review.
-              </p>
+        <section className="relative overflow-hidden border border-gray-200 bg-white shadow-sm">
+          {payrollLoading && <span className="admin-loading-bar absolute inset-x-0 top-0 h-1" />}
+          <div className="grid items-start xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.42fr)]">
+            <div className="p-5 sm:p-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
+                    Payroll command center
+                  </p>
+                  <h1 className="mt-3 max-w-4xl text-3xl font-semibold tracking-tight text-gray-950 sm:text-4xl">
+                    Prepare payroll with a clear review path.
+                  </h1>
+                  <p className="mt-4 max-w-5xl text-sm leading-6 text-gray-600 sm:text-base">
+                    Pick the period, verify hours, sync tips, and produce paystubs only when the review is clean.
+                    Setup, imports, and corrections stay lower on the page so the owner flow stays simple.
+                  </p>
+                </div>
+                <div className={`inline-flex w-fit items-center gap-2 border px-4 py-3 text-sm font-semibold ${payrollReady ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+                  <span className={`h-2.5 w-2.5 ${payrollReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  {payrollReady ? 'Ready to prepare' : `${payrollAttentionCount || 1} review item${payrollAttentionCount === 1 ? '' : 's'}`}
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <PayrollCommandButton
+                  icon={WalletCards}
+                  title="Review payroll"
+                  detail="Jump to the pay-run totals"
+                  onClick={generatePayroll}
+                  primary
+                />
+                <PayrollCommandButton
+                  icon={RefreshCw}
+                  title={cloverLoading ? 'Syncing tips...' : 'Sync Clover tips'}
+                  detail={`${money(payrollHealth.cloverTipTotal)} from Clover`}
+                  onClick={loadCloverTips}
+                  loading={cloverLoading}
+                />
+                <PayrollCommandButton
+                  icon={Clock}
+                  title="Audit shifts"
+                  detail={`${payrollHealth.pendingShifts} pending · ${reportPeriodShifts.length} loaded`}
+                  onClick={viewShiftLog}
+                />
+                <PayrollCommandButton
+                  icon={Printer}
+                  title="Print paystubs"
+                  detail={`${reportEmployeeSummary.length} employee summaries`}
+                  onClick={printPaystubs}
+                  dark
+                />
+              </div>
+
+              <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                <PayrollStatusPill
+                  label="Hours"
+                  value={`${totals.workedHours.toFixed(2)} h`}
+                  detail={`${reportPeriodShifts.length} shifts`}
+                  status={reportPeriodShifts.length > 0 ? 'ok' : 'warn'}
+                />
+                <PayrollStatusPill
+                  label="Tips"
+                  value={money(totals.tips)}
+                  detail={`${totals.eligibleTipHours.toFixed(2)} eligible h`}
+                  status={payrollHealth.tipsUsedInPools > 0 ? 'ok' : 'neutral'}
+                />
+                <PayrollStatusPill
+                  label="People"
+                  value={`${employeeOptions.filter((employee) => employee.active !== false).length} active`}
+                  detail={selectedEmployee?.name || 'All employees'}
+                  status={payrollHealth.employeeProfilesMissing === 0 ? 'ok' : 'warn'}
+                />
+                <PayrollStatusPill
+                  label="Rates"
+                  value={payrollHealth.belowMinimumEmployees.length ? `${payrollHealth.belowMinimumEmployees.length} warning` : 'Checked'}
+                  detail="Quebec minimum check"
+                  status={payrollHealth.belowMinimumEmployees.length ? 'danger' : 'ok'}
+                />
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={loadCloverTips}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-              >
-                <RefreshCw className={`h-4 w-4 ${cloverLoading ? 'animate-spin' : ''}`} />
-                Sync Clover tips
-              </button>
-              <button
-                type="button"
-                onClick={exportCsv}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
-              >
-                <Download className="h-4 w-4" />
-                Generate CSV
-              </button>
-              <button
-                type="button"
-                onClick={printPaystubs}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#f26350] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#df4f3d]"
-              >
-                <Printer className="h-4 w-4" />
-                Print paystubs
-              </button>
+            <div className="border-t border-gray-200 bg-[#f4f4f4] p-5 sm:p-6 xl:border-l xl:border-t-0">
+              <div className="border border-gray-300 bg-white p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Pay period</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-gray-950">{periodStart} to {periodEnd}</h2>
+                <p className="mt-2 text-sm leading-6 text-gray-600">
+                  Change the dates or employee, then generate a fresh review.
+                </p>
+                <div className="mt-5 grid gap-3">
+                  <Field label="Start date">
+                    <input type="date" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} className="input" />
+                  </Field>
+                  <Field label="End date">
+                    <input type="date" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} className="input" />
+                  </Field>
+                  <Field label="Employee">
+                    <select value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)} className="input">
+                      <option value="all">All employees</option>
+                      {employeeOptions.map((employee) => (
+                        <option key={employee.id} value={employee.id}>{employee.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <button
+                    type="button"
+                    onClick={generatePayroll}
+                    className="group inline-flex min-h-[52px] items-center justify-between gap-3 bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-700"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <WalletCards className="h-4 w-4" />
+                      Generate review
+                    </span>
+                    <ChevronRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3">
+                <MiniStat label="Loaded shift range" value={loadedRange} />
+                <MiniStat label="Employer cost" value={money(payrollHealth.employerCost)} />
+              </div>
             </div>
           </div>
         </section>
 
         {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Hours to pay" value={`${totals.workedHours.toFixed(2)} h`} detail={`${periodShifts.length} shifts in period`} />
-          <MetricCard label="Gross payroll" value={money(totals.gross)} detail={`${money(totals.wages)} wages + ${money(totals.tips)} tips`} />
-          <MetricCard label="Employee deductions" value={money(totals.deductions)} detail="Federal, Quebec, QPP, QPIP, EI estimate" />
-          <MetricCard label="Estimated net pay" value={money(totals.netPay)} detail={`${money(totals.employerContributions)} employer contributions`} />
+        <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+            <SectionHeader icon={WalletCards} label="Pay-run summary" title={`${selectedEmployee?.name || 'All employees'} · ${periodStart} to ${periodEnd}`} />
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <MetricCard label="Employer cost" value={money(payrollHealth.employerCost)} detail={`${money(totals.gross)} gross + ${money(totals.employerContributions)} employer costs`} />
+              <MetricCard label="Net pay" value={money(totals.netPay)} detail="Estimated cash paid to employees after deductions" />
+              <MetricCard label="Hours" value={`${totals.workedHours.toFixed(2)} h`} detail={`${reportPeriodShifts.length} shifts · ${totals.eligibleTipHours.toFixed(2)} tip hours`} />
+              <MetricCard label="Tips allocated" value={money(totals.tips)} detail={`${money(payrollHealth.cloverTipTotal)} Clover · ${money(payrollHealth.manualTipTotal)} manual`} />
+            </div>
+            <PayrollBreakdownChart totals={totals} />
+          </div>
+
+          <aside className="border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+            <SectionHeader icon={ShieldCheck} label="Before paying" title="Owner checklist" />
+            <div className="mt-5 space-y-3">
+              <PayrollHealthItem
+                status={reportPeriodShifts.length > 0 ? 'ok' : 'warn'}
+                title={reportPeriodShifts.length > 0 ? 'Hours loaded' : 'No hours in this period'}
+                detail={reportPeriodShifts.length > 0 ? `${reportPeriodShifts.length} shifts are included in this review.` : 'Import or add shifts before generating paystubs.'}
+              />
+              <PayrollHealthItem
+                status={payrollHealth.pendingShifts === 0 ? 'ok' : 'warn'}
+                title={payrollHealth.pendingShifts === 0 ? 'No pending shifts' : `${payrollHealth.pendingShifts} shifts need review`}
+                detail={payrollHealth.pendingShifts === 0 ? 'Visible shifts are approved or already imported.' : 'Open the shift log and confirm these rows before paying.'}
+              />
+              <PayrollHealthItem
+                status={payrollHealth.tipsUsedInPools > 0 ? 'ok' : 'neutral'}
+                title={payrollHealth.tipsUsedInPools > 0 ? 'Tips are included' : 'No tips allocated'}
+                detail={payrollHealth.tipsUsedInPools > 0 ? `${money(payrollHealth.tipsUsedInPools)} is included in daily tip pools.` : 'Sync Clover tips or add a manual tip day if tips are missing.'}
+              />
+              <PayrollHealthItem
+                status={payrollHealth.employeeProfilesMissing === 0 ? 'ok' : 'warn'}
+                title={payrollHealth.employeeProfilesMissing === 0 ? 'Employee setup is matched' : `${payrollHealth.employeeProfilesMissing} employee profile gap`}
+                detail={payrollHealth.employeeProfilesMissing === 0 ? 'Payroll rows match employee setup records.' : 'Review employee setup so rates and roles stay consistent.'}
+              />
+              <PayrollHealthItem
+                status={payrollHealth.belowMinimumEmployees.length === 0 ? 'ok' : 'danger'}
+                title={payrollHealth.belowMinimumEmployees.length === 0 ? 'Rates pass minimum check' : `${payrollHealth.belowMinimumEmployees.length} rate warning`}
+                detail={payrollHealth.belowMinimumEmployees.length === 0 ? 'Employee rates are above the configured Quebec minimums.' : payrollHealth.belowMinimumEmployees.map((employee) => employee.name).join(', ')}
+              />
+            </div>
+            <div className="mt-5 border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
+              Payroll is an estimate for preparation. Confirm final Canada and Quebec deductions with payroll tables or payroll software before remitting.
+            </div>
+            <div className="mt-4 grid gap-2">
+              <button
+                type="button"
+                onClick={viewShiftLog}
+                className="group inline-flex min-h-[44px] items-center justify-between border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 transition hover:border-blue-600 hover:text-blue-700"
+              >
+                Open shift log
+                <ChevronRight className="h-4 w-4 transition group-hover:translate-x-1" />
+              </button>
+              <button
+                type="button"
+                onClick={loadCloverTips}
+                className="group inline-flex min-h-[44px] items-center justify-between border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 transition hover:border-blue-600 hover:text-blue-700"
+              >
+                Sync latest tips
+                <RefreshCw className={`h-4 w-4 transition group-hover:translate-x-1 ${cloverLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </aside>
         </section>
 
-        <section className="grid gap-3 md:grid-cols-4">
-          <PayrollStep number="1" title="Pick dates" detail="Choose the pay period you want to review." />
-          <PayrollStep number="2" title="Select employee" detail="Use the employee list before adding a shift." />
-          <PayrollStep number="3" title="Confirm tips" detail="Tips are shown separately from wages." />
-          <PayrollStep number="4" title="Generate payroll" detail="Export CSV or print paystubs for the selected dates." />
-        </section>
-
-        <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-            <SectionHeader icon={CheckCircle2} label="Company" title="Paystub header" />
-            <div className="mt-5 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
-              <p className="text-lg font-semibold text-gray-950">{COMPANY_INFO.legalName}</p>
-              <p className="mt-1">{COMPANY_INFO.address}</p>
-              <p>{COMPANY_INFO.website}</p>
-              <div className="mt-4 grid gap-2 text-xs sm:grid-cols-3">
-                <span className="rounded-xl bg-white px-3 py-2">{COMPANY_INFO.employerIds.rq}</span>
-                <span className="rounded-xl bg-white px-3 py-2">{COMPANY_INFO.employerIds.cra}</span>
-                <span className="rounded-xl bg-white px-3 py-2">{COMPANY_INFO.employerIds.cnesst}</span>
-              </div>
+        <section ref={payrollReportRef} className="border border-gray-200 bg-white p-0 shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-gray-200 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+            <div>
+              <SectionHeader icon={WalletCards} label="Pay by employee" title={`${periodStart} to ${periodEnd}`} />
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+                This is the main review area. If something looks wrong, use the correction tools below: import, employee setup,
+                shift editor, manual tips, or shift log.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={exportCsv} className="inline-flex min-h-[44px] items-center justify-center gap-2 border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50">
+                <Download className="h-4 w-4" />
+                CSV
+              </button>
+              <button type="button" onClick={printPaystubs} className="inline-flex min-h-[44px] items-center justify-center gap-2 bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
+                <Printer className="h-4 w-4" />
+                Paystubs
+              </button>
             </div>
           </div>
-
-          <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-            <SectionHeader icon={AlertTriangle} label="Quebec / Canada" title="Payroll compliance checklist" />
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              <ComplianceItem title="Quebec deductions" detail="Estimate includes Quebec tax, QPP/RRQ and QPIP/RQAP employee deductions, plus employer QPP/QPIP estimates." />
-              <ComplianceItem title="Federal deductions" detail="Estimate includes federal tax with Quebec abatement and Quebec EI employee/employer estimates." />
-              <ComplianceItem title="Vacation / indemnity" detail="Vacation pay is not calculated here. Add it in your payroll workflow according to the employee file." />
-              <ComplianceItem title="Verify before remitting" detail="Use CRA/Revenu Quebec payroll tables or payroll software before paying/remitting. Employee TD1/TP-1015 forms can change deductions." />
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-4 xl:grid-cols-[1fr_0.8fr]">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Period</p>
-                <h2 className="mt-1 text-xl font-semibold text-gray-950">Payroll window</h2>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Start">
-                  <input type="date" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} className="input" />
-                </Field>
-                <Field label="End">
-                  <input type="date" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} className="input" />
-                </Field>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Sources</p>
-                <p className="mt-2 text-sm leading-6 text-gray-500">
-                  Quebec prep: estimated overtime is calculated after 40 hours per employee per work week. Tips are kept separate from wages, and tip sharing uses only eligible service windows.
-                </p>
-                <div className="mt-3 grid gap-2 text-xs text-gray-600 sm:grid-cols-2">
-                  <span className="rounded-xl bg-gray-50 px-3 py-2">General minimum: {money(QUEBEC_GENERAL_MIN_WAGE_2026)}/h</span>
-                  <span className="rounded-xl bg-gray-50 px-3 py-2">Tipped minimum: {money(QUEBEC_TIPPED_MIN_WAGE_2026)}/h</span>
-                </div>
-              </div>
-            </div>
+          <div className="overflow-x-auto">
+            <table className="carbon-data-table min-w-full text-sm">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3">Employee</th>
+                  <th className="px-4 py-3">Hours</th>
+                  <th className="px-4 py-3">Wages</th>
+                  <th className="px-4 py-3">Tips</th>
+                  <th className="px-4 py-3">Gross</th>
+                  <th className="px-4 py-3">Deductions</th>
+                  <th className="px-4 py-3">Net pay</th>
+                  <th className="px-4 py-3">Employer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportEmployeeSummary.map((row) => (
+                  <tr key={row.employeeName}>
+                    <td className="px-4 py-4">
+                      <p className="font-semibold text-gray-950">{row.employeeName}</p>
+                      <p className="mt-1 text-xs text-gray-500">{row.overtimeHours.toFixed(2)} overtime h · {row.eligibleTipHours.toFixed(2)} tip h</p>
+                    </td>
+                    <td className="px-4 py-4 font-semibold text-gray-950">{row.workedHours.toFixed(2)}</td>
+                    <td className="px-4 py-4">{money(row.wagePay)}</td>
+                    <td className="px-4 py-4">{money(row.tips)}</td>
+                    <td className="px-4 py-4 font-semibold text-gray-950">{money(row.estimatedGross)}</td>
+                    <td className="px-4 py-4">{money(row.deductions.total)}</td>
+                    <td className="px-4 py-4 text-lg font-semibold text-gray-950">{money(row.estimatedNetPay)}</td>
+                    <td className="px-4 py-4">{money(row.employerContributions.total)}</td>
+                  </tr>
+                ))}
+                {!reportEmployeeSummary.length && (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-500">
+                      No payroll rows for this period. Add shifts or import a spreadsheet below.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-          <SectionHeader icon={WalletCards} label="Generated payroll" title={`Payroll estimate: ${periodStart} to ${periodEnd}`} />
-          <div className="mt-5 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <MiniStat label="Gross" value={money(totals.gross)} />
-            <MiniStat label="Federal tax" value={money(employeeSummary.reduce((sum, row) => sum + row.deductions.federalTax, 0))} />
-            <MiniStat label="Quebec tax" value={money(employeeSummary.reduce((sum, row) => sum + row.deductions.quebecTax, 0))} />
-            <MiniStat label="QPP / QPIP / EI" value={money(employeeSummary.reduce((sum, row) => sum + row.deductions.qpp + row.deductions.qpip + row.deductions.ei, 0))} />
-            <MiniStat label="Net pay" value={money(totals.netPay)} />
-            <MiniStat label="Employer contrib." value={money(totals.employerContributions)} />
-          </div>
-          <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-            These are payroll-prep estimates for the selected period. Confirm final Canada/Quebec source deductions with official payroll tables or payroll software before paying employees or remitting taxes.
-          </p>
+        <section className="grid gap-4 lg:grid-cols-3">
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            className="payroll-tool-card group"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Fix hours</p>
+            <h3 className="mt-3 text-xl font-semibold text-gray-950">Import or update shifts</h3>
+            <p className="mt-2 text-sm leading-6 text-gray-600">Use this when the payroll total is missing a day, employee, or spreadsheet row.</p>
+            <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Open import <Download className="h-4 w-4 transition group-hover:translate-x-1" /></span>
+          </button>
+          <button
+            type="button"
+            onClick={() => shiftFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="payroll-tool-card group"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Correct one row</p>
+            <h3 className="mt-3 text-xl font-semibold text-gray-950">Add or edit a shift</h3>
+            <p className="mt-2 text-sm leading-6 text-gray-600">Use this for one employee, one date, clock-in/out, break, rate, or source.</p>
+            <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Go to shift editor <Edit3 className="h-4 w-4 transition group-hover:translate-x-1" /></span>
+          </button>
+          <button
+            type="button"
+            onClick={viewShiftLog}
+            className="payroll-tool-card group"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Audit detail</p>
+            <h3 className="mt-3 text-xl font-semibold text-gray-950">Review shift log</h3>
+            <p className="mt-2 text-sm leading-6 text-gray-600">Search, filter, sort, edit, or delete the rows behind the payroll numbers.</p>
+            <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Open audit log <Clock className="h-4 w-4 transition group-hover:translate-x-1" /></span>
+          </button>
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
           <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <SectionHeader icon={FileSpreadsheet} label="Spreadsheet import" title="Import hours from Excel" />
+              <SectionHeader icon={FileSpreadsheet} label="Correction tools" title="Import hours from Excel" />
               <div className="flex flex-wrap gap-3">
                 <input
                   ref={importInputRef}
@@ -1463,7 +1983,8 @@ export default function PayrollPage() {
                       Review before saving: {importPreview.fileName}
                     </p>
                     <p className="mt-1 text-blue-800">
-                      {importPreview.imported} shifts ready for <code className="rounded bg-white/70 px-1">employeeShifts</code>,
+                      {importPreview.imported} new shifts ready for <code className="rounded bg-white/70 px-1">employeeShifts</code>,
+                      {' '}{importPreview.updated} existing shifts will be marked as spreadsheet,
                       {' '}{importPreview.employeesCreated} employees ready for <code className="rounded bg-white/70 px-1">payrollEmployees</code>,
                       {' '}{importPreview.skipped} skipped.
                     </p>
@@ -1481,7 +2002,7 @@ export default function PayrollPage() {
                     <button
                       type="button"
                       onClick={confirmPayrollImport}
-                      disabled={importLoading || importPreview.imported === 0}
+                      disabled={importLoading || (importPreview.imported === 0 && importPreview.updated === 0)}
                       className="inline-flex items-center gap-2 rounded-xl bg-blue-950 px-3 py-2 font-semibold text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Save className="h-4 w-4" />
@@ -1537,9 +2058,14 @@ export default function PayrollPage() {
             )}
             {importResult && (
               <div className={`mt-5 rounded-2xl border px-4 py-3 text-sm ${importResult.imported > 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-                <p className="font-semibold">
-                  {importResult.fileName}: {importResult.imported} shifts imported, {importResult.skipped} skipped, {importResult.employeesCreated} employees created.
-                </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <p className="font-semibold">
+                    {importResult.fileName}: {importResult.imported} new shifts imported, {importResult.updated} existing shifts marked as spreadsheet, {importResult.skipped} skipped, {importResult.employeesCreated} employees created.
+                  </p>
+                  <button type="button" onClick={viewShiftLog} className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-3 py-2 text-xs font-semibold text-gray-900 ring-1 ring-black/10 hover:bg-gray-50">
+                    View in Shift log
+                  </button>
+                </div>
                 {importResult.messages.length > 0 && (
                   <ul className="mt-2 list-disc space-y-1 pl-5">
                     {importResult.messages.map((message) => (
@@ -1552,9 +2078,9 @@ export default function PayrollPage() {
           </div>
 
           <div className="rounded-[28px] border border-dashed border-gray-300 bg-white p-5 shadow-sm">
-            <SectionHeader icon={Download} label="Webhook placeholder" title="Future n8n time clock" />
+            <SectionHeader icon={Download} label="Automation-ready" title="Optional QR / n8n time clock" />
             <p className="mt-4 text-sm leading-6 text-gray-500">
-              Keep using Excel for now. Later, a QR form or POS automation can post the same fields directly into `employeeShifts`: employee, date, clockIn, clockOut, breakMinutes, source, notes, and approved status.
+              Keep using Excel for now if that is easier. When the team is ready, a QR form or POS automation can send the same fields directly into payroll: employee, date, clock-in, clock-out, break, source, notes, and approval status.
             </p>
             <div className="mt-4 rounded-2xl bg-gray-50 p-4 text-xs leading-6 text-gray-600">
               <p className="font-semibold text-gray-950">Suggested webhook payload</p>
@@ -1565,7 +2091,7 @@ export default function PayrollPage() {
 
         <section className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
           <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-            <SectionHeader icon={Users} label="Employees" title="Employee list" />
+            <SectionHeader icon={Users} label="Employee setup" title={editingEmployeeId ? 'Edit rate and role' : 'Add employee'} />
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-1">
               <Field label="Name">
                 <input value={employeeDraft.name} onChange={(event) => setEmployeeDraft((prev) => ({ ...prev, name: event.target.value }))} className="input" placeholder="Employee name" />
@@ -1580,23 +2106,41 @@ export default function PayrollPage() {
                 <input type="checkbox" checked={employeeDraft.tipped} onChange={(event) => setEmployeeDraft((prev) => ({ ...prev, tipped: event.target.checked }))} />
                 Receives tips
               </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+                <input type="checkbox" checked={employeeDraft.active !== false} onChange={(event) => setEmployeeDraft((prev) => ({ ...prev, active: event.target.checked }))} />
+                Active in dropdowns
+              </label>
+              <Field label="Notes">
+                <textarea value={employeeDraft.notes} onChange={(event) => setEmployeeDraft((prev) => ({ ...prev, notes: event.target.value }))} className="input min-h-24" placeholder="Optional payroll notes" />
+              </Field>
+              {employeeNotice && <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">{employeeNotice}</p>}
               {employeeError && <p className="rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-700">{employeeError}</p>}
-              <button type="button" onClick={saveEmployee} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gray-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
-                <Plus className="h-4 w-4" />
-                Add employee
-              </button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {editingEmployeeId && (
+                  <button type="button" onClick={cancelEditEmployee} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </button>
+                )}
+                <button type="button" onClick={saveEmployee} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gray-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
+                  {editingEmployeeId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  {editingEmployeeId ? 'Save employee' : 'Add employee'}
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-            <SectionHeader icon={Users} label="Employees" title="Active employees" />
+            <SectionHeader icon={Users} label="Employee setup" title="Employee list and status" />
             <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {employeeOptions.length ? employeeOptions.map((employee, index) => (
-                <div key={employee.id} className={`payroll-soft-row rounded-2xl border p-4 ${index % 2 === 0 ? 'bg-gray-50/90' : 'bg-white'}`}>
+              {(employees.length ? employees : employeeOptions).length ? (employees.length ? employees : employeeOptions).map((employee, index) => (
+                <div key={employee.id} className={`payroll-soft-row rounded-2xl border p-4 ${employee.active === false ? 'bg-gray-100/90 opacity-80' : index % 2 === 0 ? 'bg-gray-50/90' : 'bg-white'}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-gray-950">{employee.name}</p>
-                      <p className="mt-1 text-sm text-gray-500">{employee.role || 'Employee'} · {employee.tipped ? 'Tip eligible' : 'No tips'}</p>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {employee.role || 'Employee'} · {employee.tipped ? 'Tip eligible' : 'No tips'} · {employee.active === false ? 'Archived' : 'Active'}
+                      </p>
                       {employee.hourlyRate < (employee.tipped ? QUEBEC_TIPPED_MIN_WAGE_2026 : QUEBEC_GENERAL_MIN_WAGE_2026) && (
                         <p className="mt-2 rounded-xl bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
                           Below current Quebec minimum for this type.
@@ -1604,6 +2148,28 @@ export default function PayrollPage() {
                       )}
                     </div>
                     <p className="font-semibold text-gray-950">{money(employee.hourlyRate)}/h</p>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => startEditEmployee(employee)}
+                      className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEmployeeActive(employee, employee.active === false)}
+                      className={`inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                        employee.active === false
+                          ? 'border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                          : 'border-amber-100 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                      }`}
+                    >
+                      {employee.active === false ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      {employee.active === false ? 'Restore' : 'Archive'}
+                    </button>
                   </div>
                 </div>
               )) : (
@@ -1615,7 +2181,7 @@ export default function PayrollPage() {
 
         <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
           <div ref={shiftFormRef} className={`rounded-[28px] border bg-white p-5 shadow-sm transition ${editingShiftId ? 'border-[#f26350] ring-4 ring-[#f26350]/10' : 'border-gray-200'}`}>
-            <SectionHeader icon={Clock} label="Time tracking" title={editingShiftId ? 'Edit shift' : 'Add shift'} />
+            <SectionHeader icon={Clock} label="Shift correction" title={editingShiftId ? 'Edit one shift' : 'Add one shift'} />
             {editingShiftId && (
               <div className="mt-4 rounded-2xl border border-[#f26350]/20 bg-[#f26350]/10 px-4 py-3 text-sm font-semibold text-[#b63828]">
                 Editing {newShift.employeeName} on {newShift.date}. Update the fields, then click Save shift.
@@ -1670,7 +2236,7 @@ export default function PayrollPage() {
           </div>
 
           <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-            <SectionHeader icon={WalletCards} label="Tips" title="Manual daily tips" />
+            <SectionHeader icon={WalletCards} label="Tip correction" title="Manual daily tips" />
             <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
               <Field label="Date">
                 <input type="date" value={tipDraft.date} onChange={(event) => setTipDraft((prev) => ({ ...prev, date: event.target.value }))} className="input" />
@@ -1692,7 +2258,7 @@ export default function PayrollPage() {
 
         <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-            <SectionHeader icon={CalendarDays} label="Allocations" title="Daily tip pools" />
+            <SectionHeader icon={CalendarDays} label="Tip audit" title="Allocation by day" />
             <div className="mt-5 space-y-3">
               {dailyTipPools.length ? dailyTipPools.map((pool, index) => (
                 <div key={pool.date} className={`payroll-soft-row rounded-2xl border p-4 ${index % 2 === 0 ? 'bg-gray-50/90' : 'bg-white'}`}>
@@ -1726,9 +2292,9 @@ export default function PayrollPage() {
           </div>
 
           <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-            <SectionHeader icon={WalletCards} label="Employee summary" title="Payroll estimate" />
+            <SectionHeader icon={WalletCards} label="Detail review" title="Employee totals" />
             <div className="mt-5 space-y-3">
-              {employeeSummary.length ? employeeSummary.map((row, index) => (
+              {reportEmployeeSummary.length ? reportEmployeeSummary.map((row, index) => (
                 <div key={row.employeeName} className={`payroll-soft-row rounded-2xl border p-4 ${index % 2 === 0 ? 'bg-gray-50/90' : 'bg-white'}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -1756,13 +2322,66 @@ export default function PayrollPage() {
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-          <SectionHeader icon={Clock} label="Review" title="Shift log" />
-          <div className="mt-5 overflow-hidden rounded-2xl border border-gray-200">
+        <section ref={shiftLogRef} className="carbon-card p-0">
+          <div className="border-b border-[#e0e0e0] px-5 py-4">
+            <SectionHeader icon={Clock} label="Audit detail" title={`Shift log · ${selectedEmployee?.name || 'All employees'} · ${periodStart} to ${periodEnd}`} />
+            <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_auto]">
+              <label className="carbon-search">
+                <Search className="h-4 w-4 text-[#525252]" />
+                <input
+                  value={shiftSearch}
+                  onChange={(event) => setShiftSearch(event.target.value)}
+                  placeholder="Search date, employee, time, source..."
+                  className="w-full bg-transparent text-sm outline-none"
+                />
+              </label>
+              <select value={shiftSourceFilter} onChange={(event) => setShiftSourceFilter(event.target.value as 'all' | ShiftSource)} className="carbon-select">
+                <option value="all">All sources</option>
+                <option value="spreadsheet">Spreadsheet</option>
+                <option value="manual">Manual</option>
+                <option value="n8n">n8n</option>
+                <option value="clover">Clover</option>
+              </select>
+              <select value={shiftApprovalFilter} onChange={(event) => setShiftApprovalFilter(event.target.value as 'all' | 'approved' | 'pending')} className="carbon-select">
+                <option value="all">All payment statuses</option>
+                <option value="approved">Approved/Paid</option>
+                <option value="pending">Pending</option>
+              </select>
+              <select value={shiftSortKey} onChange={(event) => setShiftSortKey(event.target.value as ShiftSortKey)} className="carbon-select">
+                <option value="date">Sort by date</option>
+                <option value="employeeName">Sort by employee</option>
+                <option value="clockIn">Sort by clock in</option>
+                <option value="workedHours">Sort by hours</option>
+                <option value="eligibleTipHours">Sort by tip eligible</option>
+                <option value="hourlyRate">Sort by rate</option>
+                <option value="source">Sort by source</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => setShiftSortDirection((current) => current === 'asc' ? 'desc' : 'asc')}
+                className="carbon-button-secondary"
+              >
+                <ArrowUpDown className="h-4 w-4" />
+                {shiftSortDirection === 'asc' ? 'Asc' : 'Desc'}
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+              <span className="carbon-tag carbon-tag-blue">Blue = Excel spreadsheet</span>
+              <span className="carbon-tag carbon-tag-gray">Gray = manual</span>
+              <span className="carbon-tag carbon-tag-purple">Purple = n8n</span>
+              <span className="carbon-tag carbon-tag-green">Green = Clover</span>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <MiniStat label="Visible rows" value={`${visibleShiftTotals.rows} / ${reportPeriodShifts.length}`} />
+              <MiniStat label="Visible hours" value={`${visibleShiftTotals.hours.toFixed(2)} h`} />
+              <MiniStat label="Visible tip hours" value={`${visibleShiftTotals.tipHours.toFixed(2)} h`} />
+            </div>
+          </div>
+          <div className="overflow-hidden">
             <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="carbon-data-table min-w-full text-sm">
               <thead>
-                <tr className="border-b bg-gray-50 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
+                <tr>
                   <th className="px-3 py-3">Date</th>
                   <th className="px-3 py-3">Employee</th>
                   <th className="px-3 py-3">Time</th>
@@ -1774,10 +2393,10 @@ export default function PayrollPage() {
                 </tr>
               </thead>
               <tbody>
-                {periodShifts.map((shift, index) => (
+                {visibleShiftRows.map((shift) => (
                   <tr
                     key={shift.id}
-                    className={`border-b transition last:border-0 hover:bg-[#f26350]/5 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} ${editingShiftId === shift.id ? 'bg-[#f26350]/10 ring-1 ring-inset ring-[#f26350]/20' : ''}`}
+                    className={`${sourceRowClass(shift.source)} ${editingShiftId === shift.id ? 'bg-[#e8f0ff]' : ''}`}
                   >
                     <td className="px-3 py-3 font-medium text-gray-950">{shift.date}</td>
                     <td className="px-3 py-3">{shift.employeeName}</td>
@@ -1786,15 +2405,26 @@ export default function PayrollPage() {
                     <td className="px-3 py-3">{shift.eligibleTipHours.toFixed(2)}</td>
                     <td className="px-3 py-3">{money(shift.hourlyRate)}</td>
                     <td className="px-3 py-3">
-                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{shift.source}</span>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${sourceBadgeClass(shift.source)}`}>{shift.source}</span>
+                      {shift.notes?.includes('Imported from') && (
+                        <p className="mt-1 text-[11px] font-semibold text-blue-700">Excel import</p>
+                      )}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={() => startEditShift(shift)} className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50">
+                        <button type="button" onClick={() => startEditShift(shift)} className="admin-action-button admin-action-button--compact">
                           <Edit3 className="h-3.5 w-3.5" />
                           Edit
                         </button>
-                      <button type="button" onClick={() => removeShift(shift.id)} className="inline-flex items-center gap-1 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Delete ${shift.employeeName}'s shift on ${shift.date}? Payroll history will be recalculated.`)) {
+                            removeShift(shift.id)
+                          }
+                        }}
+                        className="admin-action-button admin-action-button--danger admin-action-button--compact"
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
                         Delete
                       </button>
@@ -1802,6 +2432,13 @@ export default function PayrollPage() {
                     </td>
                   </tr>
                 ))}
+                {!visibleShiftRows.length && (
+                  <tr>
+                    <td colSpan={8} className="px-3 py-10 text-center text-sm text-gray-500">
+                      No shifts match the current filters for {selectedEmployee?.name || 'all employees'} from {periodStart} to {periodEnd}.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
             </div>
@@ -1811,7 +2448,12 @@ export default function PayrollPage() {
         <section className="grid gap-4 xl:grid-cols-2">
           <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
             <SectionHeader icon={WalletCards} label="Clover" title="Tips detected from POS" />
-            <div className="mt-5 space-y-2">
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <MiniStat label="Detected" value={`${periodCloverTips.length}`} />
+              <MiniStat label="Total" value={money(periodCloverTips.reduce((sum, tip) => sum + tip.tipAmount, 0))} />
+              <MiniStat label="Used in pools" value={money(dailyTipPools.reduce((sum, pool) => sum + pool.cloverTips, 0))} />
+            </div>
+            <div className="mt-4 max-h-64 space-y-2 overflow-y-auto pr-2">
               {periodCloverTips.length ? periodCloverTips.map((tip, index) => (
                 <div key={tip.id} className={`payroll-soft-row flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${index % 2 === 0 ? 'bg-gray-50/90' : 'bg-white'}`}>
                   <div>
@@ -1828,7 +2470,11 @@ export default function PayrollPage() {
 
           <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
             <SectionHeader icon={AlertTriangle} label="Manual" title="Manual tip adjustments" />
-            <div className="mt-5 space-y-2">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <MiniStat label="Manual days" value={`${periodManualTips.length}`} />
+              <MiniStat label="Manual total" value={money(periodManualTips.reduce((sum, tip) => sum + Number(tip.amount || 0), 0))} />
+            </div>
+            <div className="mt-4 max-h-64 space-y-2 overflow-y-auto pr-2">
               {periodManualTips.length ? periodManualTips.map((tip, index) => (
                 <div key={tip.id} className={`payroll-soft-row flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${index % 2 === 0 ? 'bg-gray-50/90' : 'bg-white'}`}>
                   <div>
@@ -1837,11 +2483,13 @@ export default function PayrollPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <p className="font-semibold text-gray-950">{money(tip.amount)}</p>
-                    <button type="button" onClick={() => setTipDraft({ date: tip.date, amount: tip.amount, notes: tip.notes || '' })} className="text-gray-500 hover:text-gray-900">
+                    <button type="button" onClick={() => setTipDraft({ date: tip.date, amount: tip.amount, notes: tip.notes || '' })} className="admin-action-button admin-action-button--compact">
                       <Edit3 className="h-4 w-4" />
+                      Edit
                     </button>
-                    <button type="button" onClick={() => removeManualTip(tip.date)} className="text-red-500 hover:text-red-700">
+                    <button type="button" onClick={() => removeManualTip(tip.date)} className="admin-action-button admin-action-button--danger admin-action-button--compact">
                       <Trash2 className="h-4 w-4" />
+                      Remove
                     </button>
                   </div>
                 </div>
@@ -1853,12 +2501,24 @@ export default function PayrollPage() {
         </section>
 
         <section className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
-          <SectionHeader icon={Printer} label="Paystubs" title="Printable paystub preview" />
-          <p className="mt-2 max-w-4xl text-sm leading-6 text-gray-500">
-            Use Print paystubs, then choose Save as PDF in the browser print dialog. These are payroll-prep summaries, not official tax remittance calculations.
-          </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <SectionHeader icon={Printer} label="Paystubs" title="Printable paystub preview" />
+              <p className="mt-2 max-w-4xl text-sm leading-6 text-gray-500">
+                Click Print / Save PDF here, then choose Save as PDF in the browser print dialog.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={printPaystubs}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#f26350] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#df4f3d]"
+            >
+              <Printer className="h-4 w-4" />
+              Print / Save PDF
+            </button>
+          </div>
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3 printable-paystubs">
-            {employeeSummary.length ? employeeSummary.map((row) => (
+            {reportEmployeeSummary.length ? reportEmployeeSummary.map((row) => (
               <PaystubCard
                 key={row.employeeName}
                 row={row}
@@ -1890,6 +2550,108 @@ export default function PayrollPage() {
           box-shadow: 0 0 0 3px rgba(242, 99, 80, 0.12);
         }
 
+        .payroll-dark-input {
+          border-color: rgba(255, 255, 255, 0.2);
+          border-bottom: 2px solid rgba(255, 255, 255, 0.55);
+          background: #ffffff;
+          color: #111827;
+          border-radius: 0;
+        }
+
+        .payroll-dark-input:focus {
+          border-color: #78a9ff;
+          box-shadow: 0 0 0 2px rgba(120, 169, 255, 0.38);
+        }
+
+        .admin-carbon-shell .payroll-command-button {
+          min-height: 96px;
+          border: 1px solid #c6c6c6 !important;
+          padding: 1rem;
+          text-align: left;
+          transition: transform 140ms ease, border-color 140ms ease, background-color 140ms ease;
+        }
+
+        .admin-carbon-shell .payroll-command-button:hover {
+          transform: translateY(-2px);
+          border-color: #0f62fe !important;
+        }
+
+        .admin-carbon-shell .payroll-command-button--primary {
+          border-color: #0f62fe !important;
+          background: #0f62fe !important;
+          color: #ffffff !important;
+        }
+
+        .admin-carbon-shell .payroll-command-button--light {
+          background: #ffffff !important;
+          color: #161616 !important;
+        }
+
+        .admin-carbon-shell .payroll-command-button--light:hover {
+          background: #edf5ff !important;
+        }
+
+        .admin-carbon-shell .payroll-command-button--dark {
+          border-color: #161616 !important;
+          background: #161616 !important;
+          color: #ffffff !important;
+        }
+
+        .admin-carbon-shell .payroll-command-button__icon {
+          display: inline-flex;
+          width: 2.5rem;
+          height: 2.5rem;
+          align-items: center;
+          justify-content: center;
+          background: #edf5ff !important;
+          color: #0f62fe !important;
+        }
+
+        .admin-carbon-shell .payroll-command-button--primary .payroll-command-button__icon,
+        .admin-carbon-shell .payroll-command-button--dark .payroll-command-button__icon {
+          background: rgba(255, 255, 255, 0.16) !important;
+          color: #ffffff !important;
+        }
+
+        .admin-carbon-shell .payroll-command-button__title {
+          margin-top: 0.875rem;
+          color: inherit !important;
+          font-size: 0.9375rem;
+          font-weight: 700;
+        }
+
+        .admin-carbon-shell .payroll-command-button__detail {
+          margin-top: 0.25rem;
+          color: #525252 !important;
+          font-size: 0.8125rem;
+          line-height: 1.45;
+        }
+
+        .admin-carbon-shell .payroll-command-button--primary .payroll-command-button__detail,
+        .admin-carbon-shell .payroll-command-button--dark .payroll-command-button__detail {
+          color: rgba(255, 255, 255, 0.82) !important;
+        }
+
+        .admin-carbon-shell .payroll-tool-card {
+          display: block;
+          border: 1px solid #c6c6c6 !important;
+          background: #ffffff !important;
+          padding: 1.25rem;
+          text-align: left;
+          color: #161616 !important;
+          transition: transform 140ms ease, border-color 140ms ease, background-color 140ms ease;
+        }
+
+        .admin-carbon-shell .payroll-tool-card:hover {
+          transform: translateY(-2px);
+          border-color: #0f62fe !important;
+          background: #edf5ff !important;
+        }
+
+        [class*="rounded-[28px]"] {
+          border-radius: 0 !important;
+        }
+
         .payroll-soft-row {
           border-color: #e5e7eb;
           box-shadow: inset 3px 0 0 rgba(242, 99, 80, 0.08);
@@ -1900,6 +2662,113 @@ export default function PayrollPage() {
           border-color: rgba(242, 99, 80, 0.28);
           background-color: #fffaf8;
           box-shadow: inset 3px 0 0 rgba(242, 99, 80, 0.28), 0 10px 24px rgba(15, 23, 42, 0.04);
+        }
+
+        .carbon-card {
+          border: 1px solid #e0e0e0;
+          background: #ffffff;
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+
+        .carbon-search,
+        .carbon-select {
+          min-height: 48px;
+          border: 1px solid #8d8d8d;
+          border-bottom: 2px solid #161616;
+          background: #f4f4f4;
+          color: #161616;
+          font-size: 0.875rem;
+          outline: none;
+        }
+
+        .carbon-search {
+          display: flex;
+          align-items: center;
+          gap: 0.625rem;
+          padding: 0 0.875rem;
+        }
+
+        .carbon-select {
+          width: 100%;
+          padding: 0 0.875rem;
+        }
+
+        .carbon-search:focus-within,
+        .carbon-select:focus {
+          border-color: #0f62fe;
+          box-shadow: 0 0 0 2px #0f62fe;
+        }
+
+        .carbon-button-secondary {
+          min-height: 48px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          border: 1px solid #0f62fe;
+          background: #ffffff;
+          color: #0f62fe;
+          padding: 0 1rem;
+          font-size: 0.875rem;
+          font-weight: 700;
+          transition: background-color 120ms ease, color 120ms ease;
+        }
+
+        .carbon-button-secondary:hover {
+          background: #edf5ff;
+        }
+
+        .carbon-tag {
+          border-radius: 0;
+          padding: 0.375rem 0.625rem;
+          font-weight: 700;
+        }
+
+        .carbon-tag-blue {
+          background: #d0e2ff;
+          color: #0043ce;
+        }
+
+        .carbon-tag-gray {
+          background: #e0e0e0;
+          color: #393939;
+        }
+
+        .carbon-tag-purple {
+          background: #e8daff;
+          color: #6929c4;
+        }
+
+        .carbon-tag-green {
+          background: #a7f0ba;
+          color: #0e6027;
+        }
+
+        .carbon-data-table thead th {
+          position: sticky;
+          top: 0;
+          z-index: 1;
+          border-bottom: 1px solid #8d8d8d;
+          background: #e0e0e0;
+          color: #525252;
+          font-size: 0.75rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-align: left;
+          text-transform: uppercase;
+        }
+
+        .carbon-data-table tbody tr {
+          border-bottom: 1px solid #e0e0e0;
+          background: #ffffff;
+        }
+
+        .carbon-data-table tbody tr:nth-child(even) {
+          background: #f4f4f4;
+        }
+
+        .carbon-data-table tbody tr:hover {
+          background: #edf5ff;
         }
 
         @media print {
@@ -1939,14 +2808,195 @@ export default function PayrollPage() {
   )
 }
 
+function PayrollCommandButton({
+  icon: Icon,
+  title,
+  detail,
+  onClick,
+  primary = false,
+  dark = false,
+  loading = false,
+}: {
+  icon: ComponentType<{ className?: string }>
+  title: string
+  detail: string
+  onClick: () => void
+  primary?: boolean
+  dark?: boolean
+  loading?: boolean
+}) {
+  const classes = primary
+    ? 'payroll-command-button--primary'
+    : dark
+      ? 'payroll-command-button--dark'
+      : 'payroll-command-button--light'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`payroll-command-button group ${classes}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <span className="payroll-command-button__icon">
+          <Icon className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+        </span>
+        <ChevronRight className="mt-1 h-4 w-4 opacity-70 transition group-hover:translate-x-1" />
+      </div>
+      <p className="payroll-command-button__title">{title}</p>
+      <p className="payroll-command-button__detail">{detail}</p>
+    </button>
+  )
+}
+
+function PayrollStatusPill({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string
+  value: string
+  detail: string
+  status: 'ok' | 'warn' | 'danger' | 'neutral'
+}) {
+  const dot = {
+    ok: 'bg-emerald-500',
+    warn: 'bg-amber-500',
+    danger: 'bg-red-500',
+    neutral: 'bg-gray-400',
+  }[status]
+
+  return (
+    <div className="border border-gray-200 bg-white p-4 shadow-sm transition hover:border-gray-400">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{label}</p>
+        <span className={`h-2.5 w-2.5 ${dot}`} />
+      </div>
+      <p className="mt-2 text-xl font-semibold tracking-tight text-gray-950">{value}</p>
+      <p className="mt-1 text-xs leading-5 text-gray-500">{detail}</p>
+    </div>
+  )
+}
+
 function MetricCard({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">{label}</p>
+    <div className="border border-gray-200 bg-white p-4 shadow-sm transition hover:border-gray-400">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">{label}</p>
       <p className="mt-2 text-2xl font-semibold tracking-tight text-gray-950">{value}</p>
       <p className="mt-2 text-sm leading-5 text-gray-500">{detail}</p>
     </div>
   )
+}
+
+function PayrollHealthItem({
+  status,
+  title,
+  detail,
+}: {
+  status: 'ok' | 'warn' | 'danger' | 'neutral'
+  title: string
+  detail: string
+}) {
+  const tone = {
+    ok: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    warn: 'border-amber-200 bg-amber-50 text-amber-900',
+    danger: 'border-red-200 bg-red-50 text-red-800',
+    neutral: 'border-gray-200 bg-gray-50 text-gray-700',
+  }[status]
+
+  const dot = {
+    ok: 'bg-emerald-500',
+    warn: 'bg-amber-500',
+    danger: 'bg-red-500',
+    neutral: 'bg-gray-400',
+  }[status]
+
+  return (
+    <div className={`border p-4 ${tone}`}>
+      <div className="flex items-start gap-3">
+        <span className={`mt-1 h-2.5 w-2.5 shrink-0 ${dot}`} />
+        <div>
+          <p className="font-semibold">{title}</p>
+          <p className="mt-1 text-sm leading-5 opacity-80">{detail}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PayrollBreakdownChart({
+  totals,
+}: {
+  totals: {
+    gross: number
+    wages: number
+    tips: number
+    deductions: number
+    netPay: number
+    employerContributions: number
+  }
+}) {
+  const rows = [
+    { label: 'Wages', value: totals.wages, color: '#0f172a', note: 'Base pay before tips' },
+    { label: 'Tips', value: totals.tips, color: '#24a148', note: 'Allocated from Clover/manual pools' },
+    { label: 'Deductions', value: totals.deductions, color: '#f1c21b', note: 'Estimated employee deductions' },
+    { label: 'Net pay', value: totals.netPay, color: '#0f62fe', note: 'Estimated cash paid out' },
+    { label: 'Employer contributions', value: totals.employerContributions, color: '#6f6f6f', note: 'Employer-side estimate' },
+  ]
+  const max = Math.max(...rows.map((row) => row.value), 1)
+  const employerCost = round2(totals.gross + totals.employerContributions)
+
+  return (
+    <div className="mt-5 border border-gray-200 bg-[#f8fafc] p-4 sm:p-5">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
+        <div>
+          <SectionHeader icon={BarChartIcon} label="Payroll chart" title="Selected-period breakdown" />
+          <p className="mt-2 text-sm leading-6 text-gray-600">
+            A quick comparison of what the period costs, what employees receive, and what needs to be remitted or reviewed.
+          </p>
+        </div>
+        <div className="border border-gray-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Estimated cost</p>
+          <p className="mt-2 text-2xl font-semibold text-gray-950">{money(employerCost)}</p>
+          <p className="mt-1 text-xs leading-5 text-gray-500">Gross pay plus employer contributions.</p>
+        </div>
+      </div>
+      <div className="mt-5 space-y-4">
+        {rows.map((row) => (
+          <div key={row.label} className="grid gap-2 lg:grid-cols-[190px_1fr_120px] lg:items-center">
+            <div>
+              <p className="text-sm font-semibold text-gray-800">{row.label}</p>
+              <p className="text-xs leading-5 text-gray-500">{row.note}</p>
+            </div>
+            <div className="h-7 overflow-hidden border border-gray-200 bg-white">
+              <div
+                className="h-full transition-all duration-500"
+                style={{ backgroundColor: row.color, width: `${Math.max(3, (row.value / max) * 100)}%` }}
+              />
+            </div>
+            <div className="text-sm font-semibold text-gray-950 lg:text-right">{money(row.value)}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 grid gap-3 border-t border-gray-200 pt-4 text-sm sm:grid-cols-3">
+        {[
+          { label: 'Gross pay', value: money(totals.gross) },
+          { label: 'Net pay', value: money(totals.netPay) },
+          { label: 'Deductions', value: money(totals.deductions) },
+        ].map((item) => (
+          <div key={item.label} className="border border-gray-200 bg-white p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{item.label}</p>
+            <p className="mt-1 text-lg font-semibold text-gray-950">{item.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function BarChartIcon({ className }: { className?: string }) {
+  return <FileSpreadsheet className={className} />
 }
 
 function PaystubCard({
@@ -2049,36 +3099,11 @@ function PaystubNote({ title, detail }: { title: string; detail: string }) {
   )
 }
 
-function ComplianceItem({ title, detail }: { title: string; detail: string }) {
-  return (
-    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-      <p className="font-semibold text-gray-950">{title}</p>
-      <p className="mt-2 text-sm leading-6 text-gray-500">{detail}</p>
-    </div>
-  )
-}
-
 function PaystubLine({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-gray-100 py-2 last:border-0">
       <span className="text-gray-500">{label}</span>
       <span className={strong ? 'font-semibold text-gray-950' : 'font-medium text-gray-800'}>{value}</span>
-    </div>
-  )
-}
-
-function PayrollStep({ number, title, detail }: { number: string; title: string; detail: string }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gray-950 text-sm font-semibold text-white">
-          {number}
-        </div>
-        <div className="min-w-0">
-          <p className="font-semibold text-gray-950">{title}</p>
-          <p className="mt-1 text-sm leading-5 text-gray-500">{detail}</p>
-        </div>
-      </div>
     </div>
   )
 }

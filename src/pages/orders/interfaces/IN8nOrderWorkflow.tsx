@@ -1,4 +1,4 @@
-export interface ZapierPayload {
+export interface N8nOrderPayload {
     order_id: string;
     customer_name: string;
     customer_email: string;

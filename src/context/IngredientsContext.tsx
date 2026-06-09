@@ -40,14 +40,15 @@ export const IngredientsProvider: React.FC<{ children: React.ReactNode }> = ({ c
             supplier: data.supplier,
             displayOnBYOS: Boolean(data.displayOnBYOS),
             byosName: typeof data.byosName === 'string' ? data.byosName : '',
+            byosNameFr: typeof data.byosNameFr === 'string' ? data.byosNameFr : '',
+            byosNameEn: typeof data.byosNameEn === 'string' ? data.byosNameEn : '',
+            byosNameEs: typeof data.byosNameEs === 'string' ? data.byosNameEs : '',
             byosCategory: data.byosCategory || 'extra',
             byosPrice: Number(data.byosPrice || 0),
             byosMaxPerRoll: Number(data.byosMaxPerRoll || 1),
             byosSortOrder: Number(data.byosSortOrder || 999),
           })
         })
-
-        console.log('Loaded ingredients:', ingredientsList)
         setIngredients(ingredientsList)
       } catch (error) {
         console.error('Error loading ingredients:', error)

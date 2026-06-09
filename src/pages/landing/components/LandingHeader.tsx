@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { HashLink } from "react-router-hash-link";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, Menu, X, LayoutDashboard, ShoppingCart } from "lucide-react";
 import { AuthModal } from "../../components/AuthModal";
@@ -43,6 +44,12 @@ type UserPointsRow = {
 export const LandingHeader = () => {
     const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
+
+    const scrollToSection = (element: HTMLElement) => {
+        const headerOffset = 128;
+        const top = element.getBoundingClientRect().top + window.scrollY - headerOffset;
+        window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+    };
 
     // scroll state
     const [scrolled, setScrolled] = useState(false);
@@ -283,9 +290,9 @@ export const LandingHeader = () => {
                                 <span>{t("header.booking", "Booking")}</span>
                             </Link>
 
-                            <a href="#contact" className="whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/86 transition-colors duration-300 hover:text-[#f26350]">
+                            <HashLink to="/#contact" scroll={scrollToSection} className="whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/86 transition-colors duration-300 hover:text-[#f26350]">
                                 {t("header.contact", "Contact")}
-                            </a>
+                            </HashLink>
 
                             {user && (
                                 <Link to="/client-dashboard" className="flex items-center gap-1 whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/86 transition-colors duration-300 hover:text-[#f26350]">
@@ -376,9 +383,9 @@ export const LandingHeader = () => {
                             <span>{t("header.booking", "Booking")}</span>
                         </Link>
 
-                        <a href="#contact" onClick={() => setIsOpen(false)} className="text-sm font-semibold uppercase tracking-[0.16em] text-white/82 transition hover:text-[#f26350]">
+                        <HashLink to="/#contact" scroll={scrollToSection} onClick={() => setIsOpen(false)} className="text-sm font-semibold uppercase tracking-[0.16em] text-white/82 transition hover:text-[#f26350]">
                             {t("header.contact", "Contact")}
-                        </a>
+                        </HashLink>
 
                         <Link
                             to="/checkout"

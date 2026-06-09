@@ -1,19 +1,16 @@
 import type { OrderDetails } from "../../client_hub/interfaces/IClientHub";
-import type { ZapierPayload } from "../interfaces/IZapier";
+import type { N8nOrderPayload } from "../interfaces/IN8nOrderWorkflow";
 
-export const useZapier = () => {
-    const sendToZapier = async (order: OrderDetails, _isClient: boolean, clientProfile: any) => {
+export const useN8nOrderWorkflow = () => {
+    const sendToN8n = async (order: OrderDetails, _isClient: boolean, clientProfile: any) => {
         try {
-            const zapierWebhookUrl =
-                import.meta.env.VITE_ZAPIER_WEBHOOK_URL ||
-                "https://hooks.zapier.com/hooks/catch/XXXXXXX/XXXXXXX/";
+            const n8nWebhookUrl = import.meta.env.VITE_N8N_ORDER_WEBHOOK_URL || "";
 
-            if (!zapierWebhookUrl || zapierWebhookUrl.includes("XXXXXXX")) {
-                console.warn("⚠️ Zapier webhook URL not configured properly");
+            if (!n8nWebhookUrl) {
+                console.warn("n8n order webhook URL not configured");
                 return false;
             }
 
-            // Build customer_name safely with fallbacks
             const customerName =
                 order.customer_name ||
                 order.customerInfo?.name ||
@@ -24,7 +21,6 @@ export const useZapier = () => {
                     .join(" ") ||
                 "Unknown";
 
-            // Build customer email fallback
             const customerEmail =
                 order.customer_email ||
                 order.customerInfo?.email ||
@@ -35,10 +31,9 @@ export const useZapier = () => {
                 order.customer_phone ||
                 order.customerInfo?.phone ||
                 clientProfile?.phone ||
-                "unknown@email.com";
+                "unknown";
 
-            // Build Zapier Payload
-            const payload: ZapierPayload = {
+            const payload: N8nOrderPayload = {
                 order_id: order.id,
                 customer_name: customerName,
                 customer_email: customerEmail,
@@ -53,8 +48,6 @@ export const useZapier = () => {
                     price: item.price,
                     quantity: item.quantity
                 })),
-
-                // Optional fields
                 currency: "CAD",
                 subtotal: order.subtotal,
                 tax: order.gst + order.qst,
@@ -62,14 +55,14 @@ export const useZapier = () => {
                 delivery_type: order.delivery_type || "delivery"
             };
 
-            console.log("📤 Sending to Zapier Payload:", payload);
-
-            // Add timeout safety
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-            const response = await fetch(zapierWebhookUrl, {
+            const response = await fetch(n8nWebhookUrl, {
                 method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify(payload),
                 signal: controller.signal
             });
@@ -77,21 +70,20 @@ export const useZapier = () => {
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                throw new Error(`Zapier webhook failed: ${response.status} ${response.statusText}`);
+                throw new Error(`n8n order webhook failed: ${response.status} ${response.statusText}`);
             }
 
-            console.log("✅ Order data sent to Zapier");
             return true;
 
         } catch (error: any) {
             if (error.name === "AbortError") {
-                console.warn("⚠️ Zapier request timed out");
+                console.warn("n8n order workflow request timed out");
             } else {
-                console.error("❌ Failed to send data to Zapier:", error);
+                console.error("Failed to send order data to n8n:", error);
             }
             return false;
         }
     };
 
-    return { sendToZapier };
+    return { sendToN8n };
 };

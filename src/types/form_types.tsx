@@ -34,6 +34,8 @@ export interface IngredientsSectionAndCostProps {
         preparationTime: string;
         tags: string;
         directCostPrice: string;
+        isActive: boolean;
+        featured: boolean;
     };
     setFormData: React.Dispatch<React.SetStateAction<{
         name: string;
@@ -48,6 +50,8 @@ export interface IngredientsSectionAndCostProps {
         preparationTime: string;
         tags: string;
         directCostPrice: string;
+        isActive: boolean;
+        featured: boolean;
     }>>;
     totalCost: number;
     sellingPriceNum: number
@@ -87,6 +91,8 @@ export interface ProductDetailsProps {
         preparationTime: string;
         tags: string;
         directCostPrice: string;
+        isActive: boolean;
+        featured: boolean;
     };
     setFormData: React.Dispatch<React.SetStateAction<{
         name: string;
@@ -101,5 +107,7 @@ export interface ProductDetailsProps {
         preparationTime: string;
         tags: string;
         directCostPrice: string;
+        isActive: boolean;
+        featured: boolean;
     }>>;
 }

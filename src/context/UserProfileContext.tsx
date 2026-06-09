@@ -70,10 +70,12 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
             return
         }
 
+        setLoading(true)
+        setUserProfile(null)
+
         // Your existing admin profile logic here (no client stuff)
         const initializeUserProfile = async () => {
             try {
-                console.log('🔄 UserProfile: Starting initialization for user:', user?.email)
                 const userDocRef = getUserDocRef(user.uid)
                 const userDoc = await getDoc(userDocRef)
 
@@ -81,7 +83,6 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
                     let profileData = userDoc.data() as UserProfile
 
                     if (!profileData.role) {
-                        console.log('🔧 UserProfile: Existing profile missing role field, fixing...')
                         const userIsSuperAdmin = isSuperAdmin(user.email)
                         const correctRole = userIsSuperAdmin ? UserRole.ADMIN : UserRole.VIEWER
 
@@ -97,30 +98,44 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
                         })
                     }
 
-                    console.log('✅ UserProfile: Existing profile found:', profileData)
+                    if (profileData.isActive === undefined) {
+                        profileData = {
+                            ...profileData,
+                            isActive: true,
+                            updatedAt: new Date()
+                        }
+
+                        await updateDoc(userDocRef, {
+                            isActive: true,
+                            updatedAt: new Date()
+                        })
+                    }
+
                     setUserProfile(profileData)
                 } else {
-                    console.log('🆕 UserProfile: No existing profile, creating new one')
                     const userIsSuperAdmin = isSuperAdmin(user.email)
-                    
+
+                    if (!userIsSuperAdmin) {
+                        setUserProfile(null)
+                        return
+                    }
+
                     const newUserProfile: UserProfile = {
                         uid: user.uid,
                         email: user.email || '',
                         displayName: user.displayName || user.email?.split('@')[0] || 'User',
-                        role: userIsSuperAdmin ? UserRole.ADMIN : UserRole.VIEWER,
+                        role: UserRole.ADMIN,
                         createdAt: new Date(),
                         updatedAt: new Date(),
                         isActive: true
                     }
 
-                    console.log('📝 UserProfile: Creating new profile:', newUserProfile)
                     await setDoc(userDocRef, newUserProfile)
                     setUserProfile(newUserProfile)
                 }
             } catch (error) {
                 console.error('❌ UserProfile: Error initializing profile:', error)
             } finally {
-                console.log('🏁 UserProfile: Initialization complete - loading set to false')
                 setLoading(false)
             }
         }

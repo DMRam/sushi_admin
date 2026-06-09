@@ -217,9 +217,9 @@ export default function LandingPage() {
 
         <LandingFeatured handleAddToCart={handleAddToCart} />
 
-        <section id="contact" className="bg-[#050505]">
+        <div className="bg-[#050505]">
           <LandingContact />
-        </section>
+        </div>
 
         <LandingCTAFooter displaySimple={false} user={userProfile} isAdmin={isAdmin} />
       </main>

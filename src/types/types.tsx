@@ -18,6 +18,9 @@ export type Ingredient = {
   stockGrams: number;
   displayOnBYOS: boolean;
   byosName?: string;
+  byosNameFr?: string;
+  byosNameEn?: string;
+  byosNameEs?: string;
   byosCategory?: 'protein' | 'filling' | 'rolledOn' | 'sauce' | 'extra';
   byosPrice?: number;
   byosMaxPerRoll?: number;

@@ -9,12 +9,19 @@ import { db, storage } from '../../../../../../firebase/firebase'
 import { calculateProfitMargin } from '../../../../../../utils/costCalculations'
 
 
-export const useProductForm = () => {
+type ProductFormSelection = {
+    selectedProductId?: string
+    setSelectedProductId?: (id: string) => void
+}
+
+export const useProductForm = (selection?: ProductFormSelection) => {
     const { ingredients } = useIngredients()
     const { products, updateProduct, removeProduct, refreshProducts } = useProducts()
     const { userProfile } = useUserProfile()
 
-    const [selectedProductId, setSelectedProductId] = useState<string>('')
+    const [internalSelectedProductId, setInternalSelectedProductId] = useState<string>('')
+    const selectedProductId = selection?.selectedProductId ?? internalSelectedProductId
+    const setSelectedProductId = selection?.setSelectedProductId ?? setInternalSelectedProductId
     const [productType, setProductType] = useState<'ingredientBased' | 'directCost'>('ingredientBased')
     const [loading, setLoading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
@@ -31,7 +38,9 @@ export const useProductForm = () => {
         sellingPrice: '',
         preparationTime: '0',
         tags: '',
-        directCostPrice: ''
+        directCostPrice: '',
+        isActive: true,
+        featured: false,
     })
 
     const [productIngredients, setProductIngredients] = useState<ProductIngredient[]>([])
@@ -71,7 +80,9 @@ export const useProductForm = () => {
             sellingPrice: product.sellingPrice?.toString() || '',
             preparationTime: product.preparationTime?.toString() || '0',
             tags: product.tags?.join(', ') || '',
-            directCostPrice: !hasIngredients && product.costPrice ? product.costPrice.toString() : ''
+            directCostPrice: !hasIngredients && product.costPrice ? product.costPrice.toString() : '',
+            isActive: product.isActive !== false,
+            featured: Boolean(product.featured),
         })
 
         setProductIngredients(
@@ -106,7 +117,9 @@ export const useProductForm = () => {
             sellingPrice: '',
             preparationTime: '0',
             tags: '',
-            directCostPrice: ''
+            directCostPrice: '',
+            isActive: true,
+            featured: false,
         })
         setProductIngredients([])
         setProductType('ingredientBased')
@@ -236,7 +249,8 @@ export const useProductForm = () => {
                 sellingPrice: sellingPriceNum || null,
                 profitMargin: sellingPriceNum ? profitMargin : null,
                 preparationTime: parseInt(formData.preparationTime) || 0,
-                isActive: true,
+                isActive: formData.isActive,
+                featured: formData.featured,
                 tags,
                 productType,
                 ingredients: productType === 'ingredientBased' ? productIngredients : [],

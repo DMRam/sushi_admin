@@ -4,7 +4,9 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  browserLocalPersistence,
+  setPersistence,
 } from 'firebase/auth'
 import { auth } from '../firebase/firebase'
 
@@ -23,9 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true) // Start with true
 
   useEffect(() => {
-    console.log('🔄 AuthProvider: Setting up auth state listener')
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('🔥 Auth state changed:', user ? user.email : 'No user')
       setUser(user)
       setLoading(false) // Set loading to false once we know auth state
     })
@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setLoading(true)
     try {
+      await setPersistence(auth, browserLocalPersistence)
       await signInWithEmailAndPassword(auth, email, password)
 
       setLoading(false)
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (email: string, password: string) => {
     setLoading(true)
     try {
+      await setPersistence(auth, browserLocalPersistence)
       await createUserWithEmailAndPassword(auth, email, password)
     } catch (error) {
       setLoading(false)
@@ -70,8 +72,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     loading
   }
-
-  console.log('🎯 AuthProvider state:', { user: user?.email, loading })
 
   return (
     <AuthContext.Provider value={value}>

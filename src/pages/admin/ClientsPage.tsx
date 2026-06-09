@@ -669,25 +669,29 @@ function ClientDetails({
           disabled={!controlsReady || actionLoading || Boolean(client.deleted_at)}
           onClick={onToggleBlock}
           className={[
-            'inline-flex h-11 items-center justify-center gap-2 px-4 text-sm font-semibold uppercase tracking-[0.08em] transition disabled:cursor-not-allowed disabled:opacity-50',
-            client.is_blocked
-              ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-              : 'border border-red-200 bg-red-50 text-red-800 hover:bg-red-100',
+            'admin-action-button h-11 w-full disabled:cursor-not-allowed disabled:opacity-50',
+            client.is_blocked ? 'admin-action-button--success' : 'admin-action-button--danger',
           ].join(' ')}
         >
           {client.is_blocked ? <UserRoundCheck className="h-4 w-4" /> : <UserRoundX className="h-4 w-4" />}
-          {actionLoading ? 'Saving...' : client.is_blocked ? 'Unblock client' : 'Block client'}
+          {actionLoading ? 'Saving...' : client.is_blocked ? 'Unblock account' : 'Block account'}
         </button>
+        <p className="text-xs leading-5 text-slate-500">
+          Blocks stop the client account from being used while keeping orders, rewards, and reporting history intact.
+        </p>
 
         <button
           type="button"
           disabled={!controlsReady || actionLoading || Boolean(client.deleted_at)}
           onClick={onSoftDelete}
-          className="inline-flex h-11 items-center justify-center gap-2 border border-slate-200 bg-white px-4 text-sm font-semibold uppercase tracking-[0.08em] text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="admin-action-button h-11 w-full disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Trash2 className="h-4 w-4" />
           Archive / anonymize
         </button>
+        <p className="text-xs leading-5 text-slate-500">
+          Archive/anonymize is for privacy cleanup. It removes direct contact details and keeps historical totals for business reports.
+        </p>
       </div>
 
       <div className="mt-5 border border-slate-200 bg-slate-50 p-4">

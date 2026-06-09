@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Eye, EyeOff, ImageOff, Languages, Search, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { AlertTriangle, ChevronRight, Eye, EyeOff, ImageOff, Languages, Search, SlidersHorizontal } from 'lucide-react'
 import { useProducts } from '../../../../context/ProductsContext'
 import { useIngredients } from '../../../../context/IngredientsContext'
 import { useUserProfile, UserRole } from '../../../../context/UserProfileContext'
@@ -15,12 +15,15 @@ type SortKey = 'name' | 'category' | 'margin' | 'profit'
 type SortDir = 'asc' | 'desc'
 type StatusFilter = 'all' | 'active' | 'hidden' | 'featured' | 'missing'
 
-export const ProductList = () => {
-    const { products, removeProduct } = useProducts()
+type ProductListProps = {
+    selectedProductId?: string
+    onSelectProduct?: (productId: string) => void
+}
+
+export const ProductList = ({ selectedProductId, onSelectProduct }: ProductListProps) => {
+    const { products } = useProducts()
     const { ingredients } = useIngredients()
     const { userProfile } = useUserProfile()
-
-    const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
 
     // NEW: toolbar state
     const [query, setQuery] = useState('')
@@ -30,10 +33,6 @@ export const ProductList = () => {
     const [sortDir, setSortDir] = useState<SortDir>('asc')
     const [limit, setLimit] = useState(20)
 
-    const toggleExpand = (productId: string) => {
-        setExpandedProduct(expandedProduct === productId ? null : productId)
-    }
-
     const getDescriptionText = (description: string | MultilingualDescription | undefined): string => {
         if (!description) return ''
         if (typeof description === 'string') return description
@@ -42,11 +41,6 @@ export const ProductList = () => {
 
     const isMultilingualDescription = (description: any): description is MultilingualDescription => {
         return description && typeof description === 'object' && ('en' in description || 'es' in description || 'fr' in description)
-    }
-
-    const splitTextIntoParagraphs = (text: string): string[] => {
-        if (!text) return []
-        return text.split('\n').filter(p => p.trim() !== '')
     }
 
     // Recalculate cost/margins (same as you did)
@@ -154,20 +148,25 @@ export const ProductList = () => {
 
     return (
         <div className="space-y-3">
-            <div className="sticky top-0 z-10 border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+            <div className="sticky top-0 z-10 rounded-2xl border border-[#f0dfd8] bg-white/95 p-3 shadow-sm backdrop-blur">
                 <div className="flex flex-col gap-3">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Filtered view</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#f45f4f]">Product view</p>
                             <p className="mt-1 text-sm text-slate-700">
                                 <span className="font-semibold text-slate-950">{filtered.length}</span> items
                                 {category !== 'all' ? <span className="text-slate-400"> · {category}</span> : null}
                             </p>
+                            {selectedProductId && (
+                                <p className="mt-1 text-xs font-semibold text-[#f45f4f]">
+                                    Selected product is loaded in the editor.
+                                </p>
+                            )}
                         </div>
 
                         <div className="flex flex-wrap gap-2">
                             <select
-                                className="border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                                className="rounded-xl border border-[#f0dfd8] bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none transition focus:border-[#fb6a57] focus:ring-2 focus:ring-[#fb6a57]/20"
                                 value={sortKey}
                                 onChange={(e) => setSortKey(e.target.value as SortKey)}
                             >
@@ -178,7 +177,7 @@ export const ProductList = () => {
                             </select>
 
                             <button
-                                className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-950"
+                                className="inline-flex items-center gap-2 rounded-xl border border-[#f0dfd8] bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-[#fff7f3] hover:text-slate-950"
                                 onClick={() => setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))}
                                 title="Toggle sort direction"
                             >
@@ -199,8 +198,8 @@ export const ProductList = () => {
                                 }}
                                 className={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition ${
                                     statusFilter === button.key
-                                        ? 'border-slate-950 bg-slate-950 text-white'
-                                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-400 hover:bg-white'
+                                        ? 'border-[#fb6a57] bg-[#fff1ed] text-[#c53f34]'
+                                        : 'border-[#f0dfd8] bg-white text-slate-600 hover:border-[#fb6a57] hover:bg-[#fff7f3]'
                                 }`}
                             >
                                 {button.label} <span className="ml-1 opacity-70">{button.count}</span>
@@ -212,7 +211,7 @@ export const ProductList = () => {
                         <label className="relative min-w-0 flex-1">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <input
-                                className="w-full border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                                className="w-full rounded-xl border border-[#f0dfd8] bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#fb6a57] focus:ring-2 focus:ring-[#fb6a57]/20"
                                 placeholder="Search name, category, description..."
                                 value={query}
                                 onChange={(e) => {
@@ -223,7 +222,7 @@ export const ProductList = () => {
                         </label>
 
                         <select
-                            className="border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900 sm:w-56"
+                            className="rounded-xl border border-[#f0dfd8] bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none transition focus:border-[#fb6a57] focus:ring-2 focus:ring-[#fb6a57]/20 sm:w-56"
                             value={category}
                             onChange={(e) => {
                                 setCategory(e.target.value)
@@ -239,7 +238,7 @@ export const ProductList = () => {
 
                         {(query || category !== 'all' || statusFilter !== 'all') && (
                             <button
-                                className="border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-950 sm:w-28"
+                                className="rounded-xl border border-[#f0dfd8] bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-[#fff7f3] hover:text-slate-950 sm:w-28"
                                 onClick={() => {
                                     setQuery('')
                                     setCategory('all')
@@ -254,200 +253,102 @@ export const ProductList = () => {
                 </div>
             </div>
 
-            {/* Empty */}
             {filtered.length === 0 ? (
-                <div className="border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-slate-500">
-                    No products match your filters.
+                <div className="rounded-2xl border border-dashed border-[#f0dfd8] bg-[#fff7f3] px-5 py-12 text-center">
+                    <ImageOff className="mx-auto h-8 w-8 text-slate-400" />
+                    <p className="mt-3 text-sm font-semibold text-slate-950">No products match this view</p>
+                    <p className="mt-1 text-sm text-slate-500">Clear the filters or create a new product.</p>
                 </div>
             ) : (
                 <>
-                    {/* List */}
-                    <div className="space-y-3">
-                        {visible.map((product: any) => {
-                            const cost = product.costPrice || 0
-                            const profitMargin = product.profitMargin || 0
-                            const profit = product.profit || 0
-                            const descriptionText = product.descriptionText || ''
+                    <div className="overflow-hidden rounded-2xl border border-[#f0dfd8] bg-white shadow-sm">
+                        <div className="divide-y divide-slate-100">
+                            {visible.map((product: any) => {
+                                const cost = product.costPrice || 0
+                                const profitMargin = product.profitMargin || 0
+                                const profit = product.profit || 0
+                                const descriptionText = product.descriptionText || ''
+                                const localeLabel = isMultilingualDescription(product.description)
+                                    ? [product.description.en && 'EN', product.description.fr && 'FR', product.description.es && 'ES'].filter(Boolean).join('/')
+                                    : 'Single'
+                                const selected = selectedProductId === product.id
 
-                            return (
-                                <div key={product.id} className="border border-slate-200 bg-white shadow-sm">
-                                    <div className="p-3 sm:p-4">
-                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <h3 className="truncate text-base font-semibold text-slate-950 sm:text-lg">
-                                                        {product.name}
-                                                    </h3>
-                                                    {product.category && (
-                                                        <span className="shrink-0 border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600">
-                                                            {product.category}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                return (
+                                    <button
+                                        key={product.id}
+                                        type="button"
+                                        onClick={() => onSelectProduct?.(product.id)}
+                                        className={`group grid w-full grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 text-left transition sm:grid-cols-[82px_minmax(0,1fr)_120px_40px] ${
+                                            selected ? 'border-l-4 border-[#fb6a57] bg-[#fff1ed] pl-2 shadow-[inset_0_0_0_1px_rgba(251,106,87,0.18)]' : 'border-l-4 border-transparent bg-white hover:bg-[#fffaf7]'
+                                        }`}
+                                    >
+                                        <div className="flex h-16 w-[72px] shrink-0 items-center justify-center overflow-hidden border border-slate-200 bg-slate-100 sm:h-[72px] sm:w-[82px]">
+                                            {product.imageUrls?.[0] ? (
+                                                <img src={product.imageUrls[0]} alt="" className="h-full w-full object-cover" />
+                                            ) : (
+                                                <ImageOff className="h-5 w-5 text-slate-400" />
+                                            )}
+                                        </div>
 
-                                                {descriptionText && (
-                                                    <p className="mt-1 line-clamp-2 text-sm text-slate-600">{descriptionText}</p>
-                                                )}
-
-                                                <div className="mt-2 flex flex-wrap gap-2 text-xs sm:text-sm">
-                                                    <span className={`inline-flex items-center gap-1 border px-2 py-1 font-semibold ${
-                                                        product.isActive === false
-                                                            ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                                            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                                    }`}>
-                                                        {product.isActive === false ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                                                        {product.isActive === false ? 'Hidden' : 'Active'}
-                                                    </span>
-                                                    {product.featured && (
-                                                        <span className="border border-blue-200 bg-blue-50 px-2 py-1 font-semibold text-blue-700">Featured</span>
-                                                    )}
-                                                    {!product.hasMedia && (
-                                                        <span className="inline-flex items-center gap-1 border border-amber-200 bg-amber-50 px-2 py-1 font-semibold text-amber-700">
-                                                            <ImageOff className="h-3.5 w-3.5" />
-                                                            No image
-                                                        </span>
-                                                    )}
-                                                    {isMultilingualDescription(product.description) && (
-                                                        <span className={`inline-flex items-center gap-1 border px-2 py-1 font-semibold ${
-                                                            product.hasAllLocales
-                                                                ? 'border-slate-200 bg-slate-50 text-slate-600'
-                                                                : 'border-amber-200 bg-amber-50 text-amber-700'
-                                                        }`}>
-                                                            <Languages className="h-3.5 w-3.5" />
-                                                            {[product.description.en && 'EN', product.description.fr && 'FR', product.description.es && 'ES'].filter(Boolean).join('/')}
-                                                        </span>
-                                                    )}
-                                                    {product.portionSize && (
-                                                        <span className="border border-slate-200 bg-slate-50 px-2 py-1 text-slate-600">
-                                                            {product.portionSize}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {canSeeMoney && (
-                                                    <div className="mt-3">
-                                                        <div className="grid gap-2 text-sm sm:grid-cols-4">
-                                                            <span className="border border-slate-200 bg-slate-50 px-2 py-1 font-semibold text-slate-700">Cost ${cost.toFixed(2)}</span>
-
-                                                            {product.sellingPrice ? (
-                                                                <>
-                                                                    <span className="border border-slate-200 bg-slate-50 px-2 py-1 font-semibold text-slate-700">Sell ${product.sellingPrice.toFixed(2)}</span>
-                                                                    <span className={`border px-2 py-1 font-semibold ${profit >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
-                                                                        Profit ${profit.toFixed(2)}
-                                                                    </span>
-                                                                    <span className={`border px-2 py-1 font-semibold ${profitMargin >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
-                                                                        Margin {profitMargin.toFixed(1)}%
-                                                                    </span>
-                                                                </>
-                                                            ) : (
-                                                                <span className="border border-amber-200 bg-amber-50 px-2 py-1 font-semibold text-amber-700">No selling price</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                )}
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <p className="truncate text-sm font-semibold text-slate-950 sm:text-base">{product.name}</p>
+                                                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                                                    product.isActive === false
+                                                        ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                                        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                }`}>
+                                                    {product.isActive === false ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                                    {product.isActive === false ? 'Hidden' : 'Active'}
+                                                </span>
                                             </div>
-
-                                            {/* Actions */}
-                                            <div className="flex flex-col sm:flex-row gap-2 sm:ml-4 w-full sm:w-auto">
-                                                <button
-                                                    onClick={() => toggleExpand(product.id)}
-                                                    className="inline-flex items-center justify-center gap-2 border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-950"
-                                                >
-                                                    {expandedProduct === product.id ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                                    {expandedProduct === product.id ? 'Hide' : 'Details'}
-                                                </button>
-
-                                                {userProfile?.role !== UserRole.VIEWER && (
-                                                    <button
-                                                        onClick={() => {
-                                                            if (confirm('Are you sure you want to delete this product?')) {
-                                                                removeProduct(product.id)
-                                                            }
-                                                        }}
-                                                        className="inline-flex items-center justify-center gap-2 border border-red-200 px-3 py-2 text-center text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                        Delete
-                                                    </button>
+                                            <p className="mt-1 truncate text-xs font-medium text-slate-500">{product.category || 'Uncategorized'}</p>
+                                            <p className="mt-1 line-clamp-1 text-xs leading-5 text-slate-500">{descriptionText || 'No description available'}</p>
+                                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                                {!product.hasMedia && (
+                                                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                                                        <AlertTriangle className="h-3 w-3" />
+                                                        Image
+                                                    </span>
                                                 )}
+                                                {!product.hasPrice && (
+                                                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                                                        <AlertTriangle className="h-3 w-3" />
+                                                        Price
+                                                    </span>
+                                                )}
+                                                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                                                    product.hasAllLocales ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-amber-200 bg-amber-50 text-amber-700'
+                                                }`}>
+                                                    <Languages className="h-3 w-3" />
+                                                    {localeLabel || 'Missing'}
+                                                </span>
                                             </div>
                                         </div>
 
-                                        {/* Expanded */}
-                                        {expandedProduct === product.id && (
-                                            <div className="mt-4 border-t border-slate-200 pt-4">
-                                                {/* Description block (keep your existing rendering) */}
-                                                {product.description && (
-                                                    <div className="mb-6">
-                                                        <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-base">Description</h4>
-                                                        <div className="border border-slate-200 bg-white p-4">
-                                                            {typeof product.description === 'string' ? (
-                                                                <div className="prose prose-sm max-w-none text-gray-700">
-                                                                    {splitTextIntoParagraphs(product.description).map((p: string, idx: number) => (
-                                                                        <p key={idx} className="mb-3 last:mb-0">{p}</p>
-                                                                    ))}
-                                                                </div>
-                                                            ) : isMultilingualDescription(product.description) ? (
-                                                                <div className="space-y-4">
-                                                                    {product.description.en && (
-                                                                        <div>
-                                                                            <div className="mb-2">
-                                                                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">English</span>
-                                                                            </div>
-                                                                            <div className="prose prose-sm max-w-none text-gray-700 bg-blue-50 p-3 rounded">
-                                                                                {splitTextIntoParagraphs(product.description.en).map((p: string, idx: number) => (
-                                                                                    <p key={idx} className="mb-2 last:mb-0">{p}</p>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                    {product.description.es && (
-                                                                        <div>
-                                                                            <div className="mb-2">
-                                                                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">Spanish</span>
-                                                                            </div>
-                                                                            <div className="prose prose-sm max-w-none text-gray-700 bg-green-50 p-3 rounded">
-                                                                                {splitTextIntoParagraphs(product.description.es).map((p: string, idx: number) => (
-                                                                                    <p key={idx} className="mb-2 last:mb-0">{p}</p>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                    {product.description.fr && (
-                                                                        <div>
-                                                                            <div className="mb-2">
-                                                                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">French</span>
-                                                                            </div>
-                                                                            <div className="prose prose-sm max-w-none text-gray-700 bg-purple-50 p-3 rounded">
-                                                                                {splitTextIntoParagraphs(product.description.fr).map((p: string, idx: number) => (
-                                                                                    <p key={idx} className="mb-2 last:mb-0">{p}</p>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="text-center py-4 text-gray-500 text-sm">No description available</div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Keep your Ingredients section below as-is (you can paste it back under here) */}
-                                                {/* ... */}
+                                        {canSeeMoney && (
+                                            <div className="hidden text-right sm:block">
+                                                <p className="text-sm font-semibold text-slate-950">{product.sellingPrice ? `$${product.sellingPrice.toFixed(2)}` : 'No price'}</p>
+                                                <p className={`mt-1 text-xs font-semibold ${profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                                    ${profit.toFixed(2)} profit
+                                                </p>
+                                                <p className={`mt-1 text-xs ${profitMargin >= 0 ? 'text-slate-500' : 'text-red-700'}`}>
+                                                    {profitMargin.toFixed(1)}% margin · ${cost.toFixed(2)} cost
+                                                </p>
                                             </div>
                                         )}
-                                    </div>
-                                </div>
-                            )
-                        })}
+
+                                        <ChevronRight className={`h-5 w-5 justify-self-end transition ${selected ? 'text-[#f45f4f]' : 'text-slate-300 group-hover:text-[#f45f4f]'}`} />
+                                    </button>
+                                )
+                            })}
+                        </div>
                     </div>
 
-                    {/* Load more */}
                     {filtered.length > limit && (
                         <div className="pt-2">
                             <button
-                                className="w-full border border-gray-200 rounded-lg py-3 text-sm text-gray-700 bg-white hover:bg-gray-50"
+                                className="w-full rounded-xl border border-[#f0dfd8] bg-white py-3 text-sm font-semibold text-slate-700 transition hover:bg-[#fff7f3]"
                                 onClick={() => setLimit(l => l + 30)}
                             >
                                 Load more ({filtered.length - limit} remaining)

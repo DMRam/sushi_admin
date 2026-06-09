@@ -1,3 +1,4 @@
+import { ImagePlus, Video } from 'lucide-react'
 import type { MediaUploadProps } from "../../../../../../types/form_types"
 
 
@@ -14,67 +15,37 @@ export const MediaUpload = ({
     removeNewImage,
     removeExistingImage
 }: MediaUploadProps) => {
-    return (
-        <>
-            {/* Media Upload Section */}
-            <div className="bg-white border border-gray-200 rounded-sm p-6">
-                <h3 className="text-lg font-light text-gray-900 tracking-wide mb-4">MEDIA CONTENT</h3>
-                <p className="text-gray-500 font-light text-sm mb-4">Add preparation videos and product images for your website</p>
+    const imageCount = existingMedia.imageUrls.length + productImages.length
+    const primaryImage = productImages[0] ? URL.createObjectURL(productImages[0]) : existingMedia.imageUrls[0]
 
-                {/* Video Upload */}
-                <div className="mb-6">
-                    <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">PREPARATION VIDEO</label>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                        <input
-                            ref={videoInputRef}
-                            type="file"
-                            accept="video/*"
-                            onChange={handleVideoUpload}
-                            className="hidden"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => videoInputRef.current?.click()}
-                            className="px-4 py-3 bg-gray-900 text-white text-sm font-light tracking-wide rounded-sm hover:bg-gray-800 transition-colors w-full sm:w-auto"
-                        >
-                            {preparationVideo ? 'CHANGE VIDEO' : 'UPLOAD VIDEO'}
-                        </button>
-                        <div className="flex-1 min-w-0">
-                            {preparationVideo && (
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm text-gray-600 font-light truncate">{preparationVideo.name}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPreparationVideo(null)}
-                                        className="text-red-600 hover:text-red-800 text-sm font-light flex-shrink-0"
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            )}
-                            {existingMedia.videoUrl && !preparationVideo && (
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm text-green-600 font-light">✓ Video uploaded</span>
-                                    <button
-                                        type="button"
-                                        onClick={removeExistingVideo}
-                                        className="text-red-600 hover:text-red-800 text-sm font-light flex-shrink-0"
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            )}
+    return (
+        <section className="overflow-hidden rounded-2xl border border-[#f0dfd8] bg-white shadow-sm">
+            <div className="border-b border-[#f0dfd8] bg-[#fffaf7] p-4 sm:p-5">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#f45f4f]">Media</p>
+                        <h3 className="mt-1 text-lg font-semibold text-slate-950">Product photos and preparation video</h3>
+                    </div>
+                    <span className="w-fit rounded-full border border-[#f0dfd8] bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">
+                        {imageCount}/10 images
+                    </span>
+                </div>
+            </div>
+
+            <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+                <div className="overflow-hidden rounded-2xl border border-[#eadbd4] bg-[#fff7f3]">
+                    {primaryImage ? (
+                        <img src={primaryImage} alt="Primary product preview" className="h-64 w-full object-cover" />
+                    ) : (
+                        <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-400">
+                            <ImagePlus className="h-10 w-10" />
+                            <span className="text-sm font-semibold">No product image yet</span>
                         </div>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 font-light">
-                        MP4, MOV, or AVI files up to 100MB. Show your preparation process!
-                    </div>
+                    )}
                 </div>
 
-                {/* Image Upload */}
-                <div>
-                    <label className="block text-sm font-light text-gray-700 mb-2 tracking-wide">PRODUCT IMAGES</label>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+                <div className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
                         <input
                             ref={imageInputRef}
                             type="file"
@@ -86,70 +57,86 @@ export const MediaUpload = ({
                         <button
                             type="button"
                             onClick={() => imageInputRef.current?.click()}
-                            className="px-4 py-3 bg-gray-900 text-white text-sm font-light tracking-wide rounded-sm hover:bg-gray-800 transition-colors w-full sm:w-auto"
+                            className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-transparent bg-[#fb6a57] px-4 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(251,106,87,0.24)] transition hover:bg-[#f25543]"
                         >
-                            UPLOAD IMAGES
+                            <ImagePlus className="h-4 w-4" />
+                            Add images
                         </button>
-                        <span className="text-sm text-gray-500 font-light text-center sm:text-left">
-                            {existingMedia.imageUrls.length + productImages.length} / 10 images
-                        </span>
+
+                        <input
+                            ref={videoInputRef}
+                            type="file"
+                            accept="video/*"
+                            onChange={handleVideoUpload}
+                            className="hidden"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => videoInputRef.current?.click()}
+                            className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-[#eadbd4] bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-[#fff7f3]"
+                        >
+                            <Video className="h-4 w-4" />
+                            {preparationVideo || existingMedia.videoUrl ? 'Change video' : 'Add video'}
+                        </button>
                     </div>
 
-                    {/* New Images Preview */}
-                    {productImages.length > 0 && (
-                        <div className="mb-4">
-                            <h4 className="text-sm font-light text-gray-700 mb-2">New Images:</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {productImages.map((image, index) => (
-                                    <div key={index} className="relative">
-                                        <img
-                                            src={URL.createObjectURL(image)}
-                                            alt={`New product image ${index + 1}`}
-                                            className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-sm border border-gray-300"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => removeNewImage(index)}
-                                            className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-700"
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
+                    {(preparationVideo || existingMedia.videoUrl) && (
+                        <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm">
+                            <span className="min-w-0 truncate font-semibold text-emerald-800">
+                                {preparationVideo ? preparationVideo.name : 'Preparation video uploaded'}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => (preparationVideo ? setPreparationVideo(null) : removeExistingVideo())}
+                                className="shrink-0 text-sm font-semibold text-red-700 hover:text-red-800"
+                            >
+                                Remove
+                            </button>
                         </div>
                     )}
 
-                    {/* Existing Images Preview */}
-                    {existingMedia.imageUrls.length > 0 && (
-                        <div>
-                            <h4 className="text-sm font-light text-gray-700 mb-2">Existing Images:</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {existingMedia.imageUrls.map((url, index) => (
-                                    <div key={index} className="relative">
-                                        <img
-                                            src={url}
-                                            alt={`Product image ${index + 1}`}
-                                            className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-sm border border-gray-300"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => removeExistingImage(url)}
-                                            className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-700"
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
+                    {(productImages.length > 0 || existingMedia.imageUrls.length > 0) && (
+                        <div className="flex flex-wrap gap-2">
+                            {productImages.map((image, index) => (
+                                <div key={`new-${index}`} className="relative">
+                                    <img
+                                        src={URL.createObjectURL(image)}
+                                        alt={`New product image ${index + 1}`}
+                                        className="h-16 w-20 rounded-xl border border-[#eadbd4] object-cover"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => removeNewImage(index)}
+                                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-semibold text-white"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            ))}
+                            {existingMedia.imageUrls.map((url, index) => (
+                                <div key={url} className="relative">
+                                    <img
+                                        src={url}
+                                        alt={`Product image ${index + 1}`}
+                                        className="h-16 w-20 rounded-xl border border-[#eadbd4] object-cover"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => removeExistingImage(url)}
+                                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-semibold text-white"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            ))}
                         </div>
                     )}
 
-                    <div className="text-xs text-gray-500 mt-2 font-light">
-                        JPG, PNG, or WebP files up to 10MB each. Maximum 10 images per product.
-                    </div>
+                    <p className="text-xs leading-5 text-slate-500">
+                        Use clear product photos for the website, ordering flow, and future fidelity app. JPG, PNG, WebP, MP4, MOV, or AVI are supported.
+                    </p>
                 </div>
             </div>
-        </>
+        </section>
     )
 }

@@ -2,17 +2,19 @@ import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  Activity,
   AlertTriangle,
   BadgeDollarSign,
   BarChart3,
   Boxes,
+  CalendarDays,
+  ChevronRight,
   CheckCircle2,
   Clock,
   CreditCard,
   DatabaseZap,
   ExternalLink,
   Package,
+  PartyPopper,
   RefreshCw,
   ShoppingBag,
   Star,
@@ -101,6 +103,18 @@ type CloverRecentOrder = {
   raw: any
 }
 
+type DashboardEmployeeShift = {
+  id: string
+  date: string
+  employeeName: string
+  clockIn: string
+  clockOut: string
+  breakMinutes: number
+  hourlyRate: number
+  source?: string
+  approved?: boolean
+}
+
 type DashboardDatePreset = 'today' | 'yesterday' | '7' | '30' | 'custom'
 
 const CLOVER_CASH_EVENTS_PROXY_URL =
@@ -148,6 +162,36 @@ function normalizeDate(value: any): Date {
   if (value instanceof Date) return value
   if (typeof value === 'number') return new Date(value > 9999999999 ? value : value * 1000)
   return new Date(value)
+}
+
+function normalizeDashboardShift(id: string, raw: any): DashboardEmployeeShift {
+  return {
+    id,
+    date: String(raw.date || dateInputValue(normalizeDate(raw.createdAt))),
+    employeeName: raw.employeeName || raw.name || raw.employee?.name || 'Unknown',
+    clockIn: String(raw.clockIn || raw.startTime || '00:00'),
+    clockOut: String(raw.clockOut || raw.endTime || '00:00'),
+    breakMinutes: Number(raw.breakMinutes || raw.break || 0),
+    hourlyRate: Number(raw.hourlyRate || raw.rate || 0),
+    source: raw.source || 'manual',
+    approved: raw.approved === true,
+  }
+}
+
+function parseClockMinutes(value: string) {
+  const [hourRaw, minuteRaw] = String(value || '00:00').split(':')
+  const hour = Number(hourRaw)
+  const minute = Number(minuteRaw)
+
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 0
+  return (hour * 60) + minute
+}
+
+function calculateShiftHours(shift: Pick<DashboardEmployeeShift, 'clockIn' | 'clockOut' | 'breakMinutes'>) {
+  const start = parseClockMinutes(shift.clockIn)
+  let end = parseClockMinutes(shift.clockOut)
+  if (end < start) end += 24 * 60
+  return Math.max(0, end - start - Number(shift.breakMinutes || 0)) / 60
 }
 
 function parseJSON(raw: unknown) {
@@ -494,12 +538,14 @@ function StatCard({
   detail,
   icon: Icon,
   tone = 'dark',
+  loading = false,
 }: {
   label: string
   value: string
   detail: string
   icon: ComponentType<{ className?: string }>
   tone?: 'dark' | 'green' | 'orange' | 'blue' | 'amber'
+  loading?: boolean
 }) {
   const toneClass = {
     dark: 'bg-slate-950 text-white',
@@ -510,18 +556,181 @@ function StatCard({
   }[tone]
 
   return (
-    <div className="border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
+    <div className="admin-dashboard-card group relative overflow-hidden border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-400">
+      {loading && <span className="admin-loading-bar absolute inset-x-0 top-0 h-1" />}
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
+          <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
           <p className="mt-2 text-sm leading-5 text-slate-500">{detail}</p>
         </div>
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center ${toneClass}`}>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center ${toneClass} transition group-hover:scale-[1.03]`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
     </div>
+  )
+}
+
+function StatusPill({
+  label,
+  state,
+  loading = false,
+}: {
+  label: string
+  state: string
+  loading?: boolean
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 border border-slate-200 bg-white px-3 py-2">
+      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</span>
+      <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-950">
+        <span className={`h-2.5 w-2.5 ${loading ? 'animate-pulse bg-amber-500' : 'bg-emerald-500'}`} />
+        {state}
+      </span>
+    </div>
+  )
+}
+
+function OwnerCommandCenter({
+  loading,
+  totalRevenue,
+  totalOrders,
+  webRevenue,
+  posRevenue,
+  attentionCount,
+  payrollCost,
+  lowStockCount,
+  pendingPayments,
+  catalogGaps,
+  onNavigate,
+}: {
+  loading: boolean
+  totalRevenue: number
+  totalOrders: number
+  webRevenue: number
+  posRevenue: number
+  attentionCount: number
+  payrollCost: number
+  lowStockCount: number
+  pendingPayments: number
+  catalogGaps: number
+  onNavigate: (path: string) => void
+}) {
+  const { t } = useTranslation()
+  const posShare = totalRevenue > 0 ? Math.round((posRevenue / totalRevenue) * 100) : 0
+  const webShare = totalRevenue > 0 ? Math.round((webRevenue / totalRevenue) * 100) : 0
+
+  return (
+    <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]">
+      <div className="admin-dashboard-card relative overflow-hidden border border-slate-200 bg-white p-5 shadow-sm">
+        {loading && <span className="admin-loading-bar absolute inset-x-0 top-0 h-1" />}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
+              {t('adminDashboard.commandCenter.label', 'Owner console')}
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+              {t('adminDashboard.commandCenter.title', 'What matters right now')}
+            </h2>
+          </div>
+          <div className={`border px-3 py-2 text-sm font-semibold ${attentionCount ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>
+            {attentionCount ? t('adminDashboard.commandCenter.reviewCount', '{{count}} to review', { count: attentionCount }) : t('adminDashboard.commandCenter.clear', 'All clear')}
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t('adminDashboard.commandCenter.sales', 'Sales')}</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-950">{money(totalRevenue)}</p>
+            <p className="mt-1 text-sm text-slate-500">{totalOrders} {t('adminDashboard.ordersShort', 'orders')}</p>
+          </div>
+          <div className="border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t('adminDashboard.commandCenter.payroll', 'Payroll')}</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-950">{money(payrollCost)}</p>
+            <p className="mt-1 text-sm text-slate-500">{t('adminDashboard.commandCenter.selectedPeriod', 'selected period')}</p>
+          </div>
+          <div className="border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t('adminDashboard.commandCenter.risk', 'Risk')}</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-950">{attentionCount}</p>
+            <p className="mt-1 text-sm text-slate-500">{t('adminDashboard.commandCenter.ownerItems', 'owner actions')}</p>
+          </div>
+        </div>
+
+        <div className="mt-5 border border-slate-200 bg-white p-4">
+          <div className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700">
+            <span>{t('adminDashboard.commandCenter.revenuePath', 'Revenue source')}</span>
+            <span>{webShare}% web · {posShare}% POS</span>
+          </div>
+          <div className="mt-3 flex h-3 overflow-hidden bg-slate-100">
+            <div className="bg-blue-600 transition-all duration-700" style={{ width: `${webShare}%` }} />
+            <div className="bg-slate-950 transition-all duration-700" style={{ width: `${posShare}%` }} />
+          </div>
+        </div>
+      </div>
+
+      <div className="admin-dashboard-card border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              {t('adminDashboard.commandCenter.nextActions', 'Next actions')}
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+              {t('adminDashboard.commandCenter.preventTitle', 'Prevent service problems before they happen')}
+            </h2>
+          </div>
+          <div className="grid min-w-[220px] gap-2">
+            <StatusPill label="Orders" state={loading ? 'Loading' : 'Live'} loading={loading} />
+            <StatusPill label="Clover" state="Synced" loading={false} />
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          {[
+            {
+              title: t('adminDashboard.commandCenter.stockAction', 'Stock before dinner'),
+              detail: t('adminDashboard.commandCenter.stockActionDetail', '{{count}} ingredients need a look.', { count: lowStockCount }),
+              path: '/admin/stock',
+              urgent: lowStockCount > 0,
+            },
+            {
+              title: t('adminDashboard.commandCenter.paymentAction', 'Payment follow-up'),
+              detail: t('adminDashboard.commandCenter.paymentActionDetail', '{{count}} table orders pending.', { count: pendingPayments }),
+              path: '/admin/sales-tracking',
+              urgent: pendingPayments > 0,
+            },
+            {
+              title: t('adminDashboard.commandCenter.catalogAction', 'Online catalog'),
+              detail: t('adminDashboard.commandCenter.catalogActionDetail', '{{count}} missing images or prices.', { count: catalogGaps }),
+              path: '/admin/products',
+              urgent: catalogGaps > 0,
+            },
+            {
+              title: t('adminDashboard.commandCenter.payrollAction', 'Payroll review'),
+              detail: t('adminDashboard.commandCenter.payrollActionDetail', 'Validate hours and pending approvals.'),
+              path: '/admin/payroll',
+              urgent: false,
+            },
+          ].map((item) => (
+            <button
+              key={item.title}
+              type="button"
+              onClick={() => onNavigate(item.path)}
+              className="group flex min-h-[96px] items-center justify-between gap-4 border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-blue-600 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+            >
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 text-base font-semibold text-slate-950">
+                  <span className={`h-2.5 w-2.5 ${item.urgent ? 'animate-pulse bg-amber-500' : 'bg-emerald-500'}`} />
+                  {item.title}
+                </span>
+                <span className="mt-1 block text-sm leading-5 text-slate-500">{item.detail}</span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-slate-400 transition group-hover:translate-x-1 group-hover:text-blue-700" />
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -535,61 +744,281 @@ function RevenueChart({
   subtitle?: string
 }) {
   const { t } = useTranslation()
-  const max = Math.max(...data.flatMap((item) => [item.web, item.pos]), 1)
+  const maxDailyTotal = Math.max(...data.map((item) => item.web + item.pos), 1)
   const webTotal = data.reduce((sum, item) => sum + item.web, 0)
   const posTotal = data.reduce((sum, item) => sum + item.pos, 0)
-  const chartMinWidth = Math.max(640, data.length * 76)
+  const webOrderTotal = data.reduce((sum, item) => sum + item.webOrders, 0)
+  const posOrderTotal = data.reduce((sum, item) => sum + item.posOrders, 0)
+  const daysWithActivity = data.filter((item) => item.web > 0 || item.pos > 0).length
+  const peakDay = data.reduce((current, item) => (item.web + item.pos > current.web + current.pos ? item : current), data[0] || { label: '-', web: 0, pos: 0, webOrders: 0, posOrders: 0 })
+  const chartMinWidth = Math.max(780, data.length * 92)
 
   return (
-    <div className="min-w-0 overflow-hidden border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="admin-dashboard-card min-w-0 overflow-hidden border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t('adminDashboard.salesChart.trend', 'Trend')}</p>
           <h2 className="mt-1 text-xl font-semibold text-slate-950">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {t('adminDashboard.salesChart.rangeSummary', '{{range}} · {{activeDays}}/{{totalDays}} active days · peak {{peakLabel}} {{peakValue}}', {
+              range: subtitle,
+              activeDays: daysWithActivity,
+              totalDays: data.length,
+              peakLabel: peakDay.label,
+              peakValue: money(peakDay.web + peakDay.pos),
+            })}
+          </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-3 text-xs font-semibold text-slate-600">
-          <span className="inline-flex items-center gap-2">
+        <div className="grid shrink-0 grid-cols-2 gap-2 text-xs font-semibold text-slate-600 sm:min-w-[360px]">
+          <span className="inline-flex items-center gap-2 border border-slate-200 bg-slate-50 px-3 py-2">
             <span className="h-2.5 w-2.5 bg-blue-600" />
-            {t('adminDashboard.web', 'Web')} {money(webTotal)}
+            {t('adminDashboard.web', 'Web')} {money(webTotal)} · {webOrderTotal}
           </span>
-          <span className="inline-flex items-center gap-2">
+          <span className="inline-flex items-center gap-2 border border-slate-200 bg-slate-50 px-3 py-2">
             <span className="h-2.5 w-2.5 bg-slate-900" />
-            {t('adminDashboard.pos', 'POS')} {money(posTotal)}
+            {t('adminDashboard.pos', 'POS')} {money(posTotal)} · {posOrderTotal}
           </span>
-          <BarChart3 className="h-5 w-5 text-blue-700" />
+          <span className="col-span-2 inline-flex items-center gap-2 border border-slate-200 bg-white px-3 py-2 text-slate-500">
+            <BarChart3 className="h-4 w-4 text-blue-700" />
+            {t('adminDashboard.salesChart.scaleNote', 'Daily bars are scaled by true daily total. Peak day: {{max}}', { max: money(maxDailyTotal) })}
+          </span>
         </div>
       </div>
 
       <div className="mt-6 overflow-x-auto overscroll-x-contain pb-3">
-        <div className="flex h-64 items-end gap-3" style={{ minWidth: chartMinWidth }}>
-          {data.map((item) => (
-            <div key={item.label} className="flex w-[64px] shrink-0 flex-col items-center gap-3">
-              <div className="flex h-48 w-full items-end justify-center gap-1.5 bg-slate-50 px-1.5">
-                <div
-                  className="w-full max-w-8 border border-blue-700 bg-blue-600 transition-all hover:bg-blue-700"
-                  style={{ height: `${Math.max(8, (item.web / max) * 100)}%` }}
-                  title={`${item.label} ${t('adminDashboard.web', 'Web')}: ${money(item.web)}`}
-                />
-                <div
-                  className="w-full max-w-8 border border-slate-950 bg-slate-900 transition-all hover:bg-slate-800"
-                  style={{ height: `${Math.max(8, (item.pos / max) * 100)}%` }}
-                  title={`${item.label} ${t('adminDashboard.pos', 'POS')}: ${money(item.pos)}`}
-                />
+        <div className="flex h-[300px] items-end gap-4" style={{ minWidth: chartMinWidth }}>
+          {data.map((item) => {
+            const total = item.web + item.pos
+            const totalHeight = total > 0 ? Math.max(2, (total / maxDailyTotal) * 100) : 0
+            const webShare = total > 0 ? (item.web / total) * 100 : 0
+            const posShare = total > 0 ? (item.pos / total) * 100 : 0
+            const orderTotal = item.webOrders + item.posOrders
+
+            return (
+              <div key={item.label} className="flex w-[76px] shrink-0 flex-col items-center gap-3">
+                <div className="relative h-48 w-full border border-slate-100 bg-slate-50 px-2 py-2">
+                  <div className="absolute inset-x-0 top-1/4 border-t border-dashed border-slate-200" />
+                  <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-slate-200" />
+                  <div className="absolute inset-x-0 top-3/4 border-t border-dashed border-slate-200" />
+                  <div className="absolute inset-x-3 bottom-2 top-2 flex items-end">
+                    <div
+                      className="relative z-[1] flex w-full flex-col-reverse overflow-hidden border border-slate-950/20 bg-white"
+                      style={{ height: `${totalHeight}%` }}
+                      title={`${item.label}: ${money(total)} · ${t('adminDashboard.web', 'Web')} ${money(item.web)} · ${t('adminDashboard.pos', 'POS')} ${money(item.pos)}`}
+                    >
+                      {item.web > 0 && (
+                        <div
+                          className="w-full bg-blue-600 transition-all hover:bg-blue-700"
+                          style={{ height: `${webShare}%` }}
+                        />
+                      )}
+                      {item.pos > 0 && (
+                        <div
+                          className="w-full bg-slate-900 transition-all hover:bg-slate-800"
+                          style={{ height: `${posShare}%` }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  {total === 0 && (
+                    <div className="absolute inset-x-3 bottom-2 h-px bg-slate-300" />
+                  )}
+                </div>
+                <div className="w-full text-center">
+                  <p className="text-xs font-semibold leading-4 text-slate-800">{item.label}</p>
+                  <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-950" title={money(total)}>{money(total)}</p>
+                  <div className="mt-1 grid grid-cols-2 gap-1 text-[10px] font-semibold leading-4">
+                    <span className="truncate text-blue-700" title={`${t('adminDashboard.web', 'Web')} ${money(item.web)}`}>{money(item.web)}</span>
+                    <span className="truncate text-slate-600" title={`${t('adminDashboard.pos', 'POS')} ${money(item.pos)}`}>{money(item.pos)}</span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] leading-4 text-slate-400">
+                    {orderTotal} {t('adminDashboard.ordersShort', 'orders')}
+                  </p>
+                </div>
               </div>
-              <div className="w-full text-center">
-                <p className="text-xs font-semibold leading-4 text-slate-800">{item.label}</p>
-                <p className="mt-0.5 truncate text-[11px] font-semibold text-blue-700" title={money(item.web)}>{money(item.web)}</p>
-                <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-700" title={money(item.pos)}>{money(item.pos)}</p>
-                <p className="mt-0.5 text-[11px] leading-4 text-slate-400">
-                  {item.webOrders + item.posOrders} {t('adminDashboard.ordersShort', 'orders')}
-                </p>
-              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function OwnerFocusPanel({
+  activeKitchen,
+  readyPickup,
+  paymentPending,
+  lowStockCount,
+  catalogGapCount,
+  payrollHours,
+  payrollCost,
+  pendingShiftCount,
+  upcomingShiftDays,
+  loyaltyCustomers,
+  onNavigate,
+}: {
+  activeKitchen: number
+  readyPickup: number
+  paymentPending: number
+  lowStockCount: number
+  catalogGapCount: number
+  payrollHours: number
+  payrollCost: number
+  pendingShiftCount: number
+  upcomingShiftDays: number
+  loyaltyCustomers: number
+  onNavigate: (path: string) => void
+}) {
+  const { t } = useTranslation()
+  const issues = lowStockCount + catalogGapCount + paymentPending + pendingShiftCount
+
+  return (
+    <section className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.75fr)]">
+      <div className="admin-dashboard-card border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
+              {t('adminDashboard.ownerFocus.label', 'Manager overview')}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">
+              {t('adminDashboard.ownerFocus.title', 'What needs attention before service')}
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              {t('adminDashboard.ownerFocus.subtitle', 'Fast checks for orders, payroll, inventory, catalog, and loyalty.')}
+            </p>
+          </div>
+          <div className={`inline-flex w-fit items-center gap-2 border px-3 py-2 text-sm font-semibold ${issues ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+            <CheckCircle2 className="h-4 w-4" />
+            {issues ? t('adminDashboard.ownerFocus.openItems', '{{count}} items to review', { count: issues }) : t('adminDashboard.ownerFocus.allClear', 'No urgent blockers')}
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <FocusTile
+            icon={ShoppingBag}
+            label={t('adminDashboard.ownerFocus.service', 'Service')}
+            value={`${activeKitchen}`}
+            detail={t('adminDashboard.ownerFocus.serviceDetail', '{{ready}} ready · {{pending}} payment pending', { ready: readyPickup, pending: paymentPending })}
+            action={t('adminDashboard.ownerFocus.reviewFlow', 'Review flow')}
+            onClick={() => onNavigate('/admin/sales-tracking')}
+          />
+          <FocusTile
+            icon={AlertTriangle}
+            label={t('adminDashboard.ownerFocus.stock', 'Stock')}
+            value={`${lowStockCount}`}
+            detail={t('adminDashboard.ownerFocus.stockDetail', 'Ingredients below minimum')}
+            action={t('adminDashboard.ownerFocus.openStock', 'Review stock')}
+            onClick={() => onNavigate('/admin/stock')}
+            warning={lowStockCount > 0}
+          />
+          <FocusTile
+            icon={WalletCards}
+            label={t('adminDashboard.ownerFocus.payroll', 'Payroll')}
+            value={money(payrollCost)}
+            detail={t('adminDashboard.ownerFocus.payrollDetail', '{{hours}} h scheduled/worked · {{pending}} pending approvals', { hours: payrollHours.toFixed(1), pending: pendingShiftCount })}
+            action={t('adminDashboard.ownerFocus.openPayroll', 'Review payroll')}
+            onClick={() => onNavigate('/admin/payroll')}
+            warning={pendingShiftCount > 0}
+          />
+          <FocusTile
+            icon={Package}
+            label={t('adminDashboard.ownerFocus.catalog', 'Catalog')}
+            value={`${catalogGapCount}`}
+            detail={t('adminDashboard.ownerFocus.catalogDetail', 'Products missing image or price')}
+            action={t('adminDashboard.ownerFocus.openProducts', 'Fix products')}
+            onClick={() => onNavigate('/admin/products')}
+            warning={catalogGapCount > 0}
+          />
+          <FocusTile
+            icon={Trophy}
+            label={t('adminDashboard.ownerFocus.loyalty', 'Loyalty')}
+            value={`${loyaltyCustomers}`}
+            detail={t('adminDashboard.ownerFocus.loyaltyDetail', 'Customer accounts to bring back')}
+            action={t('adminDashboard.ownerFocus.openClients', 'View clients')}
+            onClick={() => onNavigate('/admin/clients')}
+          />
+        </div>
+      </div>
+
+      <div className="admin-dashboard-card border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {t('adminDashboard.ownerFocus.riskLabel', 'Coming days')}
+        </p>
+        <h2 className="mt-2 text-xl font-semibold text-slate-950">
+          {t('adminDashboard.ownerFocus.riskTitle', 'Prevent small issues early')}
+        </h2>
+        <div className="mt-5 grid gap-3">
+          {[
+            {
+              label: t('adminDashboard.ownerFocus.shiftCoverage', 'Shift coverage'),
+              value: t('adminDashboard.ownerFocus.shiftCoverageValue', '{{days}} upcoming days', { days: upcomingShiftDays }),
+              tone: upcomingShiftDays < 3 ? 'amber' : 'green',
+            },
+            {
+              label: t('adminDashboard.ownerFocus.stockRisk', 'Low stock'),
+              value: t('adminDashboard.ownerFocus.stockRiskValue', '{{count}} items', { count: lowStockCount }),
+              tone: lowStockCount > 0 ? 'amber' : 'green',
+            },
+            {
+              label: t('adminDashboard.ownerFocus.paymentRisk', 'Payment follow-up'),
+              value: t('adminDashboard.ownerFocus.paymentRiskValue', '{{count}} pending', { count: paymentPending }),
+              tone: paymentPending > 0 ? 'amber' : 'green',
+            },
+            {
+              label: t('adminDashboard.ownerFocus.catalogRisk', 'Online catalog'),
+              value: t('adminDashboard.ownerFocus.catalogRiskValue', '{{count}} gaps', { count: catalogGapCount }),
+              tone: catalogGapCount > 0 ? 'amber' : 'green',
+            },
+          ].map((item, index) => (
+            <div key={item.label} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border border-slate-200 bg-slate-50 px-3 py-3">
+              <span className={`flex h-7 w-7 items-center justify-center text-xs font-semibold ${item.tone === 'amber' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>{index + 1}</span>
+              <span className="text-sm font-medium text-slate-700">{item.label}</span>
+              <span className="text-sm font-semibold text-slate-950">{item.value}</span>
             </div>
           ))}
         </div>
       </div>
-    </div>
+    </section>
+  )
+}
+
+function FocusTile({
+  icon: Icon,
+  label,
+  value,
+  detail,
+  action,
+  onClick,
+  warning = false,
+}: {
+  icon: ComponentType<{ className?: string }>
+  label: string
+  value: string
+  detail: string
+  action: string
+  onClick: () => void
+  warning?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative min-w-0 overflow-hidden border border-slate-200 bg-slate-50 p-4 text-left transition hover:-translate-y-0.5 hover:border-blue-600 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 active:translate-y-0"
+    >
+      <span className="absolute inset-x-0 top-0 h-1 bg-transparent transition group-hover:bg-blue-600" />
+      <div className="flex items-start justify-between gap-3">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center ${warning ? 'bg-amber-100 text-amber-700' : 'bg-white text-blue-700'} border border-slate-200`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <span className="text-2xl font-semibold text-slate-950">{value}</span>
+      </div>
+      <p className="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-1 min-h-[40px] text-sm leading-5 text-slate-600">{detail}</p>
+      <p className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-blue-700 transition group-hover:text-blue-800">
+        {action}
+        <ChevronRight className="h-4 w-4 transition group-hover:translate-x-1" />
+      </p>
+    </button>
   )
 }
 
@@ -605,10 +1034,10 @@ function MixChart({
   const deliveryPct = 100 - pickupPct
 
   return (
-    <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="admin-dashboard-card min-w-0 border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Fulfillment mix</p>
       <h2 className="mt-1 text-xl font-semibold text-gray-950">Pickup vs delivery</h2>
-      <div className="mt-6 flex items-center gap-5">
+      <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-center">
         <div
           className="grid h-36 w-36 shrink-0 place-items-center rounded-full"
           style={{
@@ -643,7 +1072,7 @@ function UberSalesSourcePanel({
   const hasWebhookTraffic = events > 0 || orders > 0
 
   return (
-    <div className="min-w-0 border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="admin-dashboard-card min-w-0 border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Sales source</p>
@@ -652,7 +1081,7 @@ function UberSalesSourcePanel({
             Uber Eats is planned for revenue accuracy, but it is not included in dashboard totals yet. Once credentials are available, sales from Uber should be imported beside Web and Clover/POS so total restaurant sales, product demand, and analytics are complete.
           </p>
         </div>
-        <div className="grid gap-2 text-sm sm:grid-cols-3 lg:min-w-[520px]">
+        <div className="grid w-full gap-2 text-sm sm:grid-cols-3 lg:max-w-[520px]">
           <div className="border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Status</p>
             <p className={`mt-1 font-semibold ${hasWebhookTraffic ? 'text-emerald-700' : 'text-amber-700'}`}>
@@ -669,7 +1098,7 @@ function UberSalesSourcePanel({
           </div>
         </div>
       </div>
-      <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
+      <div className="mt-4 grid gap-3 text-sm text-slate-600 lg:grid-cols-3">
         <div className="border border-dashed border-slate-200 bg-slate-50/70 p-3">
           <p className="font-semibold text-slate-900">1. Order import</p>
           <p className="mt-1 leading-5">Pull accepted/completed Uber orders with totals, fees, taxes, tips, and item lines.</p>
@@ -683,6 +1112,55 @@ function UberSalesSourcePanel({
           <p className="mt-1 leading-5">Keep Uber separate from POS/web while still rolling it into total restaurant revenue.</p>
         </div>
       </div>
+    </div>
+  )
+}
+
+function EventsOpsPanel({ onOpen }: { onOpen: () => void }) {
+  return (
+    <div className="admin-dashboard-card min-w-0 border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Event channel</p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-950">Sushi Island, 15th birthdays, office trays</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+            Event requests have their own internal lane while public promotion is paused. Staff can refine Sushi Island, 15-year-old birthday parties, office/team trays, private sushi nights, and karaoke packages before publishing the customer view.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="inline-flex h-10 items-center justify-center gap-2 border border-slate-900 bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+        >
+          <PartyPopper className="h-4 w-4" />
+          Open events
+        </button>
+      </div>
+      <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
+        <div className="border border-slate-200 bg-slate-50 p-3">
+          <CalendarDays className="mb-2 h-4 w-4 text-[#f26350]" />
+          <p className="font-semibold text-slate-900">Requests</p>
+          <p className="mt-1 leading-5">Collected through contact until the event-request table is finalized.</p>
+        </div>
+        <div className="border border-slate-200 bg-slate-50 p-3">
+          <Users className="mb-2 h-4 w-4 text-[#f26350]" />
+          <p className="font-semibold text-slate-900">Good leads</p>
+          <p className="mt-1 leading-5">Teen birthdays, office trays, team meals, and private nights can become repeatable packages.</p>
+        </div>
+        <div className="border border-slate-200 bg-slate-50 p-3">
+          <ClipboardListIcon />
+          <p className="font-semibold text-slate-900">Next</p>
+          <p className="mt-1 leading-5">Add persistent lead tracking, package pricing, deposits, and reminders.</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ClipboardListIcon() {
+  return (
+    <div className="mb-2 flex h-4 w-4 items-center justify-center text-[#f26350]">
+      <span className="h-3.5 w-3 rounded-sm border border-current" />
     </div>
   )
 }
@@ -734,7 +1212,7 @@ function HorizontalBars({
   const max = Math.max(...items.map((item) => item.value), 1)
 
   return (
-    <div className="max-h-[520px] overflow-hidden border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="admin-dashboard-card max-h-[520px] overflow-hidden border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
@@ -804,7 +1282,7 @@ function CloverCashEventsPanel({
   const todayOrderRevenue = todayOrders.reduce((sum, order) => sum + order.total, 0)
 
   return (
-    <div className="max-h-[520px] overflow-hidden border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="admin-dashboard-card max-h-[520px] overflow-hidden border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Clover API</p>
@@ -1138,6 +1616,7 @@ export default function SalesTrackingPage() {
   const [uberEatsOrders, setUberEatsOrders] = useState<UberEatsOrder[]>([])
   const [uberEatsEventCount, setUberEatsEventCount] = useState(0)
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([])
+  const [employeeShifts, setEmployeeShifts] = useState<DashboardEmployeeShift[]>([])
   const [loyalty, setLoyalty] = useState<LoyaltyStats>({ customers: 0, pointsIssued: 0 })
   const [cashEvents, setCashEvents] = useState<CloverCashEvent[]>([])
   const [recentCloverOrders, setRecentCloverOrders] = useState<CloverRecentOrder[]>([])
@@ -1148,6 +1627,7 @@ export default function SalesTrackingPage() {
   const [cashEventsError, setCashEventsError] = useState<string | null>(null)
   const [dataError, setDataError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
   const [demandDays, setDemandDays] = useState<7 | 14 | 30>(14)
   const [datePreset, setDatePreset] = useState<DashboardDatePreset>('today')
   const [customStart, setCustomStart] = useState(() => dateInputValue(new Date()))
@@ -1178,19 +1658,25 @@ export default function SalesTrackingPage() {
     const checkoutQuery = query(
       collection(db, 'cloverCheckoutSessions'),
       orderBy('createdAt', 'desc'),
-      limit(180)
+      limit(1000)
     )
 
     const webOrdersQuery = query(
       collection(db, 'webOrders'),
       orderBy('createdAt', 'desc'),
-      limit(180)
+      limit(1000)
     )
 
     const tableOrderQuery = query(
       collection(db, 'tableOrders'),
       orderBy('createdAt', 'desc'),
-      limit(140)
+      limit(400)
+    )
+
+    const employeeShiftQuery = query(
+      collection(db, 'employeeShifts'),
+      orderBy('date', 'desc'),
+      limit(500)
     )
 
     const uberEatsOrderQuery = query(
@@ -1239,6 +1725,16 @@ export default function SalesTrackingPage() {
       },
       (error) => {
         console.error('Failed to load table orders', error)
+      }
+    ))
+
+    unsubscribers.push(onSnapshot(
+      employeeShiftQuery,
+      (snapshot) => {
+        setEmployeeShifts(snapshot.docs.map((docSnap) => normalizeDashboardShift(docSnap.id, docSnap.data())))
+      },
+      (error) => {
+        console.error('Failed to load payroll shifts', error)
       }
     ))
 
@@ -1348,9 +1844,11 @@ export default function SalesTrackingPage() {
 
       try {
         const url = new URL(CLOVER_CASH_EVENTS_PROXY_URL)
-        url.searchParams.set('limit', '20')
-        url.searchParams.set('detailLimit', '8')
-        url.searchParams.set('orderLimit', '30')
+        url.searchParams.set('limit', '250')
+        url.searchParams.set('detailLimit', '60')
+        url.searchParams.set('orderLimit', '500')
+        url.searchParams.set('start', selectedRange.start.toISOString())
+        url.searchParams.set('end', selectedRange.end.toISOString())
 
         const response = await fetch(url.toString(), {
           headers: { accept: 'application/json' },
@@ -1402,7 +1900,7 @@ export default function SalesTrackingPage() {
     return () => {
       cancelled = true
     }
-  }, [refreshKey])
+  }, [refreshKey, selectedRange.start, selectedRange.end])
 
   const metrics = useMemo(() => {
     const todaySessions = filteredOnlineSessions
@@ -1439,6 +1937,32 @@ export default function SalesTrackingPage() {
       delivery,
     }
   }, [onlineSessions, filteredOnlineSessions, filteredCloverOrders, tableOrders])
+
+  const payrollOverview = useMemo(() => {
+    const periodShifts = employeeShifts.filter((shift) => {
+      const shiftDate = new Date(`${shift.date}T12:00:00`)
+      return isInRange(shiftDate, selectedRange.start, selectedRange.end)
+    })
+    const today = new Date()
+    const nextSeven = new Date(today)
+    nextSeven.setDate(today.getDate() + 7)
+    const upcomingShifts = employeeShifts.filter((shift) => {
+      const shiftDate = new Date(`${shift.date}T12:00:00`)
+      return shiftDate >= new Date(`${dateInputValue(today)}T00:00:00`) && shiftDate <= nextSeven
+    })
+    const upcomingDays = new Set(upcomingShifts.map((shift) => shift.date)).size
+    const hours = periodShifts.reduce((sum, shift) => sum + calculateShiftHours(shift), 0)
+    const wages = periodShifts.reduce((sum, shift) => sum + (calculateShiftHours(shift) * Number(shift.hourlyRate || 0)), 0)
+    const pending = periodShifts.filter((shift) => shift.approved !== true).length
+
+    return {
+      hours,
+      wages,
+      pending,
+      upcomingDays,
+      shiftCount: periodShifts.length,
+    }
+  }, [employeeShifts, selectedRange])
 
   const selectedRevenue = useMemo(() => {
     const days = Math.max(1, Math.ceil((selectedRange.end.getTime() - selectedRange.start.getTime()) / 86400000))
@@ -1534,21 +2058,32 @@ export default function SalesTrackingPage() {
     const now = new Date()
     return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
   })
+  const dashboardLoading = loading || cashEventsLoading || productsLoading || ingredientsLoading || refreshing
+  const totalSelectedRevenue = metrics.todayRevenue + metrics.selectedPosRevenue
+  const totalSelectedOrders = metrics.todaySessions.length + filteredCloverOrders.length
+  const attentionCount = metrics.paymentPending.length + lowStock.length + catalogHealth.noImage + catalogHealth.noPrice + payrollOverview.pending
 
   const handleRefresh = () => {
+    setRefreshing(true)
     setRefreshKey((current) => current + 1)
   }
 
+  useEffect(() => {
+    if (!refreshing) return
+    const timeout = window.setTimeout(() => setRefreshing(false), 900)
+    return () => window.clearTimeout(timeout)
+  }, [refreshing, refreshKey])
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-slate-50">
-      <div className="mx-auto w-full max-w-[1760px] space-y-5 px-3 pb-8 sm:px-5 lg:px-8">
-        <section className="border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div>
+      <div className="mx-auto w-full max-w-[1760px] space-y-4 px-2 pb-8 sm:px-4 lg:px-5 2xl:px-8">
+        <section className="admin-dashboard-card border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_minmax(620px,auto)] 2xl:items-end">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                 {t('adminDashboard.todayIs', 'Today is {{date}}', { date: todayLabel })}
               </p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl lg:text-[2rem]">
                 {t('adminDashboard.operationsTitle', 'Service snapshot')}
               </h1>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-500">
@@ -1560,7 +2095,7 @@ export default function SalesTrackingPage() {
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-[minmax(180px,220px)_repeat(2,minmax(145px,1fr))_auto]">
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(160px,220px)_repeat(2,minmax(140px,1fr))_auto]">
               <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                 {t('adminDashboard.filters.period', 'Period')}
                 <select
@@ -1605,10 +2140,11 @@ export default function SalesTrackingPage() {
               <button
                 type="button"
                 onClick={handleRefresh}
-                className="inline-flex h-[38px] w-fit items-center justify-center gap-2 self-end border border-slate-900 bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                disabled={refreshing}
+                className="inline-flex h-[40px] w-full items-center justify-center gap-2 self-end border border-slate-900 bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-80 sm:col-span-2 lg:col-span-1 lg:w-fit"
               >
-                <RefreshCw className="h-4 w-4" />
-                {t('adminDashboard.refresh', 'Refresh')}
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? t('adminDashboard.refreshing', 'Refreshing') : t('adminDashboard.refresh', 'Refresh')}
               </button>
             </div>
           </div>
@@ -1620,13 +2156,28 @@ export default function SalesTrackingPage() {
           </div>
         )}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <OwnerCommandCenter
+          loading={dashboardLoading}
+          totalRevenue={totalSelectedRevenue}
+          totalOrders={totalSelectedOrders}
+          webRevenue={metrics.todayRevenue}
+          posRevenue={metrics.selectedPosRevenue}
+          attentionCount={attentionCount}
+          payrollCost={payrollOverview.wages}
+          lowStockCount={lowStock.length}
+          pendingPayments={metrics.paymentPending.length}
+          catalogGaps={catalogHealth.noImage + catalogHealth.noPrice}
+          onNavigate={navigate}
+        />
+
+        <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-4">
           <StatCard
             label={t('adminDashboard.webSalesForRange', '{{range}} web sales', { range: selectedRange.label })}
             value={money(metrics.todayRevenue)}
             detail={t('adminDashboard.webSalesDetail', '{{orders}} web orders · avg {{average}}', { orders: metrics.todaySessions.length, average: money(metrics.todayAverage) })}
             icon={BadgeDollarSign}
             tone="blue"
+            loading={dashboardLoading}
           />
           <StatCard
             label={t('adminDashboard.posSalesForRange', '{{range}} POS sales', { range: selectedRange.label })}
@@ -1634,39 +2185,57 @@ export default function SalesTrackingPage() {
             detail={t('adminDashboard.posSalesDetail', '{{orders}} POS orders · avg {{average}}', { orders: filteredCloverOrders.length, average: money(metrics.selectedPosAverage) })}
             icon={CreditCard}
             tone="green"
+            loading={cashEventsLoading}
           />
           <StatCard
-            label={t('adminDashboard.webPosDifference', 'Web vs POS difference')}
-            value={money(metrics.todayRevenue - metrics.selectedPosRevenue)}
-            detail={t('adminDashboard.webPosDifferenceDetail', '{{web}} web · {{pos}} POS', { web: money(metrics.todayRevenue), pos: money(metrics.selectedPosRevenue) })}
-            icon={Activity}
+            label={t('adminDashboard.payrollForRange', '{{range}} payroll', { range: selectedRange.label })}
+            value={money(payrollOverview.wages)}
+            detail={t('adminDashboard.payrollDetail', '{{hours}} h · {{shifts}} shifts · {{pending}} pending', {
+              hours: payrollOverview.hours.toFixed(1),
+              shifts: payrollOverview.shiftCount,
+              pending: payrollOverview.pending,
+            })}
+            icon={WalletCards}
             tone="dark"
+            loading={dashboardLoading}
           />
           <StatCard
             label="Action queue"
-            value={`${metrics.activeKitchen.length + metrics.paymentPending.length + lowStock.length}`}
-            detail={`${metrics.readyPickup.length} ready · ${lowStock.length} low stock`}
+            value={`${attentionCount}`}
+            detail={`${metrics.readyPickup.length} ready · ${lowStock.length} low stock · ${payrollOverview.pending} payroll`}
             icon={AlertTriangle}
-            tone="blue"
-          />
-          <StatCard
-            label="Loyalty points"
-            value={`${loyalty.pointsIssued.toLocaleString()}`}
-            detail={`${loyalty.customers} customer accounts`}
-            icon={Trophy}
-            tone="green"
+            tone={attentionCount ? 'amber' : 'green'}
+            loading={dashboardLoading}
           />
         </section>
 
-        <UberSalesSourcePanel
-          orders={filteredUberEatsOrders.length}
-          events={uberEatsEventCount}
-          revenue={uberEatsIncludedRevenue}
+        <OwnerFocusPanel
+          activeKitchen={metrics.activeKitchen.length}
+          readyPickup={metrics.readyPickup.length}
+          paymentPending={metrics.paymentPending.length}
+          lowStockCount={lowStock.length}
+          catalogGapCount={catalogHealth.noImage + catalogHealth.noPrice}
+          payrollHours={payrollOverview.hours}
+          payrollCost={payrollOverview.wages}
+          pendingShiftCount={payrollOverview.pending}
+          upcomingShiftDays={payrollOverview.upcomingDays}
+          loyaltyCustomers={loyalty.customers}
+          onNavigate={navigate}
         />
 
         <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.9fr)]">
           <RevenueChart data={selectedRevenue} title={t('adminDashboard.webVsPosRevenue', 'Web vs POS revenue')} subtitle={selectedRange.label} />
           <MixChart pickup={metrics.pickup} delivery={metrics.delivery} />
+        </section>
+
+        <section className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.8fr)]">
+          <UberSalesSourcePanel
+            orders={filteredUberEatsOrders.length}
+            events={uberEatsEventCount}
+            revenue={uberEatsIncludedRevenue}
+          />
+
+          <EventsOpsPanel onOpen={() => navigate('/admin/events')} />
         </section>
 
         <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
@@ -1717,7 +2286,7 @@ export default function SalesTrackingPage() {
           />
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-4">
+        <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,250px),1fr))] gap-4">
           <InsightCard
             icon={Package}
             label="Catalog health"

@@ -128,7 +128,7 @@ export const PrivacyPolicy = () => {
                                 <ul className="space-y-3 text-gray-600">
                                     <li className="flex items-start">
                                         <span className="w-2 h-2 bg-red-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                                        <span><strong>Zapier</strong> - Automated workflow integrations</span>
+                                        <span><strong>n8n</strong> - Automated workflow integrations</span>
                                     </li>
                                     <li className="flex items-start">
                                         <span className="w-2 h-2 bg-red-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>

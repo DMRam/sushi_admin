@@ -8,6 +8,7 @@ import {
     Shield,
     Wallet,
     Gift,
+    PartyPopper,
     Award,
     UsersRound,
 } from "lucide-react";
@@ -22,7 +23,7 @@ export function buildNavLinks(t: TFunction): NavLink[] {
             path: "/admin/sales-tracking",
             label: t("nav.dashboard", "Dashboard"),
             shortLabel: t("nav.dashboardShort", "Dash"),
-            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
+            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN],
             icon: LayoutDashboard,
         },
         {
@@ -36,8 +37,15 @@ export function buildNavLinks(t: TFunction): NavLink[] {
             path: "/admin/bookings",
             label: t("nav.bookings", "Bookings"),
             shortLabel: t("nav.bookingsShort", "Book"),
-            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
+            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN],
             icon: CalendarDays,
+        },
+        {
+            path: "/admin/events",
+            label: t("nav.events", "Events"),
+            shortLabel: t("nav.events", "Events"),
+            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN],
+            icon: PartyPopper,
         },
         {
             path: "/admin/gift-cards",
@@ -64,14 +72,14 @@ export function buildNavLinks(t: TFunction): NavLink[] {
             path: "/admin/products",
             label: t("nav.products", "Products"),
             shortLabel: t("nav.products", "Products"),
-            allowedRoles: [UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
+            allowedRoles: [UserRole.MANAGER, UserRole.ADMIN],
             icon: Package,
         },
         {
             path: "/admin/stock",
             label: t("nav.stock", "Stock"),
             shortLabel: t("nav.stock", "Stock"),
-            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN, UserRole.VIEWER],
+            allowedRoles: [UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN],
             icon: Boxes,
         },
         {

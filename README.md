@@ -72,3 +72,20 @@ export default defineConfig([
 ])
 ```
 # sushi_admin
+
+## Environment
+
+Local `.env` files are ignored by git. Use `.env.example` as the visible project reference.
+
+The MaiSushi public contact forms post to n8n through:
+
+```env
+VITE_MAISUSHI_CONTACT_WEBHOOK_URL=https://automation.ulogicit.com/webhook/contact-forms-maisushi
+VITE_N8N_MAISUSHI_CONTACT_WEBHOOK_URL=https://automation.ulogicit.com/webhook/contact-forms-maisushi
+```
+
+The code that consumes this value is:
+
+```txt
+src/pages/landing/hooks/useN8nContactForms.tsx
+```

@@ -8,7 +8,6 @@ import {
     Clock,
     Star,
     Sparkles,
-    ChefHat,
     X,
     Filter,
     Plus,
@@ -23,6 +22,7 @@ import {
     ArrowUpDown,
     ChevronDown,
     ChevronUp,
+    SlidersHorizontal,
 } from 'lucide-react';
 import { useCartStore } from '../../stores/cartStore';
 import type { MenuItem, Product } from '../../types/types';
@@ -877,8 +877,8 @@ export default function OrderPage() {
                             onClick={() => setShowSushiBuilder(true)}
                             className="flex items-center space-x-2 bg-[#f26350] px-5 py-2.5 text-[12px] font-extrabold uppercase tracking-[0.08em] text-white shadow-lg shadow-[#f26350]/20 transition-all hover:bg-[#ff725f]"
                         >
-                            <ChefHat className="w-4 h-4" />
-                            <span className="text-sm hidden sm:inline">{t('buildYourSushi.title')}</span>
+                            <SlidersHorizontal className="w-4 h-4" />
+                            <span className="text-sm hidden sm:inline">{t('buildYourSushi.menuButton', 'Customize a roll')}</span>
                         </button>
                     </div>
 
@@ -1049,7 +1049,7 @@ export default function OrderPage() {
                                             {showFavoritesOnly ? (
                                                 <Heart className="w-4 h-4 text-[#f26350] fill-current" />
                                             ) : (
-                                                <ChefHat className="w-4 h-4 text-[#f26350]" />
+                                                <Sparkles className="w-4 h-4 text-[#f26350]" />
                                             )}
                                         </div>
                                         <div>

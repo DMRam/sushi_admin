@@ -2,6 +2,9 @@ import  { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useInvitation } from '../context/InvitationContext'
+import { auth, db } from '../firebase/firebase'
+import { doc, setDoc } from 'firebase/firestore'
+import { UserRole, type UserProfile } from '../context/UserProfileContext'
 
 export default function RegisterPage() {
     const [email, setEmail] = useState('')
@@ -50,6 +53,23 @@ export default function RegisterPage() {
 
             // Register the user first
             await register(email, password)
+
+            const currentUser = auth.currentUser
+            if (!currentUser) {
+                throw new Error('Staff account was created, but the session could not be verified.')
+            }
+
+            const staffProfile: UserProfile = {
+                uid: currentUser.uid,
+                email: currentUser.email || email,
+                displayName: currentUser.displayName || email.split('@')[0] || 'Staff',
+                role: UserRole.STAFF,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                isActive: true,
+            }
+
+            await setDoc(doc(db, 'users', currentUser.uid), staffProfile)
 
             // Then mark invitation code as used
             try {

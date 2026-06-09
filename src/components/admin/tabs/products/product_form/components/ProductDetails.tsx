@@ -64,14 +64,14 @@ export const ProductDetails = ({ formData, setFormData }: ProductDetailsProps) =
     }
 
     return (
-        <section className="border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 p-4 sm:p-5">
+        <section className="overflow-hidden rounded-2xl border border-[#f0dfd8] bg-white shadow-sm">
+            <div className="border-b border-[#f0dfd8] bg-[#fffaf7] p-4 sm:p-5">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Product details</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#f45f4f]">Product details</p>
                         <h3 className="mt-1 text-lg font-semibold text-slate-950">Storefront information</h3>
                     </div>
-                    <span className={`w-fit border px-2.5 py-1 text-xs font-semibold ${completedLocales === locales.length
+                    <span className={`w-fit rounded-full border px-2.5 py-1 text-xs font-semibold ${completedLocales === locales.length
                         ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                         : 'border-amber-200 bg-amber-50 text-amber-700'
                         }`}>
@@ -88,7 +88,7 @@ export const ProductDetails = ({ formData, setFormData }: ProductDetailsProps) =
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="h-12 w-full border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                            className="h-12 w-full rounded-xl border border-[#eadbd4] bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#fb6a57] focus:ring-2 focus:ring-[#fb6a57]/20"
                             placeholder="e.g., Maki saumon avocat"
                             required
                         />
@@ -100,10 +100,52 @@ export const ProductDetails = ({ formData, setFormData }: ProductDetailsProps) =
                             type="text"
                             value={formData.category}
                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                            className="h-12 w-full border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                            className="h-12 w-full rounded-xl border border-[#eadbd4] bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#fb6a57] focus:ring-2 focus:ring-[#fb6a57]/20"
                             placeholder="e.g., Makis, Entrées, Boissons"
                         />
                     </label>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                    <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                        className={`rounded-2xl border p-4 text-left transition ${
+                            formData.isActive
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                                : 'border-amber-200 bg-amber-50 text-amber-900'
+                        }`}
+                    >
+                        <span className="block text-xs font-semibold uppercase tracking-[0.14em]">
+                            Visibility
+                        </span>
+                        <span className="mt-1 block text-base font-semibold">
+                            {formData.isActive ? 'Active on menu' : 'Hidden from menu'}
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-slate-500">
+                            Tap to switch between visible and hidden.
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, featured: !formData.featured })}
+                        className={`rounded-2xl border p-4 text-left transition ${
+                            formData.featured
+                                ? 'border-blue-200 bg-blue-50 text-blue-900'
+                                : 'border-slate-200 bg-slate-50 text-slate-700'
+                        }`}
+                    >
+                        <span className="block text-xs font-semibold uppercase tracking-[0.14em]">
+                            Merchandising
+                        </span>
+                        <span className="mt-1 block text-base font-semibold">
+                            {formData.featured ? 'Featured item' : 'Standard item'}
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-slate-500">
+                            Use featured for popular or promoted products.
+                        </span>
+                    </button>
                 </div>
 
                 <div>
@@ -119,13 +161,13 @@ export const ProductDetails = ({ formData, setFormData }: ProductDetailsProps) =
                             const hasValue = Boolean(currentDescription[locale.key]?.trim())
 
                             return (
-                                <label key={locale.key} className="block border border-slate-200 bg-slate-50 p-3">
+                                <label key={locale.key} className="block rounded-2xl border border-[#eadbd4] bg-[#fffaf7] p-3">
                                     <div className="mb-2 flex items-start justify-between gap-3">
                                         <div>
                                             <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-700">{locale.label}</span>
                                             <span className="block text-xs text-slate-500">{locale.hint}</span>
                                         </div>
-                                        <span className={`shrink-0 border px-2 py-0.5 text-[11px] font-semibold ${hasValue
+                                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${hasValue
                                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                             : 'border-amber-200 bg-amber-50 text-amber-700'
                                             }`}>
@@ -135,7 +177,7 @@ export const ProductDetails = ({ formData, setFormData }: ProductDetailsProps) =
                                     <textarea
                                         value={currentDescription[locale.key]}
                                         onChange={(e) => handleDescriptionChange(locale.key, e.target.value)}
-                                        className="min-h-28 w-full resize-y border border-slate-300 bg-white px-3 py-2 text-sm leading-5 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                                        className="min-h-28 w-full resize-y rounded-xl border border-[#eadbd4] bg-white px-3 py-2 text-sm leading-5 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#fb6a57] focus:ring-2 focus:ring-[#fb6a57]/20"
                                         placeholder={locale.placeholder}
                                     />
                                 </label>
@@ -152,7 +194,7 @@ export const ProductDetails = ({ formData, setFormData }: ProductDetailsProps) =
                             min="0"
                             value={formData.preparationTime}
                             onChange={(e) => setFormData({ ...formData, preparationTime: e.target.value })}
-                            className="h-12 w-full border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                            className="h-12 w-full rounded-xl border border-[#eadbd4] bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#fb6a57] focus:ring-2 focus:ring-[#fb6a57]/20"
                             placeholder="15"
                         />
                     </label>
@@ -163,7 +205,7 @@ export const ProductDetails = ({ formData, setFormData }: ProductDetailsProps) =
                             type="text"
                             value={formData.portionSize}
                             onChange={(e) => setFormData({ ...formData, portionSize: e.target.value })}
-                            className="h-12 w-full border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                            className="h-12 w-full rounded-xl border border-[#eadbd4] bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#fb6a57] focus:ring-2 focus:ring-[#fb6a57]/20"
                             placeholder="e.g., 8 pcs, 500 ml"
                         />
                     </label>
@@ -174,7 +216,7 @@ export const ProductDetails = ({ formData, setFormData }: ProductDetailsProps) =
                             type="text"
                             value={formData.tags}
                             onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                            className="h-12 w-full border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+                            className="h-12 w-full rounded-xl border border-[#eadbd4] bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#fb6a57] focus:ring-2 focus:ring-[#fb6a57]/20"
                             placeholder="spicy, popular, seasonal"
                         />
                     </label>

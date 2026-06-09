@@ -8,7 +8,7 @@ export interface ContactFormData {
     contactMethod: 'catering' | 'promotions' | 'general';
 }
 
-export interface ZapierContactPayload {
+export interface N8nContactPayload {
     name: string;
     email: string;
     phone: string;

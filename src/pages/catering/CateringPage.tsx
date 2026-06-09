@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import emailjs from '@emailjs/browser'
-import { useZapierContactForms } from '../landing/hooks/useZapierContactForms'
+import { useN8nContactForms } from '../landing/hooks/useN8nContactForms'
 import { LandingHeader } from '../landing/components/LandingHeader'
 import { LandingCTAFooter } from '../landing/components/LandingCTAFooter'
 
@@ -26,7 +26,7 @@ interface CateringFormData extends ContactFormData {
 
 export const CateringPage = () => {
     const { t } = useTranslation()
-    const { submitContactForm, isSubmitting } = useZapierContactForms()
+    const { submitContactForm, isSubmitting } = useN8nContactForms()
 
     const [formData, setFormData] = useState<CateringFormData>({
         name: '',

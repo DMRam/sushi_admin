@@ -47,16 +47,13 @@ export const ProductsProvider: React.FC<{ children: ReactNode }> = ({ children }
     try {
       setLoading(true)
       setError(null)
-      console.log('Loading products from Firebase...')
 
       const querySnapshot = await getDocs(collection(db, 'products'))
-      console.log(`Found ${querySnapshot.size} products`)
 
       const productsList: Product[] = []
 
       querySnapshot.forEach((doc) => {
         const data = doc.data()
-        console.log('Product data:', doc.id, data)
 
         productsList.push({
           id: doc.id,
@@ -80,7 +77,6 @@ export const ProductsProvider: React.FC<{ children: ReactNode }> = ({ children }
         })
       })
 
-      console.log('Loaded products:', productsList)
       setProducts(productsList)
     } catch (err) {
       console.error('Error loading products:', err)
@@ -97,7 +93,6 @@ export const ProductsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // Add the refresh function
   const refreshProducts = async () => {
-    console.log('Refreshing products...')
     await loadProducts()
   }
 
@@ -109,9 +104,7 @@ export const ProductsProvider: React.FC<{ children: ReactNode }> = ({ children }
         createdAt: serverTimestamp()
       }
 
-      console.log('Adding product to Firebase:', productWithTimestamp)
       const docRef = await addDoc(collection(db, 'products'), productWithTimestamp)
-      console.log('Product added with ID:', docRef.id)
 
       const newProduct: Product = {
         ...productData,
@@ -130,8 +123,6 @@ export const ProductsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const updateProduct = async (id: string, productData: Partial<Omit<Product, 'id' | 'createdAt'>>) => {
     try {
       setError(null)
-      console.log('Updating product:', id, productData)
-
       await updateDoc(doc(db, 'products', id), {
         ...productData,
         updatedAt: serverTimestamp()
@@ -150,8 +141,6 @@ export const ProductsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const removeProduct = async (id: string) => {
     try {
       setError(null)
-      console.log('Removing product:', id)
-
       await deleteDoc(doc(db, 'products', id))
       setProducts(prev => prev.filter(product => product.id !== id))
     } catch (err) {

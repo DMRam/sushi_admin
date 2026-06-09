@@ -1,6 +1,6 @@
 import { type WheelEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, ChefHat, RotateCcw, ShoppingCart, X } from 'lucide-react';
+import { Check, RotateCcw, ShoppingCart, SlidersHorizontal, X } from 'lucide-react';
 import { useIngredients } from '../../../context/IngredientsContext';
 import { useCartStore } from '../../../stores/cartStore';
 import type { MenuItem } from '../../../types/types';
@@ -30,7 +30,6 @@ const maxExtrasPerRoll = 2;
 const bases: Option[] = [
   { id: 'classic', price: 8.95 },
   { id: 'riceOutside', price: 9.95 },
-  { id: 'handRoll', price: 7.95 },
 ];
 
 const normalizeByosLabel = (value: string) =>
@@ -334,7 +333,7 @@ export default function BuildYourSushi({ isOpen, onClose }: BuildYourSushiProps)
         >
           <div className="mb-6 flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-[4px] bg-[#f26350]/15 text-[#f26350]">
-              <ChefHat className="h-6 w-6" />
+              <SlidersHorizontal className="h-6 w-6" />
             </div>
             <div>
               <h2 className="text-2xl font-black text-white">{t('buildYourSushi.title')}</h2>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Mail, Phone, MapPin, Calendar, Gift } from 'lucide-react'
-import { useZapierContactForms } from '../hooks/useZapierContactForms'
+import { useN8nContactForms } from '../hooks/useN8nContactForms'
 
 interface FormData {
     name: string
@@ -15,7 +15,7 @@ interface FormData {
 
 export function LandingContact() {
     const { t } = useTranslation()
-    const [activeTab, setActiveTab] = useState<'catering' | 'promotions' | 'general'>('catering')
+    const [activeTab, setActiveTab] = useState<'catering' | 'promotions' | 'general'>('general')
     const [formData, setFormData] = useState<FormData>({
         name: '',
         email: '',
@@ -23,10 +23,10 @@ export function LandingContact() {
         partySize: '',
         eventType: '',
         message: '',
-        contactMethod: 'catering'
+        contactMethod: 'general'
     })
 
-    const { submitContactForm, isSubmitting } = useZapierContactForms()
+    const { submitContactForm, isSubmitting } = useN8nContactForms()
 
     // Define success messages once at the component level
     const successMessages = {
@@ -65,7 +65,7 @@ Submitted: ${new Date().toLocaleString()}
         e.preventDefault()
 
         try {
-            // Use the hook for Zapier + EmailJS
+            // Use the workflow hook for n8n + EmailJS
             const submissionSuccess = await submitContactForm(formData, activeTab);
 
             if (submissionSuccess) {
@@ -82,7 +82,7 @@ Submitted: ${new Date().toLocaleString()}
 
                 alert(successMessages[activeTab])
             } else {
-                // If both Zapier and EmailJS failed, try email fallback
+                // If both n8n and EmailJS failed, try email fallback
                 console.log('All automated methods failed, trying email fallback');
                 const fallbackSuccess = await sendEmailFallback(formData);
 
@@ -122,6 +122,14 @@ Submitted: ${new Date().toLocaleString()}
         setFormData(prev => ({
             ...prev,
             [e.target.name]: e.target.value
+        }))
+    }
+
+    const switchContactTab = (tab: 'catering' | 'general') => {
+        setActiveTab(tab)
+        setFormData(prev => ({
+            ...prev,
+            contactMethod: tab
         }))
     }
 
@@ -306,22 +314,24 @@ Submitted: ${new Date().toLocaleString()}
                         {/* Tab Navigation */}
                         <div className="flex border border-white/10 bg-[#0b0b0b]">
                             <button
-                                onClick={() => setActiveTab('catering')}
-                                className={`flex-1 py-4 px-6 text-center text-[12px] font-extrabold uppercase tracking-[0.1em] transition-colors ${activeTab === 'catering'
-                                    ? 'text-[#f26350] border-b-2 border-[#f26350]'
-                                    : 'text-white/45 hover:text-white/78'
-                                    }`}
-                            >
-                                {t('landing.cateringEvents', 'Catering & Events')}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('general')}
+                                type="button"
+                                onClick={() => switchContactTab('general')}
                                 className={`flex-1 py-4 px-6 text-center text-[12px] font-extrabold uppercase tracking-[0.1em] transition-colors ${activeTab === 'general'
                                     ? 'text-[#f26350] border-b-2 border-[#f26350]'
                                     : 'text-white/45 hover:text-white/78'
                                     }`}
                             >
                                 {t('landing.generalInquiry', 'General Inquiry')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => switchContactTab('catering')}
+                                className={`flex-1 py-4 px-6 text-center text-[12px] font-extrabold uppercase tracking-[0.1em] transition-colors ${activeTab === 'catering'
+                                    ? 'text-[#f26350] border-b-2 border-[#f26350]'
+                                    : 'text-white/45 hover:text-white/78'
+                                    }`}
+                            >
+                                {t('landing.cateringEvents', 'Catering & Events')}
                             </button>
                         </div>
 
@@ -418,6 +428,11 @@ Submitted: ${new Date().toLocaleString()}
                                                     className="w-full border border-white/12 bg-[#050505] px-4 py-3 font-light text-white placeholder-white/32 transition-colors focus:border-[#f26350] focus:outline-none"
                                                 >
                                                     <option value="">{t('landing.selectType', 'Select type')}</option>
+                                                    <option value="sushi-island">Sushi Island</option>
+                                                    <option value="15th-birthday">15th birthday party</option>
+                                                    <option value="office-team-trays">Office / team sushi trays</option>
+                                                    <option value="private-sushi-night">Private sushi night</option>
+                                                    <option value="karaoke">Karaoke night</option>
                                                     <option value="corporate">{t('landing.corporateEvent', 'Corporate Event')}</option>
                                                     <option value="wedding">{t('landing.wedding', 'Wedding')}</option>
                                                     <option value="birthday">{t('landing.birthdayParty', 'Birthday Party')}</option>

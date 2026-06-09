@@ -11,7 +11,7 @@ interface ContactFormData {
     contactMethod: 'catering' | 'promotions' | 'general'
 }
 
-interface ZapierContactPayload {
+interface N8nContactPayload {
     name: string
     email: string
     phone: string
@@ -20,33 +20,50 @@ interface ZapierContactPayload {
     partySize?: string
     eventType?: string
     timestamp: string
+    submittedAt: string
     source: string
+    pageUrl: string
+    locale: string
+    destination: string
     formType: string
+    formSource: 'catering & events' | 'general inquiry' | 'get promotions'
 }
 
-export const useZapierContactForms = () => {
+export const useN8nContactForms = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const sendToZapier = async (formData: ContactFormData, activeTab: string): Promise<boolean> => {
+    const sendToN8n = async (formData: ContactFormData, activeTab: string): Promise<boolean> => {
         try {
-            const zapierContactWebhookUrl =
-                import.meta.env.VITE_ZAPIER_CONTACT_WEBHOOK_URL ||
-                "https://hooks.zapier.com/hooks/catch/25366263/uz9amwt/";
+            const n8nContactWebhookUrl =
+                import.meta.env.VITE_MAISUSHI_CONTACT_WEBHOOK_URL ||
+                import.meta.env.VITE_N8N_MAISUSHI_CONTACT_WEBHOOK_URL;
 
-            if (!zapierContactWebhookUrl || zapierContactWebhookUrl.includes("your-contact-webhook-id")) {
-                console.warn("⚠️ Zapier contact webhook URL not configured");
+            if (!n8nContactWebhookUrl || n8nContactWebhookUrl.includes("your-contact-webhook-id")) {
+                console.warn("Contact webhook URL not configured");
                 return false;
             }
 
-            const payload: ZapierContactPayload = {
+            const formSource =
+                activeTab === 'catering'
+                    ? 'catering & events'
+                    : activeTab === 'promotions'
+                        ? 'get promotions'
+                        : 'general inquiry';
+            const submittedAt = new Date().toISOString();
+            const payload: N8nContactPayload = {
                 name: formData.name,
                 email: formData.email,
                 phone: formData.phone,
                 message: formData.message,
                 contactMethod: activeTab,
-                timestamp: new Date().toISOString(),
-                source: 'maisushi-website',
-                formType: 'contact_form'
+                timestamp: submittedAt,
+                submittedAt,
+                source: 'maisushi.ca',
+                pageUrl: typeof window !== 'undefined' ? window.location.href : 'server-render',
+                locale: typeof document !== 'undefined' ? document.documentElement.lang || navigator.language : 'unknown',
+                destination: 'contact@maisushi.ca',
+                formType: 'contact_form',
+                formSource,
             };
 
             if (activeTab === 'catering') {
@@ -54,35 +71,33 @@ export const useZapierContactForms = () => {
                 payload.eventType = formData.eventType;
             }
 
-            console.log("📤 Sending contact form to Zapier:", payload);
-
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-            const response = await fetch(zapierContactWebhookUrl, {
+            const response = await fetch(n8nContactWebhookUrl, {
                 method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify(payload),
                 signal: controller.signal
             });
 
             clearTimeout(timeoutId);
 
-            if (!response.ok) throw new Error(`Zapier failed: ${response.status}`);
+            if (!response.ok) throw new Error(`Contact webhook failed: ${response.status}`);
 
-            console.log("✅ Contact form sent to Zapier");
             return true;
 
         } catch (error) {
-            console.error("❌ Failed to send to Zapier:", error);
+            console.error("Failed to send contact form:", error);
             return false;
         }
     };
 
     const sendToEmailJS = async (formData: ContactFormData, activeTab: string): Promise<boolean> => {
-        // Skip EmailJS for promotions - only send to Zapier for marketing list
         if (activeTab === 'promotions') {
-            console.log("🔄 Skipping EmailJS for promotions signup");
-            return true; // Return true since we don't want this to count as a failure
+            return true;
         }
 
         try {
@@ -90,21 +105,13 @@ export const useZapierContactForms = () => {
             const emailjsTemplateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
             const emailjsPublicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
-            console.log('EmailJS Config:', {
-                serviceId: emailjsServiceId,
-                templateId: emailjsTemplateId,
-                publicKey: emailjsPublicKey ? 'Set' : 'Missing'
-            });
-
             if (!emailjsServiceId || !emailjsTemplateId || !emailjsPublicKey) {
-                console.warn("⚠️ EmailJS configuration missing");
+                console.warn("EmailJS configuration missing");
                 return false;
             }
 
-            // Initialize EmailJS
             emailjs.init(emailjsPublicKey);
 
-            // Template parameters must EXACTLY match your template variables
             const templateParams = {
                 from_name: formData.name,
                 from_email: formData.email,
@@ -118,27 +125,16 @@ export const useZapierContactForms = () => {
                 reply_to: formData.email
             };
 
-            console.log('Sending EmailJS with template params:', templateParams);
-
-            const result = await emailjs.send(
+            await emailjs.send(
                 emailjsServiceId,
                 emailjsTemplateId,
                 templateParams
             );
 
-            console.log("✅ Email sent via EmailJS", result);
             return true;
 
         } catch (error) {
-            console.error("❌ Failed to send email via EmailJS:", error);
-
-            // More detailed error logging
-            if (error instanceof Error) {
-                console.error("EmailJS error details:", {
-                    message: error.message,
-                    stack: error.stack
-                });
-            }
+            console.error("Failed to send email via EmailJS:", error);
             return false;
         }
     };
@@ -147,31 +143,22 @@ export const useZapierContactForms = () => {
         setIsSubmitting(true);
 
         try {
-            // For promotions: Only send to Zapier (for Google Sheet)
             if (activeTab === 'promotions') {
-                console.log("🎯 Promotions form - only sending to Zapier for marketing list");
-                const zapierSuccess = await sendToZapier(formData, activeTab);
-                console.log(`📊 Promotions submission result - Zapier: ${zapierSuccess}`);
-                return zapierSuccess;
+                return await sendToN8n(formData, activeTab);
             }
 
-            // For catering and general inquiries: Send to both Zapier and EmailJS
-            console.log("📨 Catering/General form - sending to both Zapier and EmailJS");
-            const [zapierSuccess, emailSuccess] = await Promise.allSettled([
-                sendToZapier(formData, activeTab),
+            const [n8nSuccess, emailSuccess] = await Promise.allSettled([
+                sendToN8n(formData, activeTab),
                 sendToEmailJS(formData, activeTab)
             ]);
 
-            const zapierOk = zapierSuccess.status === 'fulfilled' && zapierSuccess.value;
+            const n8nOk = n8nSuccess.status === 'fulfilled' && n8nSuccess.value;
             const emailOk = emailSuccess.status === 'fulfilled' && emailSuccess.value;
 
-            console.log(`📊 Submission Results - Zapier: ${zapierOk}, EmailJS: ${emailOk}`);
-
-            // For catering/general, consider it successful if at least one method worked
-            return zapierOk || emailOk;
+            return n8nOk || emailOk;
 
         } catch (error) {
-            console.error("❌ Contact form submission error:", error);
+            console.error("Contact form submission error:", error);
             return false;
         } finally {
             setIsSubmitting(false);

@@ -42,7 +42,7 @@ export default function MobileDrawer({
     <>
       <div
         className={[
-          "fixed inset-0 z-[70] bg-black/30 backdrop-blur-[2px] transition-opacity duration-300 xl:hidden",
+          "fixed inset-0 z-[70] bg-black/30 backdrop-blur-[2px] transition-opacity duration-300 2xl:hidden",
           isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         ].join(" ")}
         onClick={onClose}
@@ -51,7 +51,7 @@ export default function MobileDrawer({
 
       <aside
         className={[
-          "fixed inset-y-0 left-0 z-[80] h-full w-[320px] max-w-[88vw] border-r border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out xl:hidden",
+          "fixed inset-y-0 left-0 z-[80] h-full w-[320px] max-w-[88vw] border-r border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out 2xl:hidden",
           isOpen ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}
         aria-hidden={!isOpen}

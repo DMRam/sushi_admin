@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Check, Pencil, Save, Search, Trash2, X } from 'lucide-react'
 import { useIngredients } from '../../../../context/IngredientsContext'
 import type { Ingredient, Unit } from '../../../../types/types'
 import {
@@ -8,41 +9,37 @@ import {
   type ByosCategory,
 } from '../../../../utils/byosCatalog'
 
-function FieldLabel({ label, hint }: { label: string; hint?: string }) {
-  return (
-    <span className="mb-1.5 block">
-      <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">{label}</span>
-      {hint && <span className="block text-xs leading-4 text-slate-500">{hint}</span>}
-    </span>
-  )
+type DraftIngredient = {
+  name: string
+  pricePerKg: string
+  unit: Unit
+  category: string
+  currentStock: string
+  minimumStock: string
+  displayOnBYOS: boolean
+  byosName: string
+  byosCategory: ByosCategory
+  byosPrice: string
+  byosMaxPerRoll: string
+  byosSortOrder: string
+  purchaseQuantity: string
+  purchaseUnit: Unit
+  purchaseTotalPaid: string
 }
 
-function EditorSection({
-  eyebrow,
-  title,
-  detail,
-  children,
-}: {
-  eyebrow: string
-  title: string
-  detail?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className="border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{eyebrow}</p>
-        <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <h4 className="text-sm font-semibold text-slate-950">{title}</h4>
-          {detail && <p className="text-xs text-slate-500">{detail}</p>}
-        </div>
-      </div>
-      <div className="p-4">{children}</div>
-    </section>
-  )
-}
+const units: Unit[] = ['kg', 'g', 'ml', 'l', 'unit', 'piece', 'slice', 'tbsp', 'tsp', 'oz', 'lb']
 
-const fieldClass = 'h-11 w-full border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-1 focus:ring-slate-950'
+const inventoryCategories = [
+  'seafood',
+  'vegetables',
+  'fruits',
+  'spices',
+  'dairy',
+  'grains',
+  'sauce',
+  'packaging',
+  'other',
+]
 
 const byosCategories: Array<{ value: ByosCategory; label: string }> = [
   { value: 'protein', label: 'Protein' },
@@ -52,86 +49,101 @@ const byosCategories: Array<{ value: ByosCategory; label: string }> = [
   { value: 'extra', label: 'Extra' },
 ]
 
-const units: Unit[] = ['kg', 'g', 'ml', 'l', 'unit']
+const compactInput =
+  'h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-950 outline-none transition focus:border-slate-950 focus:ring-1 focus:ring-slate-950'
 
-const emptyEditForm = {
-  name: '',
-  pricePerKg: '',
-  unit: 'kg' as Unit,
-  category: 'other',
-  displayOnBYOS: false,
-  byosName: '',
-  byosCategory: 'extra' as ByosCategory,
-  byosPrice: '',
-  byosMaxPerRoll: '1',
-  byosSortOrder: '999',
+const compactSelect = `${compactInput} appearance-auto`
+
+function createDraft(ingredient: Ingredient): DraftIngredient {
+  return {
+    name: ingredient.name || '',
+    pricePerKg: String(ingredient.pricePerKg || 0),
+    unit: ingredient.unit || 'kg',
+    category: ingredient.category || 'other',
+    currentStock: String(ingredient.currentStock || 0),
+    minimumStock: String(ingredient.minimumStock || 0),
+    displayOnBYOS: Boolean(ingredient.displayOnBYOS),
+    byosName: ingredient.byosName || '',
+    byosCategory: (ingredient.byosCategory || 'extra') as ByosCategory,
+    byosPrice: String(ingredient.byosPrice || ''),
+    byosMaxPerRoll: String(ingredient.byosMaxPerRoll || 1),
+    byosSortOrder: String(ingredient.byosSortOrder || 999),
+    purchaseQuantity: '',
+    purchaseUnit: 'g',
+    purchaseTotalPaid: '',
+  }
+}
+
+function toNumber(value: string, fallback = 0) {
+  const parsed = Number.parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function toInt(value: string, fallback = 0) {
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function baseCostLabel(unit: Unit) {
+  if (['kg', 'g', 'lb', 'oz'].includes(unit)) return 'kg'
+  if (['l', 'ml'].includes(unit)) return 'L'
+  return unit
+}
+
+function normalizeToBaseQuantity(quantity: number, unit: Unit) {
+  if (!quantity) return 0
+
+  switch (unit) {
+    case 'g':
+      return quantity / 1000
+    case 'kg':
+      return quantity
+    case 'oz':
+      return quantity * 0.0283495
+    case 'lb':
+      return quantity * 0.453592
+    case 'ml':
+      return quantity / 1000
+    case 'l':
+      return quantity
+    default:
+      return quantity
+  }
+}
+
+function calculateBaseCost(quantity: string, purchaseUnit: Unit, totalPaid: string) {
+  const normalizedQuantity = normalizeToBaseQuantity(toNumber(quantity), purchaseUnit)
+  const paid = toNumber(totalPaid)
+  if (!normalizedQuantity || !paid) return 0
+  return paid / normalizedQuantity
 }
 
 export default function IngredientList() {
-  const { ingredients, removeIngredient, updateIngredient } = useIngredients()
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState({ ...emptyEditForm })
+  const { ingredients, loading, removeIngredient, updateIngredient } = useIngredients()
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'byos' | 'missingPrice' | 'outOfStock'>('all')
-
-  const handleEdit = (ingredient: Ingredient) => {
-    setEditingId(ingredient.id)
-    setEditForm({
-      name: ingredient.name,
-      pricePerKg: String(ingredient.pricePerKg || 0),
-      unit: ingredient.unit,
-      category: ingredient.category,
-      displayOnBYOS: ingredient.displayOnBYOS,
-      byosName: ingredient.byosName || '',
-      byosCategory: (ingredient.byosCategory || 'extra') as ByosCategory,
-      byosPrice: String(ingredient.byosPrice || ''),
-      byosMaxPerRoll: String(ingredient.byosMaxPerRoll || 1),
-      byosSortOrder: String(ingredient.byosSortOrder || 999),
-    })
-  }
-
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingId) return
-    const customerName = editForm.byosName.trim() || editForm.name.trim()
-    const labels = getByosDisplayLabels(customerName, editForm.byosCategory)
-    const effectiveByosPrice = getByosEffectivePrice(customerName, editForm.byosCategory, Number.parseFloat(editForm.byosPrice) || 0)
-
-    await updateIngredient(editingId, {
-      name: editForm.name.trim(),
-      pricePerKg: Number.parseFloat(editForm.pricePerKg) || 0,
-      unit: editForm.unit,
-      category: editForm.category,
-      displayOnBYOS: editForm.displayOnBYOS,
-      byosName: editForm.displayOnBYOS ? (labels?.fr || customerName) : '',
-      byosCategory: editForm.byosCategory,
-      byosPrice: editForm.displayOnBYOS ? effectiveByosPrice : 0,
-      byosMaxPerRoll: Number.parseInt(editForm.byosMaxPerRoll, 10) || 1,
-      byosSortOrder: Number.parseInt(editForm.byosSortOrder, 10) || 999,
-    })
-
-    setEditingId(null)
-    setEditForm({ ...emptyEditForm })
-  }
-
-  const handleCancel = () => {
-    setEditingId(null)
-    setEditForm({ ...emptyEditForm })
-  }
+  const [filter, setFilter] = useState<'all' | 'byos' | 'missingPrice' | 'lowStock'>('all')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [drafts, setDrafts] = useState<Record<string, DraftIngredient>>({})
+  const [savingId, setSavingId] = useState<string | null>(null)
 
   const filteredIngredients = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
 
     return ingredients
       .filter((ingredient) => {
-        if (statusFilter === 'byos') return ingredient.displayOnBYOS
-        if (statusFilter === 'missingPrice') return ingredient.displayOnBYOS && !Number(ingredient.byosPrice || 0)
-        if (statusFilter === 'outOfStock') return ingredient.displayOnBYOS && !Number(ingredient.currentStock || 0)
+        if (filter === 'byos') return ingredient.displayOnBYOS
+        if (filter === 'missingPrice') return ingredient.displayOnBYOS && !Number(ingredient.byosPrice || 0)
+        if (filter === 'lowStock') return Number(ingredient.currentStock || 0) <= Number(ingredient.minimumStock || 0)
         return true
       })
       .filter((ingredient) => {
         if (!normalizedQuery) return true
-        return [ingredient.name, ingredient.byosName, ingredient.category, ingredient.byosCategory]
+        return [
+          ingredient.name,
+          ingredient.byosName,
+          ingredient.category,
+          ingredient.byosCategory,
+        ]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
@@ -139,290 +151,488 @@ export default function IngredientList() {
       })
       .sort((a, b) => {
         if (a.displayOnBYOS !== b.displayOnBYOS) return a.displayOnBYOS ? -1 : 1
-        const categoryCompare = String(a.category || '').localeCompare(String(b.category || ''))
-        if (categoryCompare !== 0) return categoryCompare
+        const byosSort = Number(a.byosSortOrder || 999) - Number(b.byosSortOrder || 999)
+        if (a.displayOnBYOS && byosSort !== 0) return byosSort
+        const categorySort = String(a.category || '').localeCompare(String(b.category || ''))
+        if (categorySort !== 0) return categorySort
         return String(a.name || '').localeCompare(String(b.name || ''))
       })
-  }, [ingredients, query, statusFilter])
+  }, [filter, ingredients, query])
 
-  const groupedIngredients = filteredIngredients.reduce<Record<string, Ingredient[]>>((acc, ingredient) => {
-    const category = ingredient.displayOnBYOS ? `BYOS · ${ingredient.byosCategory || 'extra'}` : ingredient.category || 'other'
-    if (!acc[category]) acc[category] = []
-    acc[category].push(ingredient)
-    return acc
-  }, {})
+  const startEdit = (ingredient: Ingredient) => {
+    setDrafts((current) => ({ ...current, [ingredient.id]: createDraft(ingredient) }))
+    setEditingId(ingredient.id)
+  }
 
-  const editCustomerName = editForm.byosName.trim() || editForm.name.trim()
-  const editLabels = getByosDisplayLabels(editCustomerName, editForm.byosCategory)
-  const editMinimumPrice = getByosMinimumPrice(editCustomerName, editForm.byosCategory)
-  const editEffectivePrice = getByosEffectivePrice(editCustomerName, editForm.byosCategory, Number.parseFloat(editForm.byosPrice) || 0)
+  const cancelEdit = (id: string) => {
+    setEditingId(null)
+    setDrafts((current) => {
+      const next = { ...current }
+      delete next[id]
+      return next
+    })
+  }
+
+  const updateDraft = (id: string, updates: Partial<DraftIngredient>) => {
+    setDrafts((current) => ({
+      ...current,
+      [id]: {
+        ...current[id],
+        ...updates,
+      },
+    }))
+  }
+
+  const saveIngredient = async (id: string) => {
+    const draft = drafts[id]
+    if (!draft) return
+
+    const customerName = draft.byosName.trim() || draft.name.trim()
+    const labels = getByosDisplayLabels(customerName, draft.byosCategory)
+    const effectiveByosPrice = getByosEffectivePrice(
+      customerName,
+      draft.byosCategory,
+      toNumber(draft.byosPrice),
+    )
+
+    setSavingId(id)
+    try {
+      await updateIngredient(id, {
+        name: draft.name.trim(),
+        pricePerKg: toNumber(draft.pricePerKg),
+        unit: draft.unit,
+        category: draft.category.trim() || 'other',
+        currentStock: toNumber(draft.currentStock),
+        minimumStock: toNumber(draft.minimumStock),
+        displayOnBYOS: draft.displayOnBYOS,
+        byosName: draft.displayOnBYOS ? labels?.fr || customerName : '',
+        byosCategory: draft.byosCategory,
+        byosPrice: draft.displayOnBYOS ? effectiveByosPrice : 0,
+        byosMaxPerRoll: toInt(draft.byosMaxPerRoll, 1),
+        byosSortOrder: toInt(draft.byosSortOrder, 999),
+      })
+      cancelEdit(id)
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-64 items-center justify-center text-sm text-slate-500">
+        Loading ingredients...
+      </div>
+    )
+  }
 
   return (
-    <div className="mt-4 space-y-5">
+    <div className="mt-4 space-y-4">
       <div className="grid gap-3 border border-slate-200 bg-slate-50 p-3 lg:grid-cols-[1fr_220px]">
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="w-full border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-950"
-          placeholder="Search ingredient, BYOS name, category..."
-        />
+        <label className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="h-10 w-full rounded-md border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-slate-950 focus:ring-1 focus:ring-slate-950"
+            placeholder="Search massago, salmon, sauce, BYOS..."
+          />
+        </label>
         <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-          className="w-full border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-950"
+          value={filter}
+          onChange={(event) => setFilter(event.target.value as typeof filter)}
+          className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-950"
         >
           <option value="all">All ingredients</option>
           <option value="byos">BYOS only</option>
           <option value="missingPrice">BYOS missing price</option>
-          <option value="outOfStock">BYOS out of stock</option>
+          <option value="lowStock">Low stock</option>
         </select>
       </div>
 
-      {ingredients.length === 0 ? (
-        <div className="py-8 text-center text-gray-500">
-          No ingredients added yet. Add your first ingredient above.
+      <div className="overflow-hidden border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-1 border-b border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Editable grid</p>
+            <h4 className="text-base font-semibold text-slate-950">Ingredients</h4>
+          </div>
+          <p className="text-sm text-slate-500">
+            {filteredIngredients.length} shown of {ingredients.length}
+          </p>
         </div>
-      ) : filteredIngredients.length === 0 ? (
-        <div className="border border-dashed border-slate-300 bg-slate-50 py-8 text-center text-sm text-slate-500">
-          No ingredients match this search.
-        </div>
-      ) : (
-        Object.entries(groupedIngredients).map(([category, categoryIngredients]) => (
-          <div key={category}>
-            <h3 className="mb-3 border-b pb-1 text-md font-medium capitalize text-gray-700">
-              {category} ({categoryIngredients.length})
-            </h3>
 
-            <div className="space-y-3">
-              {categoryIngredients.map((ingredient) => (
-                <div key={ingredient.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  {editingId === ingredient.id ? (
-                    <form onSubmit={handleUpdate} className="overflow-hidden border border-slate-300 bg-white shadow-sm">
-                      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-950 px-4 py-3 text-white sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">Editing ingredient</p>
-                          <h4 className="mt-1 text-base font-semibold">{editForm.name || 'Unnamed ingredient'}</h4>
-                        </div>
-                        <label className={`flex w-fit items-center gap-2 border px-3 py-2 text-xs font-semibold ${editForm.displayOnBYOS
-                          ? 'border-amber-300 bg-amber-50 text-amber-900'
-                          : 'border-white/20 bg-white/10 text-white/75'
-                          }`}>
+        {filteredIngredients.length === 0 ? (
+          <div className="p-10 text-center text-sm text-slate-500">
+            No ingredients match this view.
+          </div>
+        ) : (
+          <div className="max-h-[72vh] overflow-auto">
+            <table className="min-w-[1180px] w-full border-collapse text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-slate-950 text-xs uppercase tracking-[0.12em] text-white shadow-sm">
+                <tr>
+                  <th className="sticky left-0 z-20 w-[220px] bg-slate-950 px-3 py-3 font-semibold">Ingredient</th>
+                  <th className="w-[120px] px-3 py-3 font-semibold">Category</th>
+                  <th className="w-[110px] px-3 py-3 font-semibold">Cost</th>
+                  <th className="w-[90px] px-3 py-3 font-semibold">Unit</th>
+                  <th className="w-[110px] px-3 py-3 font-semibold">Stock</th>
+                  <th className="w-[110px] px-3 py-3 font-semibold">Min</th>
+                  <th className="w-[90px] px-3 py-3 font-semibold">BYOS</th>
+                  <th className="w-[150px] px-3 py-3 font-semibold">BYOS name</th>
+                  <th className="w-[120px] px-3 py-3 font-semibold">Section</th>
+                  <th className="w-[100px] px-3 py-3 font-semibold">Price</th>
+                  <th className="w-[90px] px-3 py-3 font-semibold">Order</th>
+                  <th className="w-[120px] px-3 py-3 font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {filteredIngredients.map((ingredient) => {
+                  const isEditing = editingId === ingredient.id
+                  const draft = drafts[ingredient.id] || createDraft(ingredient)
+                  const customerName = draft.byosName.trim() || draft.name.trim()
+                  const minimumPrice = getByosMinimumPrice(customerName, draft.byosCategory)
+                  const effectivePrice = getByosEffectivePrice(
+                    customerName,
+                    draft.byosCategory,
+                    toNumber(draft.byosPrice),
+                  )
+                  const labels = getByosDisplayLabels(customerName, draft.byosCategory)
+                  const stockIsLow =
+                    Number(ingredient.currentStock || 0) <= Number(ingredient.minimumStock || 0)
+                  const easyCost = calculateBaseCost(
+                    draft.purchaseQuantity,
+                    draft.purchaseUnit,
+                    draft.purchaseTotalPaid,
+                  )
+
+                  return (
+                    <tr key={ingredient.id} className={isEditing ? 'admin-row-editing bg-amber-50/60' : 'bg-white hover:bg-slate-50'}>
+                      <td className={`sticky left-0 z-[1] px-3 py-3 align-top shadow-[1px_0_0_#e2e8f0] ${isEditing ? 'bg-amber-50' : 'bg-white'}`}>
+                        {isEditing ? (
                           <input
-                            type="checkbox"
-                            checked={editForm.displayOnBYOS}
-                            onChange={(e) => setEditForm({ ...editForm, displayOnBYOS: e.target.checked })}
-                            className="h-4 w-4 accent-amber-500"
+                            value={draft.name}
+                            onChange={(event) => updateDraft(ingredient.id, { name: event.target.value })}
+                            className={compactInput}
                           />
-                          Show in BYOS
-                        </label>
-                      </div>
+                        ) : (
+                          <div>
+                            <p className="font-semibold text-slate-950">{ingredient.name}</p>
+                            {ingredient.displayOnBYOS && (
+                              <p className="mt-1 text-xs text-amber-700">
+                                Customer: {labels?.fr || ingredient.byosName || ingredient.name}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </td>
 
-                      <div className="grid gap-4 bg-slate-50 p-4 xl:grid-cols-[0.95fr_1.35fr]">
-                        <EditorSection
-                          eyebrow="Inventory"
-                          title="Stock and purchase cost"
-                          detail={`Cost is per ${editForm.unit.toUpperCase()}`}
-                        >
-                          <div className="grid gap-3">
-                            <label>
-                              <FieldLabel label="Ingredient name" hint="Internal stock and recipe name." />
-                              <input
-                                type="text"
-                                value={editForm.name}
-                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                className={fieldClass}
-                                required
-                              />
-                            </label>
+                      <td className="px-3 py-3 align-top">
+                        {isEditing ? (
+                          <select
+                            value={draft.category}
+                            onChange={(event) => updateDraft(ingredient.id, { category: event.target.value })}
+                            className={compactSelect}
+                          >
+                            {inventoryCategories.map((category) => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                            {ingredient.category || 'other'}
+                          </span>
+                        )}
+                      </td>
 
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <label>
-                                <FieldLabel label={`Purchase cost / ${editForm.unit.toUpperCase()}`} hint={`20 means $20 per ${editForm.unit.toUpperCase()}.`} />
+                      <td className="px-3 py-3 align-top">
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={draft.pricePerKg}
+                              onChange={(event) => updateDraft(ingredient.id, { pricePerKg: event.target.value })}
+                              className={compactInput}
+                            />
+                            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2">
+                              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-800">
+                                Easy entry
+                              </p>
+                              <div className="grid grid-cols-[1fr_58px] gap-1">
                                 <input
                                   type="number"
                                   step="0.01"
-                                  value={editForm.pricePerKg}
-                                  onChange={(e) => setEditForm({ ...editForm, pricePerKg: e.target.value })}
-                                  className={fieldClass}
-                                  required
+                                  min="0"
+                                  value={draft.purchaseQuantity}
+                                  onChange={(event) =>
+                                    updateDraft(ingredient.id, { purchaseQuantity: event.target.value })
+                                  }
+                                  className="h-8 rounded border border-emerald-200 bg-white px-2 text-xs outline-none focus:border-emerald-600"
+                                  placeholder="Qty"
                                 />
-                              </label>
-                              <label>
-                                <FieldLabel label="Inventory unit" hint="Unit used for stock." />
                                 <select
-                                  value={editForm.unit}
-                                  onChange={(e) => setEditForm({ ...editForm, unit: e.target.value as Unit })}
-                                  className={fieldClass}
+                                  value={draft.purchaseUnit}
+                                  onChange={(event) =>
+                                    updateDraft(ingredient.id, { purchaseUnit: event.target.value as Unit })
+                                  }
+                                  className="h-8 rounded border border-emerald-200 bg-white px-1 text-xs outline-none focus:border-emerald-600"
                                 >
                                   {units.map((unit) => (
-                                    <option key={unit} value={unit}>{unit.toUpperCase()}</option>
+                                    <option key={unit} value={unit}>
+                                      {unit}
+                                    </option>
                                   ))}
                                 </select>
-                              </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={draft.purchaseTotalPaid}
+                                  onChange={(event) =>
+                                    updateDraft(ingredient.id, { purchaseTotalPaid: event.target.value })
+                                  }
+                                  className="h-8 rounded border border-emerald-200 bg-white px-2 text-xs outline-none focus:border-emerald-600"
+                                  placeholder="Paid $"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={!easyCost}
+                                  onClick={() =>
+                                    updateDraft(ingredient.id, {
+                                      pricePerKg: easyCost.toFixed(4),
+                                      unit: ['ml', 'l'].includes(draft.purchaseUnit)
+                                        ? 'l'
+                                        : ['g', 'kg', 'oz', 'lb'].includes(draft.purchaseUnit)
+                                          ? 'kg'
+                                          : draft.purchaseUnit,
+                                    })
+                                  }
+                                  className="h-8 rounded bg-emerald-700 px-2 text-xs font-semibold text-white disabled:bg-emerald-200"
+                                >
+                                  Use
+                                </button>
+                              </div>
+                              {easyCost > 0 && (
+                                <p className="mt-1 text-[11px] text-emerald-800">
+                                  ${easyCost.toFixed(4)} / {baseCostLabel(draft.purchaseUnit)}
+                                </p>
+                              )}
                             </div>
-
-                            <label>
-                              <FieldLabel label="Inventory category" hint="For stock grouping only." />
-                              <input
-                                type="text"
-                                value={editForm.category}
-                                onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                                className={fieldClass}
-                              />
-                            </label>
                           </div>
-                        </EditorSection>
+                        ) : (
+                          <span className="font-medium text-slate-800">${Number(ingredient.pricePerKg || 0).toFixed(2)}</span>
+                        )}
+                      </td>
 
-                        <EditorSection
-                          eyebrow="Build your own sushi"
-                          title={editForm.displayOnBYOS ? 'Customer choice settings' : 'Not visible to customers'}
-                          detail={editForm.displayOnBYOS ? `Effective price $${editEffectivePrice.toFixed(2)}` : 'Enable Show in BYOS to configure'}
-                        >
-                          {editForm.displayOnBYOS ? (
-                            <div className="space-y-4">
-                              <div className="grid gap-2 rounded-sm border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 lg:grid-cols-[1fr_1fr_1fr_1.4fr]">
-                                <div>
-                                  <span className="block font-semibold uppercase tracking-[0.12em] text-amber-700">FR</span>
-                                  <span>{editLabels?.fr || editCustomerName || 'Set a display name'}</span>
-                                </div>
-                                <div>
-                                  <span className="block font-semibold uppercase tracking-[0.12em] text-amber-700">EN</span>
-                                  <span>{editLabels?.en || editCustomerName || 'Set a display name'}</span>
-                                </div>
-                                <div>
-                                  <span className="block font-semibold uppercase tracking-[0.12em] text-amber-700">SP</span>
-                                  <span>{editLabels?.es || editCustomerName || 'Set a display name'}</span>
-                                </div>
-                                <div className="border-t border-amber-200 pt-2 lg:border-l lg:border-t-0 lg:pl-3 lg:pt-0">
-                                  <span className="block font-semibold uppercase tracking-[0.12em] text-amber-700">Price rule</span>
-                                  <span>Minimum ${editMinimumPrice.toFixed(2)}. Customer pays ${editEffectivePrice.toFixed(2)}.</span>
-                                </div>
-                              </div>
+                      <td className="px-3 py-3 align-top">
+                        {isEditing ? (
+                          <select
+                            value={draft.unit}
+                            onChange={(event) => updateDraft(ingredient.id, { unit: event.target.value as Unit })}
+                            className={compactSelect}
+                          >
+                            {units.map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-slate-600">{ingredient.unit || 'unit'}</span>
+                        )}
+                      </td>
 
-                              <div className="grid gap-3 lg:grid-cols-12">
-                                <label className="lg:col-span-4">
-                                  <FieldLabel label="Customer display name" hint="Leave blank to use the normalized label." />
-                                  <input
-                                    type="text"
-                                    value={editForm.byosName}
-                                    onChange={(e) => setEditForm({ ...editForm, byosName: e.target.value })}
-                                    className={fieldClass}
-                                    placeholder="Example: Philadelphia"
-                                  />
-                                </label>
-                                <label className="lg:col-span-2">
-                                  <FieldLabel label="BYOS section" hint="Where it appears." />
-                                  <select
-                                    value={editForm.byosCategory}
-                                    onChange={(e) => setEditForm({ ...editForm, byosCategory: e.target.value as ByosCategory })}
-                                    className={fieldClass}
-                                  >
-                                    {byosCategories.map((category) => (
-                                      <option key={category.value} value={category.value}>{category.label}</option>
-                                    ))}
-                                  </select>
-                                </label>
-                                <label className="lg:col-span-2">
-                                  <FieldLabel label="Customer price" hint={`Minimum $${editMinimumPrice.toFixed(2)}.`} />
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={editForm.byosPrice}
-                                    onChange={(e) => setEditForm({ ...editForm, byosPrice: e.target.value })}
-                                    className={fieldClass}
-                                    placeholder="1.25"
-                                  />
-                                </label>
-                                <label className="lg:col-span-2">
-                                  <FieldLabel label="Max / roll" hint="Usually 1." />
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={editForm.byosMaxPerRoll}
-                                    onChange={(e) => setEditForm({ ...editForm, byosMaxPerRoll: e.target.value })}
-                                    className={fieldClass}
-                                    placeholder="1"
-                                  />
-                                </label>
-                                <label className="lg:col-span-2">
-                                  <FieldLabel label="Sort order" hint="Lower first." />
-                                  <input
-                                    type="number"
-                                    value={editForm.byosSortOrder}
-                                    onChange={(e) => setEditForm({ ...editForm, byosSortOrder: e.target.value })}
-                                    className={fieldClass}
-                                    placeholder="100"
-                                  />
-                                </label>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex min-h-32 items-center justify-center border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
-                              <div>
-                                <p className="text-sm font-semibold text-slate-700">Hidden from the BYOS modal</p>
-                                <p className="mt-1 text-xs text-slate-500">Use the Show in BYOS switch above only for simple customer-facing choices.</p>
-                              </div>
-                            </div>
-                          )}
-                        </EditorSection>
-                      </div>
+                      <td className="px-3 py-3 align-top">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={draft.currentStock}
+                            onChange={(event) => updateDraft(ingredient.id, { currentStock: event.target.value })}
+                            className={compactInput}
+                          />
+                        ) : (
+                          <span className={stockIsLow ? 'font-semibold text-red-700' : 'text-slate-700'}>
+                            {Number(ingredient.currentStock || 0).toFixed(2)}
+                          </span>
+                        )}
+                      </td>
 
-                      <div className="flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:justify-end">
-                        <button type="button" onClick={handleCancel} className="border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-500 hover:bg-slate-50">
-                          Cancel
-                        </button>
-                        <button type="submit" className="bg-slate-950 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">
-                          Save ingredient
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className="flex gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-gray-900">{ingredient.name}</span>
-                          {ingredient.displayOnBYOS && (
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                              BYOS {ingredient.byosCategory || 'extra'} · ${getByosEffectivePrice(ingredient.byosName || ingredient.name, ingredient.byosCategory, ingredient.byosPrice).toFixed(2)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-1 text-sm text-gray-600">
-                          ${Number(ingredient.pricePerKg || 0).toFixed(2)}/kg · stock {Number(ingredient.currentStock || 0).toFixed(2)} {ingredient.unit || 'unit'}
-                        </div>
-                        {ingredient.displayOnBYOS && (
-                          <div className="mt-1 text-xs text-gray-500">
-                            {(() => {
-                              const customerName = ingredient.byosName || ingredient.name
-                              const labels = getByosDisplayLabels(customerName, ingredient.byosCategory)
-                              const effectivePrice = getByosEffectivePrice(customerName, ingredient.byosCategory, ingredient.byosPrice)
-                              return (
-                                <>
-                                  Visible: {labels?.fr || customerName} · EN {labels?.en || customerName} · SP {labels?.es || customerName} · ${effectivePrice.toFixed(2)} · max {ingredient.byosMaxPerRoll || 1}/roll
-                                </>
-                              )
-                            })()}
+                      <td className="px-3 py-3 align-top">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={draft.minimumStock}
+                            onChange={(event) => updateDraft(ingredient.id, { minimumStock: event.target.value })}
+                            className={compactInput}
+                          />
+                        ) : (
+                          <span className="text-slate-600">{Number(ingredient.minimumStock || 0).toFixed(2)}</span>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-3 align-top">
+                        {isEditing ? (
+                          <button
+                            type="button"
+                            onClick={() => updateDraft(ingredient.id, { displayOnBYOS: !draft.displayOnBYOS })}
+                            className={`inline-flex h-9 w-full items-center justify-center gap-1 rounded-md border px-2 text-xs font-semibold ${
+                              draft.displayOnBYOS
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                : 'border-slate-300 bg-white text-slate-500'
+                            }`}
+                          >
+                            {draft.displayOnBYOS ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                            {draft.displayOnBYOS ? 'Yes' : 'No'}
+                          </button>
+                        ) : (
+                          <span
+                            className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                              ingredient.displayOnBYOS
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            {ingredient.displayOnBYOS ? 'BYOS' : 'Hidden'}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-3 align-top">
+                        {isEditing ? (
+                          <input
+                            value={draft.byosName}
+                            disabled={!draft.displayOnBYOS}
+                            onChange={(event) => updateDraft(ingredient.id, { byosName: event.target.value })}
+                            className={compactInput}
+                            placeholder="Customer name"
+                          />
+                        ) : (
+                          <span className="text-slate-600">{ingredient.byosName || '-'}</span>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-3 align-top">
+                        {isEditing ? (
+                          <select
+                            value={draft.byosCategory}
+                            disabled={!draft.displayOnBYOS}
+                            onChange={(event) => updateDraft(ingredient.id, { byosCategory: event.target.value as ByosCategory })}
+                            className={compactSelect}
+                          >
+                            {byosCategories.map((category) => (
+                              <option key={category.value} value={category.value}>
+                                {category.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-slate-600">{ingredient.byosCategory || '-'}</span>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-3 align-top">
+                        {isEditing ? (
+                          <div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              disabled={!draft.displayOnBYOS}
+                              value={draft.byosPrice}
+                              onChange={(event) => updateDraft(ingredient.id, { byosPrice: event.target.value })}
+                              className={compactInput}
+                            />
+                            {draft.displayOnBYOS && (
+                              <p className="mt-1 text-[11px] text-slate-500">
+                                Min ${minimumPrice.toFixed(2)} · pays ${effectivePrice.toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="font-medium text-slate-800">
+                            {ingredient.displayOnBYOS
+                              ? `$${getByosEffectivePrice(
+                                  ingredient.byosName || ingredient.name,
+                                  ingredient.byosCategory,
+                                  ingredient.byosPrice,
+                                ).toFixed(2)}`
+                              : '-'}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-3 align-top">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            value={draft.byosSortOrder}
+                            disabled={!draft.displayOnBYOS}
+                            onChange={(event) => updateDraft(ingredient.id, { byosSortOrder: event.target.value })}
+                            className={compactInput}
+                          />
+                        ) : (
+                          <span className="text-slate-600">{ingredient.displayOnBYOS ? ingredient.byosSortOrder || 999 : '-'}</span>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-3 align-top">
+                        {isEditing ? (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => saveIngredient(ingredient.id)}
+                              disabled={savingId === ingredient.id}
+                              className="admin-action-button admin-action-button--primary admin-action-button--compact disabled:opacity-50"
+                            >
+                              <Save className="h-4 w-4" />
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => cancelEdit(ingredient.id)}
+                              className="admin-action-button admin-action-button--compact"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(ingredient)}
+                              className="admin-action-button admin-action-button--compact"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Delete ${ingredient.name}? This cannot be undone.`)) {
+                                  removeIngredient(ingredient.id)
+                                }
+                              }}
+                              className="admin-action-button admin-action-button--danger admin-action-button--compact"
+                              aria-label={`Delete ${ingredient.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </button>
                           </div>
                         )}
-                      </div>
-                      <div className="flex shrink-0 gap-2">
-                        <button onClick={() => handleEdit(ingredient)} className="text-sm font-medium text-blue-600 hover:text-blue-800">
-                          Edit
-                        </button>
-                        <button onClick={() => removeIngredient(ingredient.id)} className="text-sm font-medium text-red-600 hover:text-red-800">
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
-        ))
-      )}
+        )}
+      </div>
     </div>
   )
 }
